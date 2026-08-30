@@ -42,6 +42,23 @@ export function AppProviders({ children }) {
     return () => document.removeEventListener('click', navigateInternalLink, true);
   }, []);
 
+  useEffect(() => {
+    if (!ready) return;
+    const path = window.location.pathname;
+    if (!session?.token && path === '/role') {
+      window.location.replace('/login');
+      return;
+    }
+    if (!session?.token) return;
+    if (path === '/login' || path === '/register') {
+      window.location.replace(session.user?.role ? '/dashboard' : '/role');
+      return;
+    }
+    if (path === '/reset-password' || (path === '/role' && session.user?.role)) {
+      window.location.replace('/dashboard');
+    }
+  }, [ready, session]);
+
   const setSession = ({ token, user }) => {
     localStorage.setItem('taskora-token', token); localStorage.setItem('taskora-user', JSON.stringify(user)); setSessionState({ token, user });
   };

@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { ArrowLeft, BriefcaseBusiness, CheckCircle2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
 import { createProject } from '@/lib/api';
@@ -10,7 +9,6 @@ import { createProject } from '@/lib/api';
 export default function NewProjectPage() {
   const { language, session } = useApp();
   const uz = language === 'uz';
-  const router = useRouter();
   const [form, setForm] = useState({ title: '', description: '', category: 'development', budget_min: '', budget_max: '', skills: '', client_name: session?.user?.full_name || '', client_company: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,7 +17,7 @@ export default function NewProjectPage() {
     event.preventDefault(); setLoading(true); setError('');
     try {
       const created = await createProject({ ...form, skills: form.skills.split(',').map((skill) => skill.trim()).filter(Boolean), budget_min: Number(form.budget_min), budget_max: Number(form.budget_max), status: 'active' }, session?.token);
-      router.push(`/projects/${created.id}`);
+      window.location.assign(`/projects/${created.id}`);
     } catch (requestError) { setError(requestError.message); }
     finally { setLoading(false); }
   }
