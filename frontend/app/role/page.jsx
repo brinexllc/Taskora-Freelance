@@ -17,7 +17,7 @@ export default function RolePage() {
   async function submit() {
     if (!session?.token) { router.replace('/login'); return; }
     setLoading(true); setError('');
-    try { const user = await setRole(role, session.token); updateUser(user); router.replace('/'); }
+    try { const user = await setRole(role, session.token); updateUser(user); router.replace('/dashboard'); }
     catch (err) { setError(err.message); } finally { setLoading(false); }
   }
   return <AuthShell wide>

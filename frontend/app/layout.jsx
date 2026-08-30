@@ -6,8 +6,8 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['cyrillic', '
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['cyrillic', 'latin'] });
 
 export const metadata = {
-  title: 'Taskora — проекты для талантливых специалистов',
-  description: 'Платформа для поиска фриланс-проектов и сильных специалистов.',
+  title: 'Taskora — O‘zbekiston freelance platformasi',
+  description: 'O‘zbekistondagi frilanserlar va buyurtmachilar uchun ishonchli, xavfsiz va qulay platforma.',
 };
 
 export default function RootLayout({ children }) {

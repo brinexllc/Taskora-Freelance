@@ -22,7 +22,7 @@ export function AppProviders({ children }) {
     }).finally(() => setReady(true));
   }); }, []);
 
-  useEffect(() => { localStorage.setItem('taskora-language', language); document.documentElement.lang = language; }, [language]);
+  useEffect(() => { if (!ready) return; localStorage.setItem('taskora-language', language); document.documentElement.lang = language; }, [language, ready]);
   const setSession = ({ token, user }) => {
     localStorage.setItem('taskora-token', token); localStorage.setItem('taskora-user', JSON.stringify(user)); setSessionState({ token, user });
   };

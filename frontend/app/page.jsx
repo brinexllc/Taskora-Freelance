@@ -1,372 +1,58 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import {
-  ArrowUpRight,
-  Bell,
-  Bookmark,
-  BriefcaseBusiness,
-  Check,
-  ChevronRight,
-  CircleDollarSign,
-  Clock3,
-  Code2,
-  Layers3,
-  Menu,
-  MessageCircle,
-  Palette,
-  Search,
-  SlidersHorizontal,
-  Sparkles,
-  Star,
-  Target,
-  TrendingUp,
-  Users,
-  X,
-} from 'lucide-react';
-
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { fetchProjects, logout } from '@/lib/api';
+import { ArrowRight, BarChart3, CheckCircle2, Code2, Languages, Megaphone, Moon, Palette, PenTool, ShieldCheck, Sparkles, Sun, Users, Video, WandSparkles } from 'lucide-react';
+import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
 
-const categoryLabels = {
-  development: 'Разработка',
-  design: 'Дизайн',
-  marketing: 'Маркетинг',
-  writing: 'Тексты',
-  other: 'Другое',
+const text = {
+  uz: {
+    nav: ['Bosh sahifa', 'Qanday ishlaydi', 'Yo‘nalishlar', 'Biz haqimizda'], login: 'Kirish', start: 'Boshlash',
+    eyebrow: 'O‘zbekistonning ishonchli freelance platformasi', hero1: 'Frilanser topish hech qachon', hero2: 'bu qadar oson bo‘lmagan',
+    heroText: 'Ishonchli mutaxassislarni toping yoki o‘z mahoratingiz bilan daromad oling. Hammasi bir joyda — tez, xavfsiz va qulay.',
+    findTalent: 'Mutaxassis topish', findWork: 'Ish topish', projects: 'muvaffaqiyatli loyiha', freelancers: 'malakali frilanser', satisfaction: 'mijozlar mamnunligi',
+    trusted: 'Ishonchli platforma.', trusted2: 'Frilanserlar va mijozlar uchun O‘zbekiston bozori uchun yaratilgan.',
+    secureTitle: 'To‘liq xavfsiz va ishonchli', secureText: 'Har bir bosqichda mablag‘ va ma’lumotlaringiz himoyalangan.',
+    features: [['Xavfsiz to‘lov', 'To‘lov faqat ishni qabul qilganingizdan so‘ng ijrochiga o‘tadi.'], ['Tekshirilgan profillar', 'Reytinglar, portfolio va tasdiqlangan ma’lumotlar to‘g‘ri tanlovga yordam beradi.'], ['Doimiy yordam', 'Taskora jamoasi savollaringizga tezkor javob beradi.']],
+    how: '3 qadamda boshlang', howSub: 'Loyihangizni amalga oshirish oson', steps: [['01', 'Vazifani joylang', 'Talab va byudjetni bir necha daqiqada kiriting.'], ['02', 'Takliflarni tanlang', 'Portfolio va reytingni solishtirib, mos ijrochini toping.'], ['03', 'Natijani oling', 'Xavfsiz to‘lov orqali ishni qabul qiling.']],
+    categories: 'AI tomonidan tanlab olingan yo‘nalishlar', categoriesSub: 'Eng talabgir mutaxassisliklarni ko‘rib chiqing',
+    categoryNames: ['Dasturlash', 'UI/UX dizayn', 'Marketing', 'Matn yozish', 'Video montaj', 'SMM', 'Biznes tahlil', 'AI xizmatlari'],
+    cta: 'Bugun boshlang', ctaText: 'G‘oyangizni tajribali mutaxassislar bilan haqiqatga aylantiring.', footer: 'O‘zbekistondagi freelancerlar va mijozlarni birlashtiruvchi platforma.', rights: 'Barcha huquqlar himoyalangan.',
+  },
+  ru: {
+    nav: ['Главная', 'Как это работает', 'Направления', 'О нас'], login: 'Войти', start: 'Начать',
+    eyebrow: 'Надёжная фриланс-платформа Узбекистана', hero1: 'Найти фрилансера ещё никогда', hero2: 'не было так просто',
+    heroText: 'Находите проверенных специалистов или зарабатывайте на своих навыках. Всё в одном месте — быстро, безопасно и удобно.',
+    findTalent: 'Найти специалиста', findWork: 'Найти работу', projects: 'успешных проектов', freelancers: 'проверенных фрилансеров', satisfaction: 'довольных клиентов',
+    trusted: 'Платформа доверия.', trusted2: 'Создана для фрилансеров и заказчиков с учётом рынка Узбекистана.',
+    secureTitle: 'Безопасность и доверие', secureText: 'Ваши данные и оплата защищены на каждом этапе работы.',
+    features: [['Безопасная оплата', 'Исполнитель получает оплату только после принятия результата.'], ['Проверенные профили', 'Рейтинги, портфолио и подтверждённые данные помогают сделать выбор.'], ['Поддержка рядом', 'Команда Taskora оперативно поможет с любым вопросом.']],
+    how: 'Начните за 3 шага', howSub: 'Запустить проект действительно просто', steps: [['01', 'Опубликуйте задачу', 'Опишите требования и бюджет за несколько минут.'], ['02', 'Выберите предложение', 'Сравните портфолио и рейтинги исполнителей.'], ['03', 'Получите результат', 'Примите работу через безопасную оплату.']],
+    categories: 'Направления, подобранные AI', categoriesSub: 'Откройте самые востребованные специальности',
+    categoryNames: ['Разработка', 'UI/UX дизайн', 'Маркетинг', 'Копирайтинг', 'Видеомонтаж', 'SMM', 'Бизнес-анализ', 'AI-услуги'],
+    cta: 'Начните сегодня', ctaText: 'Воплотите идею в жизнь вместе с опытными специалистами.', footer: 'Платформа, объединяющая фрилансеров и заказчиков Узбекистана.', rights: 'Все права защищены.',
+  },
 };
 
-const demoProjects = [
-  {
-    id: 'demo-1',
-    title: 'Лендинг для нового финтех-продукта',
-    description:
-      'Ищем разработчика, который соберёт быстрый адаптивный лендинг по готовому дизайну и подключит форму заявки.',
-    category: 'development',
-    budget_min: '1200.00',
-    budget_max: '1800.00',
-    skills: ['React', 'Next.js', 'Tailwind'],
-    client_name: 'Алексей Морозов',
-    client_company: 'NorthPay',
-    proposal_count: 8,
-    created_at: new Date(Date.now() - 1000 * 60 * 34).toISOString(),
-    featured: true,
-  },
-  {
-    id: 'demo-2',
-    title: 'Айдентика для кофейного бренда',
-    description:
-      'Нужны логотип, базовая система упаковки и компактный брендбук для сети кофеен нового формата.',
-    category: 'design',
-    budget_min: '850.00',
-    budget_max: '1200.00',
-    skills: ['Figma', 'Branding', 'Illustrator'],
-    client_name: 'Дарья Волкова',
-    client_company: 'Soma Coffee',
-    proposal_count: 14,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-  },
-  {
-    id: 'demo-3',
-    title: 'SEO-стратегия для SaaS-сервиса',
-    description:
-      'Провести аудит, собрать семантическое ядро и подготовить дорожную карту роста на ближайшие шесть месяцев.',
-    category: 'marketing',
-    budget_min: '700.00',
-    budget_max: '950.00',
-    skills: ['SEO', 'Analytics', 'Strategy'],
-    client_name: 'Михаил Ким',
-    client_company: 'Flowdesk',
-    proposal_count: 5,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-  },
-];
+const categoryIcons = [Code2, Palette, Megaphone, PenTool, Video, Users, BarChart3, WandSparkles];
 
-const categories = [
-  { value: 'all', label: 'Все проекты', icon: Layers3 },
-  { value: 'development', label: 'Разработка', icon: Code2 },
-  { value: 'design', label: 'Дизайн', icon: Palette },
-  { value: 'marketing', label: 'Маркетинг', icon: TrendingUp },
-];
-
-function formatBudget(project) {
-  const minimum = Number(project.budget_min).toLocaleString('ru-RU');
-  const maximum = Number(project.budget_max).toLocaleString('ru-RU');
-  return `$${minimum} – $${maximum}`;
+export default function LandingPage() {
+  const { language, setLanguage } = useApp(); const t = text[language]; const [dark, setDark] = useState(false);
+  return <div className={`figma-site ${dark ? 'figma-dark' : ''}`}>
+    <header className="figma-header"><div className="figma-shell figma-header-inner"><Logo />
+      <nav>{t.nav.map((item, i) => <a key={item} href={['#top', '#how', '#categories', '#about'][i]}>{item}</a>)}</nav>
+      <div className="figma-header-actions"><button className="figma-icon-button" onClick={() => setLanguage(language === 'uz' ? 'ru' : 'uz')} aria-label="Til / Язык"><Languages /> <span>{language.toUpperCase()}</span></button><button className="figma-icon-button only-icon" onClick={() => setDark(!dark)} aria-label={dark ? 'Light theme' : 'Dark theme'}>{dark ? <Sun /> : <Moon />}</button><Link className="figma-login" href="/login">{t.login}</Link><Link className="figma-button small" href="/register">{t.start}</Link></div>
+    </div></header>
+    <main id="top">
+      <section className="figma-hero"><div className="figma-shell"><div className="figma-kicker"><Sparkles />{t.eyebrow}</div><h1>{t.hero1}<br/><em>{t.hero2}</em></h1><p>{t.heroText}</p><div className="figma-hero-actions"><Link className="figma-button" href="/register">{t.findTalent}<ArrowRight /></Link><Link className="figma-button secondary" href="/register">{t.findWork}</Link></div><div className="figma-stats"><div><b>12 000+</b><span>{t.projects}</span></div><div><b>4 500+</b><span>{t.freelancers}</span></div><div><b>96%</b><span>{t.satisfaction}</span></div></div></div></section>
+      <section className="figma-trust" id="about"><div className="figma-trust-mark"><ShieldCheck /></div><h2>{t.trusted}<br/>{t.trusted2}</h2></section>
+      <section className="figma-section"><div className="figma-shell"><div className="figma-section-heading"><span>TASKORA PLATFORMASI</span><h2>{t.secureTitle}</h2><p>{t.secureText}</p></div><div className="figma-feature-grid">{t.features.map((feature, i) => <article key={feature[0]}><span>0{i + 1}</span><CheckCircle2 /><h3>{feature[0]}</h3><p>{feature[1]}</p></article>)}</div></div></section>
+      <section className="figma-section figma-steps-section" id="how"><div className="figma-shell"><div className="figma-section-heading"><span>QANDAY ISHLAYDI</span><h2>{t.how}</h2><p>{t.howSub}</p></div><div className="figma-steps">{t.steps.map((step) => <article key={step[0]}><b>{step[0]}</b><h3>{step[1]}</h3><p>{step[2]}</p></article>)}</div></div></section>
+      <section className="figma-section" id="categories"><div className="figma-shell"><div className="figma-section-heading"><span>TOP YO‘NALISHLAR</span><h2>{t.categories}</h2><p>{t.categoriesSub}</p></div><div className="figma-category-grid">{t.categoryNames.map((name, i) => { const Icon = categoryIcons[i]; return <Link key={name} href={`/dashboard?category=${i}`}><Icon/><h3>{name}</h3><span>120+ {language === 'uz' ? 'mutaxassis' : 'специалистов'}</span><ArrowRight/></Link>; })}</div></div></section>
+      <section className="figma-shell figma-cta"><div><span>TASKORA BILAN</span><h2>{t.cta}</h2><p>{t.ctaText}</p></div><Link className="figma-button white" href="/register">{t.start}<ArrowRight/></Link></section>
+    </main>
+    <footer className="figma-footer"><div className="figma-shell"><div><Logo/><p>{t.footer}</p></div><div><b>Platforma</b><a href="#how">{t.nav[1]}</a><a href="#categories">{t.nav[2]}</a></div><div><b>Hisob / Аккаунт</b><Link href="/login">{t.login}</Link><Link href="/register">{t.start}</Link></div></div><p className="figma-copy">© 2026 Taskora. {t.rights}</p></footer>
+  </div>;
 }
 
-function timeAgo(date) {
-  const hours = Math.max(1, Math.floor((Date.now() - new Date(date)) / 3600000));
-  if (hours < 24) return `${hours} ч назад`;
-  return `${Math.floor(hours / 24)} дн назад`;
-}
-
-function ProjectCard({ project, saved, onSave }) {
-  return (
-    <article className="project-card group">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <Badge className="category-badge" variant="secondary">
-              {categoryLabels[project.category] || 'Проект'}
-            </Badge>
-            {project.featured && (
-              <span className="featured-label">
-                <Sparkles aria-hidden="true" /> Рекомендуем
-              </span>
-            )}
-          </div>
-          <h3 className="project-title">{project.title}</h3>
-        </div>
-        <Button
-          aria-label={saved ? 'Удалить из сохранённых' : 'Сохранить проект'}
-          className={saved ? 'save-button is-saved' : 'save-button'}
-          onClick={() => onSave(project.id)}
-          size="icon"
-          variant="ghost"
-        >
-          <Bookmark fill={saved ? 'currentColor' : 'none'} />
-        </Button>
-      </div>
-
-      <p className="project-description">{project.description}</p>
-
-      <div className="mb-6 flex flex-wrap gap-2">
-        {project.skills.map((skill) => (
-          <span className="skill-chip" key={skill}>{skill}</span>
-        ))}
-      </div>
-
-      <div className="project-footer">
-        <div>
-          <p className="budget-label">Бюджет проекта</p>
-          <p className="budget-value">{formatBudget(project)}</p>
-        </div>
-        <div className="project-meta">
-          <span><Clock3 /> {timeAgo(project.created_at)}</span>
-          <span><Users /> {project.proposal_count} откликов</span>
-        </div>
-        <Button className="details-button" size="lg">
-          Подробнее <ArrowUpRight aria-hidden="true" />
-        </Button>
-      </div>
-    </article>
-  );
-}
-
-export default function Home() {
-  const { language, setLanguage, session, clearSession } = useApp();
-  const signOut = async () => { try { if (session?.token) await logout(session.token); } finally { clearSession(); } };
-  const [projects, setProjects] = useState(demoProjects);
-  const [category, setCategory] = useState('all');
-  const [query, setQuery] = useState('');
-  const [saved, setSaved] = useState(new Set());
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [apiState, setApiState] = useState('loading');
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    fetchProjects({ signal: controller.signal })
-      .then((results) => {
-        setProjects(results);
-        setApiState('connected');
-      })
-      .catch((error) => {
-        if (error.name !== 'AbortError') setApiState('demo');
-      });
-
-    return () => controller.abort();
-  }, []);
-
-  const filteredProjects = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return projects.filter((project) => {
-      const matchesCategory = category === 'all' || project.category === category;
-      const searchable = `${project.title} ${project.description} ${project.skills.join(' ')}`.toLowerCase();
-      return matchesCategory && searchable.includes(normalizedQuery);
-    });
-  }, [category, projects, query]);
-
-  const toggleSaved = (projectId) => {
-    setSaved((current) => {
-      const next = new Set(current);
-      if (next.has(projectId)) next.delete(projectId);
-      else next.add(projectId);
-      return next;
-    });
-  };
-
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="site-header">
-        <div className="shell flex h-full items-center justify-between gap-5">
-          <Link aria-label="Taskora — главная" className="brand" href="/">
-            <span className="brand-mark"><span /><span /></span>
-            <span>taskora</span>
-          </Link>
-
-          <nav aria-label="Главная навигация" className="desktop-nav">
-            <a className="active" href="#projects">{language === 'uz' ? 'Loyiha topish' : 'Найти проект'}</a>
-            <a href="#how-it-works">{language === 'uz' ? 'Qanday ishlaydi' : 'Как это работает'}</a>
-            <a href="#talents">{language === 'uz' ? 'Mutaxassislar' : 'Специалисты'}</a>
-          </nav>
-
-          <div className="header-actions">
-            <Button aria-label="Уведомления" className="notification-button" size="icon" variant="ghost">
-              <Bell /><span className="notification-dot" />
-            </Button>
-            <div className="hidden items-center gap-1 sm:flex"><button className={`text-xs ${language === 'uz' ? 'font-bold' : ''}`} onClick={() => setLanguage('uz')}>UZ</button><span>/</span><button className={`text-xs ${language === 'ru' ? 'font-bold' : ''}`} onClick={() => setLanguage('ru')}>RU</button></div>
-            {session?.user ? <Button className="outline-action hidden sm:inline-flex" variant="outline" onClick={signOut}>{language === 'uz' ? 'Chiqish' : 'Выйти'}</Button> : <Link href="/login" className="outline-action hidden sm:inline-flex">{language === 'uz' ? 'Kirish' : 'Войти'}</Link>}
-            <Link href={session?.user ? '#projects' : '/register'} className="primary-action hidden sm:inline-flex">{language === 'uz' ? 'Loyiha joylash' : 'Разместить проект'}</Link>
-            <Button
-              aria-label="Открыть меню"
-              className="mobile-menu-button md:hidden"
-              onClick={() => setMobileOpen((open) => !open)}
-              size="icon"
-              variant="ghost"
-            >
-              {mobileOpen ? <X /> : <Menu />}
-            </Button>
-          </div>
-        </div>
-        {mobileOpen && (
-          <nav aria-label="Мобильная навигация" className="mobile-nav">
-            <a href="#projects">Найти проект</a>
-            <a href="#how-it-works">Как это работает</a>
-            <a href="#talents">Специалисты</a>
-            <Button className="primary-action">Разместить проект</Button>
-          </nav>
-        )}
-      </header>
-
-      <main>
-        <section className="welcome-section">
-          <div className="shell welcome-grid">
-            <div className="welcome-copy">
-              <span className="eyebrow"><Sparkles /> Возможности рядом</span>
-              <h1>Найдите проект,<br />который <em>вдохновляет.</em></h1>
-              <p>Свежие задачи от проверенных заказчиков — под ваш опыт, темп и амбиции.</p>
-              <search className="hero-search">
-                <Search aria-hidden="true" />
-                <Input
-                  aria-label="Поиск проектов"
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Навык, должность или ключевое слово"
-                  value={query}
-                />
-                <Button className="primary-action" onClick={() => document.querySelector('#projects')?.scrollIntoView({ behavior: 'smooth' })}>
-                  Найти
-                </Button>
-              </search>
-              <p className="popular-searches"><span>Популярное:</span> React · Web design · Копирайтинг</p>
-            </div>
-
-            <div aria-label="Статистика платформы" className="hero-visual">
-              <div className="visual-orbit orbit-one" />
-              <div className="visual-orbit orbit-two" />
-              <div className="hero-card hero-card-main">
-                <div className="hero-icon-wrap"><Target /></div>
-                <span>Подобрано для вас</span>
-                <strong>24 проекта</strong>
-                <div className="match-row">
-                  <div className="avatar-stack" aria-hidden="true"><i>AK</i><i>MS</i><i>+</i></div>
-                  <small>Совпадение от 86%</small>
-                </div>
-              </div>
-              <div className="hero-card floating-card top-card"><Star fill="currentColor" /><span><strong>4.9</strong> рейтинг</span></div>
-              <div className="hero-card floating-card bottom-card"><div className="pulse-dot" /><span><strong>128</strong> новых сегодня</span></div>
-            </div>
-          </div>
-        </section>
-
-        <section className="project-section" id="projects">
-          <div className="shell content-grid">
-            <div className="projects-column">
-              <div className="section-heading">
-                <div>
-                  <span className="status-line">
-                    <span className={apiState === 'connected' ? 'status-dot online' : 'status-dot'} />
-                    {apiState === 'connected'
-                      ? 'Данные из PostgreSQL'
-                      : apiState === 'loading'
-                        ? 'Подключение к API'
-                        : 'Демо-режим — API недоступен'}
-                  </span>
-                  <h2>Проекты для вас</h2>
-                  <p>Подборка обновляется по мере появления новых задач</p>
-                </div>
-                <Button className="filter-button" variant="outline"><SlidersHorizontal /> Фильтры</Button>
-              </div>
-
-              <div className="category-tabs" role="tablist" aria-label="Категории проектов">
-                {categories.map(({ value, label, icon: Icon }) => (
-                  <button
-                    aria-selected={category === value}
-                    className={category === value ? 'category-tab active' : 'category-tab'}
-                    key={value}
-                    onClick={() => setCategory(value)}
-                    role="tab"
-                    type="button"
-                  >
-                    <Icon /> {label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="project-list">
-                {filteredProjects.map((project) => (
-                  <ProjectCard key={project.id} onSave={toggleSaved} project={project} saved={saved.has(project.id)} />
-                ))}
-                {!filteredProjects.length && (
-                  <div className="empty-state">
-                    <Search /><h3>Ничего не найдено</h3>
-                    <p>Попробуйте изменить запрос или выбрать другую категорию.</p>
-                    <Button onClick={() => { setQuery(''); setCategory('all'); }} variant="outline">Сбросить фильтры</Button>
-                  </div>
-                )}
-              </div>
-
-              <Button className="load-more" variant="outline">Показать больше проектов <ChevronRight /></Button>
-            </div>
-
-            <aside className="dashboard-sidebar">
-              <div className="side-card profile-card">
-                <div className="profile-topline">
-                  <div className="profile-avatar">АЗ</div>
-                  <div><strong>Азиза Юлдашева</strong><span>Frontend-разработчик</span></div>
-                  <Button aria-label="Открыть профиль" size="icon" variant="ghost"><ArrowUpRight /></Button>
-                </div>
-                <div className="progress-heading"><span>Профиль заполнен</span><strong>78%</strong></div>
-                <div className="progress-track"><span /></div>
-                <p>Добавьте 2 проекта в портфолио, чтобы получать больше приглашений.</p>
-                <Button className="w-full" variant="outline">Улучшить профиль</Button>
-              </div>
-
-              <div className="side-card activity-card">
-                <div className="side-title">
-                  <div><span>На этой неделе</span><h3>Ваша активность</h3></div><TrendingUp />
-                </div>
-                <div className="activity-grid">
-                  <div><BriefcaseBusiness /><strong>12</strong><span>Просмотров</span></div>
-                  <div><MessageCircle /><strong>4</strong><span>Отклика</span></div>
-                  <div><CircleDollarSign /><strong>$640</strong><span>Заработано</span></div>
-                </div>
-              </div>
-
-              <div className="tip-card">
-                <div className="tip-icon"><Sparkles /></div>
-                <div><strong>Совет дня</strong><p>Персональный отклик получает ответ в 2,4 раза чаще.</p></div>
-                <Check />
-              </div>
-            </aside>
-          </div>
-        </section>
-      </main>
-    </div>
-  );
-}
+function Logo() { return <Link className="figma-logo" href="/"><span><i/><i/><i/><i/><i/><i/><i/><i/></span>Taskora</Link>; }
