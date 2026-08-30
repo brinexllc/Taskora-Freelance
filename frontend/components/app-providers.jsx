@@ -23,6 +23,25 @@ export function AppProviders({ children }) {
   }); }, []);
 
   useEffect(() => { if (!ready) return; localStorage.setItem('taskora-language', language); document.documentElement.lang = language; }, [language, ready]);
+
+  useEffect(() => {
+    function navigateInternalLink(event) {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (!(event.target instanceof Element)) return;
+      const anchor = event.target.closest('a[href]');
+      if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) return;
+      const href = anchor.getAttribute('href');
+      if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+      const destination = new URL(href, window.location.href);
+      if (destination.origin !== window.location.origin) return;
+      event.preventDefault();
+      window.location.assign(destination.href);
+    }
+
+    document.addEventListener('click', navigateInternalLink, true);
+    return () => document.removeEventListener('click', navigateInternalLink, true);
+  }, []);
+
   const setSession = ({ token, user }) => {
     localStorage.setItem('taskora-token', token); localStorage.setItem('taskora-user', JSON.stringify(user)); setSessionState({ token, user });
   };
