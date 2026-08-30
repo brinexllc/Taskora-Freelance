@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   ArrowUpRight,
   Bell,
@@ -28,6 +29,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { fetchProjects } from '@/lib/api';
 
 const categoryLabels = {
   development: 'Разработка',
@@ -164,18 +166,18 @@ export default function Home() {
   const [apiState, setApiState] = useState('loading');
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
-    fetch(`${apiUrl}/projects/`)
-      .then((response) => {
-        if (!response.ok) throw new Error('API unavailable');
-        return response.json();
-      })
-      .then((data) => {
-        const results = Array.isArray(data) ? data : data.results;
-        if (results?.length) setProjects(results);
+    const controller = new AbortController();
+
+    fetchProjects({ signal: controller.signal })
+      .then((results) => {
+        setProjects(results);
         setApiState('connected');
       })
-      .catch(() => setApiState('demo'));
+      .catch((error) => {
+        if (error.name !== 'AbortError') setApiState('demo');
+      });
+
+    return () => controller.abort();
   }, []);
 
   const filteredProjects = useMemo(() => {
@@ -200,10 +202,10 @@ export default function Home() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="site-header">
         <div className="shell flex h-full items-center justify-between gap-5">
-          <a aria-label="Taskora — главная" className="brand" href="#">
+          <Link aria-label="Taskora — главная" className="brand" href="/">
             <span className="brand-mark"><span /><span /></span>
             <span>taskora</span>
-          </a>
+          </Link>
 
           <nav aria-label="Главная навигация" className="desktop-nav">
             <a className="active" href="#projects">Найти проект</a>
@@ -245,7 +247,7 @@ export default function Home() {
               <span className="eyebrow"><Sparkles /> Возможности рядом</span>
               <h1>Найдите проект,<br />который <em>вдохновляет.</em></h1>
               <p>Свежие задачи от проверенных заказчиков — под ваш опыт, темп и амбиции.</p>
-              <div className="hero-search" role="search">
+              <search className="hero-search">
                 <Search aria-hidden="true" />
                 <Input
                   aria-label="Поиск проектов"
@@ -256,7 +258,7 @@ export default function Home() {
                 <Button className="primary-action" onClick={() => document.querySelector('#projects')?.scrollIntoView({ behavior: 'smooth' })}>
                   Найти
                 </Button>
-              </div>
+              </search>
               <p className="popular-searches"><span>Популярное:</span> React · Web design · Копирайтинг</p>
             </div>
 
@@ -285,7 +287,11 @@ export default function Home() {
                 <div>
                   <span className="status-line">
                     <span className={apiState === 'connected' ? 'status-dot online' : 'status-dot'} />
-                    {apiState === 'connected' ? 'Данные из PostgreSQL' : 'Актуальные проекты'}
+                    {apiState === 'connected'
+                      ? 'Данные из PostgreSQL'
+                      : apiState === 'loading'
+                        ? 'Подключение к API'
+                        : 'Демо-режим — API недоступен'}
                   </span>
                   <h2>Проекты для вас</h2>
                   <p>Подборка обновляется по мере появления новых задач</p>
