@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = 'http://127.0.0.1:8000/api';
+const DEFAULT_API_URL = 'https://taskora-freelance-production.up.railway.app/api';
 
 export const API_URL = (
   process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL
@@ -32,6 +32,10 @@ export async function fetchProjects({ signal } = {}) {
   const payload = await apiRequest('projects', { signal });
   return Array.isArray(payload) ? payload : (payload.results ?? []);
 }
+
+export const fetchProject = (id, { signal } = {}) => apiRequest(`projects/${id}`, { signal });
+export const createProject = (body, token) => apiRequest('projects', { method: 'POST', body, token });
+export const createProposal = (body, token) => apiRequest('proposals', { method: 'POST', body, token });
 
 export const register = (body) => apiRequest('auth/register', { method: 'POST', body });
 export const login = (body) => apiRequest('auth/login', { method: 'POST', body });

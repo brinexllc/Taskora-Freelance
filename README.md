@@ -38,6 +38,7 @@ pnpm dev
 | `DATABASE_URL` | PostgreSQL URL; при пустом значении используется SQLite | пусто |
 | `DATABASE_SSL_REQUIRE` | Требовать TLS для PostgreSQL | `false` локально |
 | `CORS_ALLOWED_ORIGINS` | Frontend origins через запятую | `http://localhost:3000` |
+| `CORS_ALLOW_ALL_ORIGINS` | Разрешить запросы с Railway frontend; production-default `true`, API использует Token auth без cookies | `false` локально |
 | `CSRF_TRUSTED_ORIGINS` | Доверенные origins через запятую | `http://localhost:3000` |
 | `DJANGO_SECURE_SSL_REDIRECT` | HTTPS redirect; по умолчанию выключен для безопасности за Railway proxy | `false` |
 
@@ -65,6 +66,7 @@ DJANGO_ALLOWED_HOSTS=taskora-freelance-production.up.railway.app
 DATABASE_URL=<Railway-PostgreSQL-connection-URL>
 DATABASE_SSL_REQUIRE=true
 CORS_ALLOWED_ORIGINS=https://FRONTEND-DOMAIN
+CORS_ALLOW_ALL_ORIGINS=true
 CSRF_TRUSTED_ORIGINS=https://FRONTEND-DOMAIN
 ```
 
@@ -73,8 +75,9 @@ CSRF_TRUSTED_ORIGINS=https://FRONTEND-DOMAIN
 ## Railway Frontend Deployment
 
 - Root Directory: `/frontend`
-- Build Command: `pnpm install --frozen-lockfile && pnpm run build`
-- Start Command: `pnpm start`
+- Builder: `Dockerfile` (файл `frontend/Dockerfile` рассчитан на Root Directory `/frontend`)
+- Build Command (если Dockerfile отключён): `pnpm install --frozen-lockfile && pnpm run build`
+- Start Command (если Dockerfile отключён): `pnpm start`
 
 Railway Variable (должна быть доступна на build этапе):
 
@@ -91,7 +94,7 @@ Vinext собирает standalone Node.js server в `dist/standalone`, а `pnpm
 - Projects: https://taskora-freelance-production.up.railway.app/api/projects/
 - Proposals: https://taskora-freelance-production.up.railway.app/api/proposals/
 - Health: https://taskora-freelance-production.up.railway.app/api/health/
-- Frontend: добавьте Railway domain после создания frontend-сервиса и внесите его в backend `CORS_ALLOWED_ORIGINS` и `CSRF_TRUSTED_ORIGINS`.
+- Frontend: добавьте Railway domain после создания frontend-сервиса. Для фиксированного домена можно установить `CORS_ALLOW_ALL_ORIGINS=false` и внести frontend URL в `CORS_ALLOWED_ORIGINS`; для generated/preview domains оставьте `CORS_ALLOW_ALL_ORIGINS=true`.
 
 ## Validation
 

@@ -1,6 +1,7 @@
 import re
 
 from django.core import mail
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -120,3 +121,20 @@ class AuthenticationApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(PasswordResetCode.objects.filter(used_at__isnull=False).count(), 1)
+
+
+class ProductionCorsTests(APITestCase):
+    @override_settings(CORS_ALLOW_ALL_ORIGINS=True)
+    def test_preflight_allows_railway_frontend(self):
+        response = self.client.options(
+            "/api/auth/login/",
+            HTTP_ORIGIN="https://taskora-frontend-production.up.railway.app",
+            HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
+            HTTP_ACCESS_CONTROL_REQUEST_HEADERS="content-type,authorization",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.headers["Access-Control-Allow-Origin"],
+            "*",
+        )
+        self.assertIn("POST", response.headers["Access-Control-Allow-Methods"])

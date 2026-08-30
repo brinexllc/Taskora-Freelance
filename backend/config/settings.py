@@ -119,6 +119,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 local_origins = "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001"
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", local_origins if DEBUG else "")
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", local_origins if DEBUG else "")
+CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", not DEBUG)
 CORS_ALLOW_CREDENTIALS = False
 
 REST_FRAMEWORK = {

@@ -1,0 +1,14 @@
+.git
+.venv
+.env
+.env.*
+!.env.example
+**/node_modules
+frontend/.next
+frontend/.vinext
+frontend/dist
+frontend/.wrangler
+backend/staticfiles
+**/__pycache__
+*.sqlite3
+*.log
