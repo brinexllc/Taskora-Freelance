@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {
   Bell, BriefcaseBusiness, CheckCircle2, Clock3, Home, LogOut, Mail, Menu,
-  MessageSquare, Search, Settings, ShieldCheck, SlidersHorizontal, Star,
+  MessageSquare, Search, Settings, ShieldCheck, SlidersHorizontal, Sparkles, Star,
   UserRound, Wallet, X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -30,9 +30,9 @@ const labels = {
 };
 
 const fallbackProjects = [
-  { id: 1, title: 'Landing Page dizayni', category: 'design', description: 'Fintech mahsuloti uchun zamonaviy va mobilga mos landing page.', budget_min: '1000000', budget_max: '3000000', skills: ['UI/UX', 'Figma'], proposal_count: 6 },
-  { id: 2, title: 'Instagram uchun 10 ta post dizayni', category: 'marketing', description: 'Yangi brend uchun yagona uslubdagi ijtimoiy tarmoq postlari.', budget_min: '800000', budget_max: '1500000', skills: ['SMM', 'Design'], proposal_count: 4 },
-  { id: 3, title: 'Ikki tilli korporativ sayt yaratish', category: 'development', description: 'Kompaniya uchun tezkor, ikki tilli korporativ web-sayt.', budget_min: '3000000', budget_max: '5000000', skills: ['React', 'Django'], proposal_count: 9 },
+  { id: 1, title: 'E-commerce sayt ishlab chiqish', category: 'development', category_label: 'Web Frontend', description: 'Zamonaviy React asosidagi onlayn do‘kon frontendini ishlab chiqish.', budget_min: '500', budget_max: '800', skills: ['React', 'Middle'], client_name: 'Alisher T.', featured: true, proposal_count: 6 },
+  { id: 2, title: 'Mobile app UI dizayn', category: 'design', category_label: 'UI/UX', description: 'Fintech mobil ilovasi uchun qulay va zamonaviy interfeys dizayni.', budget_min: '200', budget_max: '400', skills: ['Figma', 'Junior'], client_name: 'Malika A.', proposal_count: 4 },
+  { id: 3, title: 'Telegram bot yaratish', category: 'development', category_label: 'Backend', description: 'Buyurtmalarni qabul qiluvchi va boshqaruvchi Telegram bot.', budget_min: '300', budget_max: '600', skills: ['Python', 'Middle'], client_name: 'Sardor A.', proposal_count: 9 },
 ];
 
 export default function DashboardPage() {
@@ -49,11 +49,15 @@ export default function DashboardPage() {
   useEffect(() => {
     const controller = new AbortController();
     void Promise.resolve().then(() => {
-      const selectedCategory = new URLSearchParams(window.location.search).get('category');
-    const categories = ['development', 'design', 'marketing', 'writing', 'other', 'marketing', 'other', 'development'];
+      const searchParams = new URLSearchParams(window.location.search);
+      const selectedCategory = searchParams.get('category');
+      const selectedView = searchParams.get('view');
+      const categories = ['development', 'design', 'marketing', 'writing', 'other', 'marketing', 'other', 'development'];
       if (selectedCategory !== null) {
         setCategory(categories[Number(selectedCategory)] || 'all');
         setView('orders');
+      } else if (['home', 'profile', 'orders', 'messages', 'wallet', 'settings'].includes(selectedView)) {
+        setView(selectedView);
       }
       fetchProjects({ signal: controller.signal })
         .then((items) => { if (items.length) setProjects(items); })
@@ -121,19 +125,29 @@ function SimpleView({ id, t, language, projects, query, setQuery, category, setC
 }
 
 function OrdersView({ t, language, projects, query, setQuery, category, setCategory }) {
-  const categories = [['all', t.all], ['development', language === 'uz' ? 'Web dasturlash' : 'Веб-разработка'], ['design', 'UI/UX Design'], ['marketing', 'Marketing'], ['writing', language === 'uz' ? 'Matnlar' : 'Тексты']];
+  const categories = [['development', 'Web'], ['other', 'Mobile'], ['design', 'Design']];
   const [sort, setSort] = useState('new');
-  const [maxBudget, setMaxBudget] = useState(10000000);
+  const [maxBudget, setMaxBudget] = useState(1000);
   const [levels, setLevels] = useState([]);
+  const [deadlines, setDeadlines] = useState([]);
   const visibleProjects = projects
+    .filter((project) => category === 'all' || project.category === category)
     .filter((project) => Number(project.budget_min || 0) <= maxBudget)
     .filter((project) => !levels.length || levels.some((level) => (project.skills || []).some((skill) => skill.toLowerCase() === level.toLowerCase())))
-    .toSorted((first, second) => sort === 'budget' ? Number(second.budget_max || 0) - Number(first.budget_max || 0) : Number(second.id || 0) - Number(first.id || 0));
+    .toSorted((first, second) => {
+      if (sort === 'budget') return Number(second.budget_max || 0) - Number(first.budget_max || 0);
+      if (sort === 'rating') return String(first.title).localeCompare(String(second.title));
+      return Number(second.id || 0) - Number(first.id || 0);
+    });
   function toggleLevel(level) { setLevels((current) => current.includes(level) ? current.filter((item) => item !== level) : [...current, level]); }
-  return <section className="orders-view"><div className="orders-heading"><div><span>TASKORA</span><h1>{t.orders}</h1></div><Link href="/projects/new">{t.create}</Link></div><div className="orders-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={language === 'uz' ? 'Buyurtmalarni qidiring' : 'Поиск заказов'} /></div><div className="orders-layout"><aside className="orders-filters"><h2><SlidersHorizontal />{t.filters}</h2><b>{language === 'uz' ? 'Kategoriya' : 'Категория'}</b>{categories.map(([value, name]) => <label key={value}><input type="radio" name="category" checked={category === value} onChange={() => setCategory(value)} />{name}</label>)}<b>{language === 'uz' ? 'Byudjet' : 'Бюджет'}</b><div className="orders-budget"><span>100 000</span><span>{maxBudget.toLocaleString()}</span></div><input className="orders-range" type="range" min="100000" max="10000000" step="100000" value={maxBudget} onChange={(event) => setMaxBudget(Number(event.target.value))} /><b>{language === 'uz' ? 'Daraja' : 'Уровень'}</b>{['Junior', 'Middle', 'Senior'].map((level) => <label key={level}><input type="checkbox" checked={levels.includes(level)} onChange={() => toggleLevel(level)} />{level}</label>)}</aside><div className="orders-results"><div className="orders-results-head"><span>{visibleProjects.length} {language === 'uz' ? 'ta buyurtma' : 'заказа'}</span><select value={sort} onChange={(event) => setSort(event.target.value)} aria-label={language === 'uz' ? 'Saralash' : 'Сортировка'}><option value="new">{language === 'uz' ? 'Eng yangilari' : 'Сначала новые'}</option><option value="budget">{language === 'uz' ? 'Yuqori byudjet' : 'Высокий бюджет'}</option></select></div>{visibleProjects.length ? visibleProjects.map((project) => <ProjectCard key={project.id} project={project} t={t} list />) : <p className="orders-empty">{language === 'uz' ? 'Mos buyurtmalar topilmadi' : 'Подходящих заказов не найдено'}</p>}</div></div></section>;
+  function toggleDeadline(value) { setDeadlines((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]); }
+  function clearFilters() { setCategory('all'); setMaxBudget(1000); setLevels([]); setDeadlines([]); setQuery(''); }
+  return <section className="orders-view"><div className="orders-heading"><div><span>TASKORA</span><h1>{t.orders}</h1></div><Link href="/projects/new">{t.create}</Link></div><div className="orders-search"><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={language === 'uz' ? 'Buyurtmalarni qidiring' : 'Поиск заказов'} /></div><div className="orders-layout"><aside className="orders-filters"><h2><SlidersHorizontal />{t.filters}</h2><b>{language === 'uz' ? 'Kategoriya' : 'Категория'}</b>{categories.map(([value, name]) => <label key={value}><input type="checkbox" checked={category === value} onChange={() => setCategory(category === value ? 'all' : value)} />{name}</label>)}<b>{language === 'uz' ? 'Narx' : 'Цена'}</b><div className="orders-budget"><span>$100</span><span>${maxBudget}</span></div><input className="orders-range" type="range" min="100" max="1000" step="50" value={maxBudget} onChange={(event) => setMaxBudget(Number(event.target.value))} /><b>{language === 'uz' ? 'Muddat' : 'Срок'}</b>{[['week', language === 'uz' ? '1 hafta' : '1 неделя'], ['month', language === 'uz' ? '1 oy' : '1 месяц']].map(([value, name]) => <label key={value}><input type="checkbox" checked={deadlines.includes(value)} onChange={() => toggleDeadline(value)} />{name}</label>)}<b>{language === 'uz' ? 'Daraja' : 'Уровень'}</b>{['Junior', 'Middle', 'Senior'].map((level) => <label key={level}><input type="checkbox" checked={levels.includes(level)} onChange={() => toggleLevel(level)} />{level}</label>)}<button className="orders-clear" onClick={clearFilters}>{language === 'uz' ? 'Filterni tozalash' : 'Сбросить фильтры'}</button></aside><div className="orders-results"><div className="orders-results-head"><span>{visibleProjects.length} {language === 'uz' ? 'ta buyurtma' : 'заказа'}</span><div className="orders-sort"><button className={sort === 'new' ? 'active' : ''} onClick={() => setSort('new')}>{language === 'uz' ? 'Yangi' : 'Новые'}</button><button className={sort === 'budget' ? 'active' : ''} onClick={() => setSort('budget')}>{language === 'uz' ? 'Narx bo‘yicha' : 'По цене'}</button><button onClick={() => setSort('rating')}>{language === 'uz' ? 'Reyting bo‘yicha' : 'По рейтингу'}</button></div></div>{visibleProjects.length ? visibleProjects.map((project, index) => <OrderListCard key={project.id} project={project} language={language} featured={index === 0} />) : <p className="orders-empty">{language === 'uz' ? 'Mos buyurtmalar topilmadi' : 'Подходящих заказов не найдено'}</p>}</div></div></section>;
 }
 
+function OrderListCard({ project, language, featured }) { return <article className="order-list-card">{featured && <span className="order-ai"><Sparkles />{language === 'uz' ? 'AI Tavsiya etilgan' : 'Рекомендовано AI'}</span>}<Link href={`/projects/${project.id}`}><h3>{project.title}</h3></Link><div className="order-list-meta"><span>{project.category_label || project.category}</span><i>·</i><span>{(project.skills || []).find((skill) => ['Junior', 'Middle', 'Senior'].includes(skill)) || 'Middle'}</span><i>·</i><b>${Number(project.budget_min)}–${Number(project.budget_max)}</b></div><p>{project.description}</p><footer><div><span><Clock3 />{project.id === 2 ? '7' : '14'} {language === 'uz' ? 'kun' : 'дней'}</span><span>{language === 'uz' ? 'Buyurtmachi' : 'Заказчик'}: {project.client_name || 'Alisher T.'} ★★★★★</span></div><Link href={`/projects/${project.id}#apply`}>{language === 'uz' ? 'Ariza yuborish' : 'Отправить заявку'}</Link></footer></article>; }
+
 function Stat({ icon: Icon, value, label }) { return <article className="dash-stat"><div><span>{label}</span><b>{value}</b></div><Icon /></article>; }
-function ProjectCard({ project, t, list = false }) { return <article className={`dash-project-card ${list ? 'list' : ''}`}><div><span>{project.category_label || project.category || 'Design'}</span><small><Clock3 />3 kun</small></div><h3>{project.title}</h3><p>{project.description}</p><div className="project-skills">{(project.skills || []).slice(0, 3).map((skill) => <span key={skill}>{skill}</span>)}</div><footer><b>{Number(project.budget_min || 0).toLocaleString()} — {Number(project.budget_max || 0).toLocaleString()} so‘m</b><Link href={`/projects/${project.id}`}>{t.details}</Link></footer></article>; }
+function ProjectCard({ project, t, list = false }) { return <article className={`dash-project-card ${list ? 'list' : ''}`}><div><span>{project.category_label || project.category || 'Design'}</span><small><Clock3 />3 kun</small></div><h3>{project.title}</h3><p>{project.description}</p><div className="project-skills">{(project.skills || []).slice(0, 3).map((skill) => <span key={skill}>{skill}</span>)}</div><footer><b>${Number(project.budget_min || 0).toLocaleString()} — ${Number(project.budget_max || 0).toLocaleString()}</b><Link href={`/projects/${project.id}`}>{t.details}</Link></footer></article>; }
 function Avatar({ large = false }) { return <span className={`dash-avatar ${large ? 'large' : ''}`}>AK</span>; }
 function LogoMark() { return <span className="dash-logo-mark">✣</span>; }

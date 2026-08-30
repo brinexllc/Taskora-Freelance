@@ -8,7 +8,7 @@ import { useApp } from '@/components/app-providers';
 import { setRole } from '@/lib/api';
 
 export default function RolePage() {
-  const { language, session, updateUser } = useApp();
+  const { language, session, updateUser, ready } = useApp();
   const router = useRouter();
   const [role, setChosen] = useState(session?.user?.role || 'freelancer');
   const [error, setError] = useState('');
@@ -28,7 +28,7 @@ export default function RolePage() {
       <button type="button" onClick={() => setChosen('client')} className={`role-card ${role === 'client' ? 'selected' : ''}`}><ClipboardList /><strong>{uz ? 'Buyurtmachi' : 'Заказчик'}</strong><small>{uz ? 'Verifikatsiya bepul' : 'Бесплатная верификация'}</small></button>
     </div>
     {error && <p className="auth-error">{error}</p>}
-    <button className="auth-primary" onClick={submit} disabled={loading}>{loading ? '…' : `${copy[language].next} →`}</button>
+    <button className="auth-primary" onClick={submit} disabled={!ready || loading}>{loading ? '…' : `${copy[language].next} →`}</button>
     <p className="role-safe"><LockKeyhole size={14} />{uz ? "Ma'lumotlaringiz himoyalangan" : 'Ваши данные защищены'}</p>
   </AuthShell>;
 }

@@ -1,58 +1,86 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, BarChart3, CheckCircle2, Code2, Languages, Megaphone, Moon, Palette, PenTool, ShieldCheck, Sparkles, Sun, Users, Video, WandSparkles } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowRight, BadgeCheck, Bot, BrainCircuit, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
 
-const text = {
+const copy = {
   uz: {
-    nav: ['Bosh sahifa', 'Qanday ishlaydi', 'Yo‘nalishlar', 'Biz haqimizda'], login: 'Kirish', start: 'Boshlash',
-    eyebrow: 'O‘zbekistonning ishonchli freelance platformasi', hero1: 'Frilanser topish hech qachon', hero2: 'bu qadar oson bo‘lmagan',
-    heroText: 'Ishonchli mutaxassislarni toping yoki o‘z mahoratingiz bilan daromad oling. Hammasi bir joyda — tez, xavfsiz va qulay.',
-    findTalent: 'Mutaxassis topish', findWork: 'Ish topish', projects: 'muvaffaqiyatli loyiha', freelancers: 'malakali frilanser', satisfaction: 'mijozlar mamnunligi',
-    trusted: 'Ishonchli platforma.', trusted2: 'Frilanserlar va mijozlar uchun O‘zbekiston bozori uchun yaratilgan.',
-    secureTitle: 'To‘liq xavfsiz va ishonchli', secureText: 'Har bir bosqichda mablag‘ va ma’lumotlaringiz himoyalangan.',
-    features: [['Xavfsiz to‘lov', 'To‘lov faqat ishni qabul qilganingizdan so‘ng ijrochiga o‘tadi.'], ['Tekshirilgan profillar', 'Reytinglar, portfolio va tasdiqlangan ma’lumotlar to‘g‘ri tanlovga yordam beradi.'], ['Doimiy yordam', 'Taskora jamoasi savollaringizga tezkor javob beradi.']],
-    how: '3 qadamda boshlang', howSub: 'Loyihangizni amalga oshirish oson', steps: [['01', 'Vazifani joylang', 'Talab va byudjetni bir necha daqiqada kiriting.'], ['02', 'Takliflarni tanlang', 'Portfolio va reytingni solishtirib, mos ijrochini toping.'], ['03', 'Natijani oling', 'Xavfsiz to‘lov orqali ishni qabul qiling.']],
-    categories: 'AI tomonidan tanlab olingan yo‘nalishlar', categoriesSub: 'Eng talabgir mutaxassisliklarni ko‘rib chiqing',
-    categoryNames: ['Dasturlash', 'UI/UX dizayn', 'Marketing', 'Matn yozish', 'Video montaj', 'SMM', 'Biznes tahlil', 'AI xizmatlari'],
-    cta: 'Bugun boshlang', ctaText: 'G‘oyangizni tajribali mutaxassislar bilan haqiqatga aylantiring.', footer: 'O‘zbekistondagi freelancerlar va mijozlarni birlashtiruvchi platforma.', rights: 'Barcha huquqlar himoyalangan.',
+    orders: 'Buyurtmalar', freelancers: 'Frilanserlar', login: 'Kirish', language: 'RU',
+    heroA: 'Frilanser topish hech qachon', heroB: 'bu qadar', heroC: "oson bo‘lmagan",
+    heroText: "ONEID orqali tasdiqlangan mutaxassislar. AI tavsiyasi.\nXavfsiz escrow to‘lov tizimi.",
+    register: "Ro‘yxatdan o‘tish", about: 'Platforma haqida',
+    statFreelancers: 'Frilanser', statProjects: 'Loyiha', statSuccess: 'Muvaffaqiyat',
+    trust: "Ishonchli platforma.\nFrilanserlar va mijozlar uchun.\nO‘zbekiston bozori uchun yaratilgan.",
+    secure: 'To‘liq xavfsiz va ishonchli', secureSub: 'Zamonaviy texnologiyalar bilan himoyalangan va AI bilan kuchaytirilgan tizim',
+    features: [
+      ['Xavfsiz Escrow', "To‘lovlar to‘liq xavfsizlikda saqlanadi va ish tugatilgach frilanserga o‘tkaziladi."],
+      ['AI Tavsiyalar', 'Sun’iy intellekt sizning loyihangizga eng mos mutaxassislarni tavsiya qiladi.'],
+      ['ONEID Tasdiqlash', 'Barcha foydalanuvchilar ONEID orqali tasdiqlangan, bu ishonchlilikni kafolatlaydi.'],
+    ],
+    stepsTitle: '3 qadamda boshlang', stepsSub: 'Taskorada ishlash jarayoni oddiy va tushunarli',
+    steps: [
+      ["Ro‘yxatdan o‘ting", 'Shaxsiy hisobingizni yarating va profilingizni to‘ldiring.'],
+      ['Loyihani joylang', 'Talablaringizni yozing va AI sizga mos frilanserlarni topadi.'],
+      ['Natijani oling', 'Ishni qabul qiling va to‘lovni tasdiqlang.'],
+    ],
+    top: 'TOP FRILANSERLAR', recommended: 'AI tomonidan tavsiya etilgan',
+    cta: 'Bugun boshlang', ctaText: 'O‘zbekistondagi eng kuchli mutaxassislar bilan ishlashni hoziroq boshlang va o‘z g‘oyalaringizni rivojlantiring.',
+    footerText: 'O‘zbekistondagi frilanserlar va mijozlarni birlashtiruvchi ishonchli platforma.', rights: 'Barcha huquqlar himoyalangan.',
   },
   ru: {
-    nav: ['Главная', 'Как это работает', 'Направления', 'О нас'], login: 'Войти', start: 'Начать',
-    eyebrow: 'Надёжная фриланс-платформа Узбекистана', hero1: 'Найти фрилансера ещё никогда', hero2: 'не было так просто',
-    heroText: 'Находите проверенных специалистов или зарабатывайте на своих навыках. Всё в одном месте — быстро, безопасно и удобно.',
-    findTalent: 'Найти специалиста', findWork: 'Найти работу', projects: 'успешных проектов', freelancers: 'проверенных фрилансеров', satisfaction: 'довольных клиентов',
-    trusted: 'Платформа доверия.', trusted2: 'Создана для фрилансеров и заказчиков с учётом рынка Узбекистана.',
-    secureTitle: 'Безопасность и доверие', secureText: 'Ваши данные и оплата защищены на каждом этапе работы.',
-    features: [['Безопасная оплата', 'Исполнитель получает оплату только после принятия результата.'], ['Проверенные профили', 'Рейтинги, портфолио и подтверждённые данные помогают сделать выбор.'], ['Поддержка рядом', 'Команда Taskora оперативно поможет с любым вопросом.']],
-    how: 'Начните за 3 шага', howSub: 'Запустить проект действительно просто', steps: [['01', 'Опубликуйте задачу', 'Опишите требования и бюджет за несколько минут.'], ['02', 'Выберите предложение', 'Сравните портфолио и рейтинги исполнителей.'], ['03', 'Получите результат', 'Примите работу через безопасную оплату.']],
-    categories: 'Направления, подобранные AI', categoriesSub: 'Откройте самые востребованные специальности',
-    categoryNames: ['Разработка', 'UI/UX дизайн', 'Маркетинг', 'Копирайтинг', 'Видеомонтаж', 'SMM', 'Бизнес-анализ', 'AI-услуги'],
-    cta: 'Начните сегодня', ctaText: 'Воплотите идею в жизнь вместе с опытными специалистами.', footer: 'Платформа, объединяющая фрилансеров и заказчиков Узбекистана.', rights: 'Все права защищены.',
+    orders: 'Заказы', freelancers: 'Фрилансеры', login: 'Войти', language: 'UZ',
+    heroA: 'Найти фрилансера ещё никогда', heroB: 'не было', heroC: 'так просто',
+    heroText: 'Специалисты, подтверждённые через ONEID. Рекомендации AI.\nБезопасная escrow-система оплаты.',
+    register: 'Зарегистрироваться', about: 'О платформе',
+    statFreelancers: 'Фрилансеров', statProjects: 'Проектов', statSuccess: 'Успешно',
+    trust: 'Надёжная платформа.\nДля фрилансеров и заказчиков.\nСоздана для рынка Узбекистана.',
+    secure: 'Полностью безопасно и надёжно', secureSub: 'Защищённая современными технологиями и усиленная искусственным интеллектом система',
+    features: [
+      ['Безопасный Escrow', 'Оплата хранится в безопасности и переводится фрилансеру после завершения работы.'],
+      ['AI-рекомендации', 'Искусственный интеллект рекомендует лучших специалистов для вашего проекта.'],
+      ['Подтверждение ONEID', 'Пользователи подтверждаются через ONEID, что гарантирует надёжность.'],
+    ],
+    stepsTitle: 'Начните за 3 шага', stepsSub: 'Работать в Taskora просто и понятно',
+    steps: [
+      ['Зарегистрируйтесь', 'Создайте личный аккаунт и заполните профиль.'],
+      ['Разместите проект', 'Опишите требования, и AI найдёт подходящих фрилансеров.'],
+      ['Получите результат', 'Примите работу и подтвердите оплату.'],
+    ],
+    top: 'ТОП ФРИЛАНСЕРЫ', recommended: 'Рекомендованы искусственным интеллектом',
+    cta: 'Начните сегодня', ctaText: 'Начните работать с сильнейшими специалистами Узбекистана и развивайте свои идеи.',
+    footerText: 'Надёжная платформа, объединяющая фрилансеров и заказчиков Узбекистана.', rights: 'Все права защищены.',
   },
 };
 
-const categoryIcons = [Code2, Palette, Megaphone, PenTool, Video, Users, BarChart3, WandSparkles];
+const people = [
+  ['JK', 'Jasur Karimov', 'UI/UX Designer', ['Figma', 'Web Design']],
+  ['MA', 'Malika Ahmedova', 'Frontend Developer', ['React', 'Tailwind']],
+  ['RG', 'Rustam G‘ofurov', 'Backend Developer', ['Node.js', 'Python']],
+  ['ZU', 'Zilola Umarova', 'Kopirayter', ['SEO', 'Blog']],
+  ['SA', 'Sardor Aripov', 'Mobil Designer', ['Figma', 'UI']],
+  ['NT', 'Nigora Tursunova', 'SMM Mutaxassisi', ['Instagram', 'Telegram']],
+  ['AR', 'Azizbek Rahimov', 'Video Montajyor', ['Premiere', 'After Effects']],
+  ['MY', 'Madina Yo‘ldosheva', 'Grafik Designer', ['Branding', 'Photoshop']],
+];
 
 export default function LandingPage() {
-  const { language, setLanguage } = useApp(); const t = text[language]; const [dark, setDark] = useState(false);
-  return <div className={`figma-site ${dark ? 'figma-dark' : ''}`}>
-    <header className="figma-header"><div className="figma-shell figma-header-inner"><Logo />
-      <nav>{t.nav.map((item, i) => <a key={item} href={['#top', '#how', '#categories', '#about'][i]}>{item}</a>)}</nav>
-      <div className="figma-header-actions"><button className="figma-icon-button" onClick={() => setLanguage(language === 'uz' ? 'ru' : 'uz')} aria-label="Til / Язык"><Languages /> <span>{language.toUpperCase()}</span></button><button className="figma-icon-button only-icon" onClick={() => setDark(!dark)} aria-label={dark ? 'Light theme' : 'Dark theme'}>{dark ? <Sun /> : <Moon />}</button><Link className="figma-login" href="/login">{t.login}</Link><Link className="figma-button small" href="/register">{t.start}</Link></div>
-    </div></header>
-    <main id="top">
-      <section className="figma-hero"><div className="figma-shell"><div className="figma-kicker"><Sparkles />{t.eyebrow}</div><h1>{t.hero1}<br/><em>{t.hero2}</em></h1><p>{t.heroText}</p><div className="figma-hero-actions"><Link className="figma-button" href="/register">{t.findTalent}<ArrowRight /></Link><Link className="figma-button secondary" href="/register">{t.findWork}</Link></div><div className="figma-stats"><div><b>12 000+</b><span>{t.projects}</span></div><div><b>4 500+</b><span>{t.freelancers}</span></div><div><b>96%</b><span>{t.satisfaction}</span></div></div></div></section>
-      <section className="figma-trust" id="about"><div className="figma-trust-mark"><ShieldCheck /></div><h2>{t.trusted}<br/>{t.trusted2}</h2></section>
-      <section className="figma-section"><div className="figma-shell"><div className="figma-section-heading"><span>TASKORA PLATFORMASI</span><h2>{t.secureTitle}</h2><p>{t.secureText}</p></div><div className="figma-feature-grid">{t.features.map((feature, i) => <article key={feature[0]}><span>0{i + 1}</span><CheckCircle2 /><h3>{feature[0]}</h3><p>{feature[1]}</p></article>)}</div></div></section>
-      <section className="figma-section figma-steps-section" id="how"><div className="figma-shell"><div className="figma-section-heading"><span>QANDAY ISHLAYDI</span><h2>{t.how}</h2><p>{t.howSub}</p></div><div className="figma-steps">{t.steps.map((step) => <article key={step[0]}><b>{step[0]}</b><h3>{step[1]}</h3><p>{step[2]}</p></article>)}</div></div></section>
-      <section className="figma-section" id="categories"><div className="figma-shell"><div className="figma-section-heading"><span>TOP YO‘NALISHLAR</span><h2>{t.categories}</h2><p>{t.categoriesSub}</p></div><div className="figma-category-grid">{t.categoryNames.map((name, i) => { const Icon = categoryIcons[i]; return <Link key={name} href={`/dashboard?category=${i}`}><Icon/><h3>{name}</h3><span>120+ {language === 'uz' ? 'mutaxassis' : 'специалистов'}</span><ArrowRight/></Link>; })}</div></div></section>
-      <section className="figma-shell figma-cta"><div><span>TASKORA BILAN</span><h2>{t.cta}</h2><p>{t.ctaText}</p></div><Link className="figma-button white" href="/register">{t.start}<ArrowRight/></Link></section>
+  const { language, setLanguage } = useApp();
+  const t = copy[language];
+  return <div className="figma-site startup-page">
+    <header className="startup-header"><div className="startup-shell startup-header-inner"><Logo /><nav><Link href="/dashboard?view=orders">{t.orders}</Link><a href="#freelancers">{t.freelancers}</a><button onClick={() => setLanguage(language === 'uz' ? 'ru' : 'uz')}>{t.language}</button><Link className="startup-login" href="/login">{t.login}<ArrowRight /></Link></nav></div></header>
+    <main>
+      <section className="startup-hero"><div className="startup-shell"><h1><span>{t.heroA}</span><span>{t.heroB}</span><em>{t.heroC}</em></h1><p>{t.heroText}</p><div className="startup-hero-actions"><Link href="/register">{t.register}<ArrowRight /></Link><a href="#about">{t.about}<ArrowRight /></a></div><div className="startup-stats"><span><b>1,200+</b> {t.statFreelancers}</span><span><b>3,400+</b> {t.statProjects}</span><span><b>98%</b> {t.statSuccess}</span></div></div></section>
+      <section className="startup-trust" id="about"><ShieldCheck /><h2>{t.trust}</h2></section>
+      <section className="startup-security"><div className="startup-shell"><div className="startup-section-title"><h2>{t.secure}</h2><p>{t.secureSub}</p></div><div className="startup-feature-grid">{t.features.map(([title, description], index) => { const Icon = [LockKeyhole, BrainCircuit, BadgeCheck][index]; return <article key={title}><span><Icon /></span><h3>{title}</h3><p>{description}</p></article>; })}</div></div></section>
+      <section className="startup-steps"><div className="startup-shell"><div className="startup-section-title"><h2>{t.stepsTitle}</h2><p>{t.stepsSub}</p></div><div className="startup-step-grid">{t.steps.map(([title, description], index) => <article key={title}><b>0{index + 1}</b><h3>{title}</h3><p>{description}</p></article>)}</div></div></section>
+      <section className="startup-freelancers" id="freelancers"><div className="startup-shell"><span>{t.top}</span><h2>{t.recommended}</h2><div className="startup-people-grid">{people.map(([initials, name, role, skills], index) => <Link href={`/dashboard?view=profile&freelancer=${index}`} key={name}><i>{initials}<small /></i><h3>{name}</h3><p>{role}</p><div>{skills.map((skill) => <b key={skill}>{skill}</b>)}</div></Link>)}</div></div></section>
+      <section className="startup-cta-section"><div className="startup-shell startup-cta"><Bot /><h2>{t.cta}</h2><p>{t.ctaText}</p><div><Link href="/register">{t.register}<ArrowRight /></Link><Link href="/login">{t.login}<ArrowRight /></Link></div></div></section>
     </main>
-    <footer className="figma-footer"><div className="figma-shell"><div><Logo/><p>{t.footer}</p></div><div><b>Platforma</b><a href="#how">{t.nav[1]}</a><a href="#categories">{t.nav[2]}</a></div><div><b>Hisob / Аккаунт</b><Link href="/login">{t.login}</Link><Link href="/register">{t.start}</Link></div></div><p className="figma-copy">© 2026 Taskora. {t.rights}</p></footer>
+    <footer className="startup-footer"><div className="startup-shell"><div><Logo /><p>{t.footerText}</p></div><nav><b>Platforma</b><a href="#about">{t.about}</a><a href="#freelancers">{t.freelancers}</a></nav><nav><b>Hisob / Аккаунт</b><Link href="/login">{t.login}</Link><Link href="/register">{t.register}</Link></nav></div><p className="startup-copy">© 2026 Taskora. {t.rights}</p></footer>
   </div>;
 }
 
-function Logo() { return <Link className="figma-logo" href="/"><span><i/><i/><i/><i/><i/><i/><i/><i/></span>Taskora</Link>; }
+function Logo() {
+  return <Link className="startup-logo" href="/"><span className="startup-logo-mark">{Array.from({ length: 9 }, (_, index) => <i key={index} />)}</span><span><b>Taskora</b><small>Work with Confidence</small></span></Link>;
+}
