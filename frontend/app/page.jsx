@@ -29,7 +29,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { fetchProjects } from '@/lib/api';
+import { fetchProjects, logout } from '@/lib/api';
+import { useApp } from '@/components/app-providers';
 
 const categoryLabels = {
   development: 'Разработка',
@@ -158,6 +159,8 @@ function ProjectCard({ project, saved, onSave }) {
 }
 
 export default function Home() {
+  const { language, setLanguage, session, clearSession } = useApp();
+  const signOut = async () => { try { if (session?.token) await logout(session.token); } finally { clearSession(); } };
   const [projects, setProjects] = useState(demoProjects);
   const [category, setCategory] = useState('all');
   const [query, setQuery] = useState('');
@@ -208,17 +211,18 @@ export default function Home() {
           </Link>
 
           <nav aria-label="Главная навигация" className="desktop-nav">
-            <a className="active" href="#projects">Найти проект</a>
-            <a href="#how-it-works">Как это работает</a>
-            <a href="#talents">Специалисты</a>
+            <a className="active" href="#projects">{language === 'uz' ? 'Loyiha topish' : 'Найти проект'}</a>
+            <a href="#how-it-works">{language === 'uz' ? 'Qanday ishlaydi' : 'Как это работает'}</a>
+            <a href="#talents">{language === 'uz' ? 'Mutaxassislar' : 'Специалисты'}</a>
           </nav>
 
           <div className="header-actions">
             <Button aria-label="Уведомления" className="notification-button" size="icon" variant="ghost">
               <Bell /><span className="notification-dot" />
             </Button>
-            <Button className="outline-action hidden sm:inline-flex" variant="outline">Войти</Button>
-            <Button className="primary-action hidden sm:inline-flex">Разместить проект</Button>
+            <div className="hidden items-center gap-1 sm:flex"><button className={`text-xs ${language === 'uz' ? 'font-bold' : ''}`} onClick={() => setLanguage('uz')}>UZ</button><span>/</span><button className={`text-xs ${language === 'ru' ? 'font-bold' : ''}`} onClick={() => setLanguage('ru')}>RU</button></div>
+            {session?.user ? <Button className="outline-action hidden sm:inline-flex" variant="outline" onClick={signOut}>{language === 'uz' ? 'Chiqish' : 'Выйти'}</Button> : <Link href="/login" className="outline-action hidden sm:inline-flex">{language === 'uz' ? 'Kirish' : 'Войти'}</Link>}
+            <Link href={session?.user ? '#projects' : '/register'} className="primary-action hidden sm:inline-flex">{language === 'uz' ? 'Loyiha joylash' : 'Разместить проект'}</Link>
             <Button
               aria-label="Открыть меню"
               className="mobile-menu-button md:hidden"

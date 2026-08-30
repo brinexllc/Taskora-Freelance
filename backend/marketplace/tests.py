@@ -1,8 +1,11 @@
+import re
+
+from django.core import mail
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Project, Proposal
+from .models import PasswordResetCode, Project, Proposal
 
 
 class ProjectApiTests(APITestCase):
@@ -54,3 +57,66 @@ class ProjectApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class AuthenticationApiTests(APITestCase):
+    def setUp(self):
+        self.password = "Secure-pass-2026"
+        self.registration = {
+            "full_name": "Aziz Rahimov",
+            "email": "aziz@example.com",
+            "password": self.password,
+            "password_confirm": self.password,
+        }
+
+    def register(self):
+        return self.client.post("/api/auth/register/", self.registration, format="json")
+
+    def test_register_login_role_and_logout(self):
+        response = self.register()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        token = response.data["token"]
+        self.assertEqual(response.data["user"]["role"], "")
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token}")
+        response = self.client.put("/api/auth/role/", {"role": "freelancer"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["role"], "freelancer")
+
+        response = self.client.post("/api/auth/logout/")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(self.client.get("/api/auth/me/").status_code, status.HTTP_401_UNAUTHORIZED)
+
+        self.client.credentials()
+        response = self.client.post(
+            "/api/auth/login/",
+            {"email": self.registration["email"], "password": self.password},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["user"]["role"], "freelancer")
+
+    def test_password_reset_flow(self):
+        self.register()
+        response = self.client.post(
+            "/api/auth/password-reset/request/", {"email": self.registration["email"]}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 1)
+        code = re.search(r"\b(\d{6})\b", mail.outbox[0].body).group(1)
+
+        response = self.client.post(
+            "/api/auth/password-reset/verify/",
+            {"email": self.registration["email"], "code": code},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        new_password = "New-secure-pass-2026"
+        response = self.client.post(
+            "/api/auth/password-reset/confirm/",
+            {"email": self.registration["email"], "reset_token": response.data["reset_token"], "password": new_password, "password_confirm": new_password},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(PasswordResetCode.objects.filter(used_at__isnull=False).count(), 1)
