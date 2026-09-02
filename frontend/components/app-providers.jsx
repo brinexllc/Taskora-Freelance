@@ -45,7 +45,7 @@ export function AppProviders({ children }) {
   useEffect(() => {
     if (!ready) return;
     const path = window.location.pathname;
-    if (!session?.token && path === '/role') {
+    if (!session?.token && (path === '/role' || path === '/dashboard')) {
       window.location.replace('/login');
       return;
     }

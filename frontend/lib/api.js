@@ -33,6 +33,8 @@ export async function fetchProjects({ signal } = {}) {
   return Array.isArray(payload) ? payload : (payload.results ?? []);
 }
 
+export const fetchProfiles = ({ signal } = {}) => apiRequest('profiles', { signal });
+
 export const fetchProject = (id, { signal } = {}) => apiRequest(`projects/${id}`, { signal });
 export const createProject = (body, token) => apiRequest('projects', { method: 'POST', body, token });
 export const createProposal = (body, token) => apiRequest('proposals', { method: 'POST', body, token });

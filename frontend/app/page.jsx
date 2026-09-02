@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { ArrowRight, BadgeCheck, Bot, BrainCircuit, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
+import { fetchProfiles } from '@/lib/api';
+import { useEffect, useState } from 'react';
 
 const copy = {
   uz: {
@@ -56,13 +58,21 @@ const copy = {
 export default function LandingPage() {
   const { language, setLanguage } = useApp();
   const t = copy[language];
+  const [profiles, setProfiles] = useState([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchProfiles({ signal: controller.signal }).then(setProfiles).catch(() => setProfiles([]));
+    return () => controller.abort();
+  }, []);
   return <div className="figma-site startup-page">
     <header className="startup-header"><div className="startup-shell startup-header-inner"><Logo /><nav><Link href="/dashboard?view=orders">{t.orders}</Link><a href="#freelancers">{t.freelancers}</a><button onClick={() => setLanguage(language === 'uz' ? 'ru' : 'uz')}>{t.language}</button><Link className="startup-login" href="/login">{t.login}<ArrowRight /></Link></nav></div></header>
     <main>
-      <section className="startup-hero"><div className="startup-shell"><h1><span>{t.heroA}</span><span>{t.heroB}</span><em>{t.heroC}</em></h1><p>{t.heroText}</p><div className="startup-hero-actions"><Link href="/register">{t.register}<ArrowRight /></Link><a href="#about">{t.about}<ArrowRight /></a></div><div className="startup-stats"><span><b>0</b> {t.statFreelancers}</span><span><b>0</b> {t.statProjects}</span><span><b>0%</b> {t.statSuccess}</span></div></div></section>
+      <section className="startup-hero"><div className="startup-shell"><h1><span>{t.heroA}</span><span>{t.heroB}</span><em>{t.heroC}</em></h1><p>{t.heroText}</p><div className="startup-hero-actions"><Link href="/register">{t.register}<ArrowRight /></Link><a href="#about">{t.about}<ArrowRight /></a></div><div className="startup-stats"><span><b>{profiles.length}</b> {t.statFreelancers}</span><span><b>0</b> {t.statProjects}</span><span><b>0%</b> {t.statSuccess}</span></div></div></section>
       <section className="startup-trust" id="about"><ShieldCheck /><h2>{t.trust}</h2></section>
       <section className="startup-security"><div className="startup-shell"><div className="startup-section-title"><h2>{t.secure}</h2><p>{t.secureSub}</p></div><div className="startup-feature-grid">{t.features.map(([title, description], index) => { const Icon = [LockKeyhole, BrainCircuit, BadgeCheck][index]; return <article key={title}><span><Icon /></span><h3>{title}</h3><p>{description}</p></article>; })}</div></div></section>
       <section className="startup-steps"><div className="startup-shell"><div className="startup-section-title"><h2>{t.stepsTitle}</h2><p>{t.stepsSub}</p></div><div className="startup-step-grid">{t.steps.map(([title, description], index) => <article key={title}><b>0{index + 1}</b><h3>{title}</h3><p>{description}</p></article>)}</div></div></section>
+      {profiles.length > 0 && <section className="startup-freelancers" id="freelancers"><div className="startup-shell"><span>{t.top}</span><h2>{t.recommended}</h2><div className="startup-people-grid">{profiles.map((profile) => <Link href="/register" key={profile.id}><i>{profile.full_name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}<small /></i><h3>{profile.full_name}</h3><p>{profile.role === 'client' ? (language === 'uz' ? 'Buyurtmachi' : 'Заказчик') : (language === 'uz' ? 'Frilanser' : 'Фрилансер')}</p></Link>)}</div></div></section>}
       <section className="startup-cta-section"><div className="startup-shell startup-cta"><Bot /><h2>{t.cta}</h2><p>{t.ctaText}</p><div><Link href="/register">{t.register}<ArrowRight /></Link><Link href="/login">{t.login}<ArrowRight /></Link></div></div></section>
     </main>
     <footer className="startup-footer"><div className="startup-shell"><div><Logo /><p>{t.footerText}</p></div><nav><b>Platforma</b><a href="#about">{t.about}</a><a href="#freelancers">{t.freelancers}</a></nav><nav><b>Hisob / Аккаунт</b><Link href="/login">{t.login}</Link><Link href="/register">{t.register}</Link></nav></div><p className="startup-copy">© 2026 Taskora. {t.rights}</p></footer>

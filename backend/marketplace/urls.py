@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .auth_views import (
     LoginView, LogoutView, MeView, PasswordResetConfirmView,
-    PasswordResetRequestView, PasswordResetVerifyView, RegisterView, SetRoleView,
+    PasswordResetRequestView, PasswordResetVerifyView, PublicProfileListView, RegisterView, SetRoleView,
 )
 from .views import ProjectViewSet, ProposalViewSet, api_root, health, overview
 
@@ -13,6 +13,7 @@ router.register("projects", ProjectViewSet, basename="project")
 router.register("proposals", ProposalViewSet, basename="proposal")
 
 urlpatterns = [
+    path("profiles/", PublicProfileListView.as_view(), name="profile-list"),
     path("auth/register/", RegisterView.as_view(), name="auth-register"),
     path("auth/login/", LoginView.as_view(), name="auth-login"),
     path("auth/logout/", LogoutView.as_view(), name="auth-logout"),

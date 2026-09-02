@@ -79,6 +79,10 @@ class AuthenticationApiTests(APITestCase):
         token = response.data["token"]
         self.assertEqual(response.data["user"]["role"], "")
 
+        response = self.client.get("/api/profiles/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [{"id": 1, "full_name": "Aziz Rahimov", "role": ""}])
+
         self.client.credentials(HTTP_AUTHORIZATION=f"Token {token}")
         response = self.client.put("/api/auth/role/", {"role": "freelancer"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)

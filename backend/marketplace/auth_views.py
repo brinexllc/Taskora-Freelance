@@ -18,12 +18,24 @@ from .auth_serializers import (
     PasswordResetVerifySerializer,
     RegisterSerializer,
     RoleSerializer,
+    PublicProfileSerializer,
     UserSerializer,
 )
 from .models import PasswordResetCode, Profile
 
 
 User = get_user_model()
+
+
+class PublicProfileListView(APIView):
+    """Public directory containing only profiles created by registered users."""
+
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        profiles = Profile.objects.order_by("-created_at")
+        return Response(PublicProfileSerializer(profiles, many=True).data)
 
 
 def auth_response(user, status_code=status.HTTP_200_OK):

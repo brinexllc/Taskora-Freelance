@@ -17,6 +17,12 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "email", "full_name", "role"]
 
 
+class PublicProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ["id", "full_name", "role"]
+
+
 class RegisterSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=160)
     email = serializers.EmailField()

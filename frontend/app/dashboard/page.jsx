@@ -30,7 +30,7 @@ const labels = {
 };
 
 export default function DashboardPage() {
-  const { language, setLanguage, session, clearSession } = useApp();
+  const { language, setLanguage, session, clearSession, ready } = useApp();
   const t = labels[language];
   const [view, setView] = useState('home');
   const [projects, setProjects] = useState([]);
@@ -80,6 +80,8 @@ export default function DashboardPage() {
     [Home, 'home', t.home], [UserRound, 'profile', t.profile], [BriefcaseBusiness, 'orders', t.orders],
     [Mail, 'messages', t.messages], [Wallet, 'wallet', t.wallet], [Settings, 'settings', t.settings],
   ];
+
+  if (!ready || !session?.token) return null;
 
   return <div className="taskora-dashboard">
     <aside className={mobile ? 'open' : ''}>
