@@ -29,17 +29,11 @@ const labels = {
   },
 };
 
-const fallbackProjects = [
-  { id: 1, title: 'E-commerce sayt ishlab chiqish', category: 'development', category_label: 'Web Frontend', description: 'Zamonaviy React asosidagi onlayn do‘kon frontendini ishlab chiqish.', budget_min: '500', budget_max: '800', skills: ['React', 'Middle'], client_name: 'Alisher T.', featured: true, proposal_count: 6 },
-  { id: 2, title: 'Mobile app UI dizayn', category: 'design', category_label: 'UI/UX', description: 'Fintech mobil ilovasi uchun qulay va zamonaviy interfeys dizayni.', budget_min: '200', budget_max: '400', skills: ['Figma', 'Junior'], client_name: 'Malika A.', proposal_count: 4 },
-  { id: 3, title: 'Telegram bot yaratish', category: 'development', category_label: 'Backend', description: 'Buyurtmalarni qabul qiluvchi va boshqaruvchi Telegram bot.', budget_min: '300', budget_max: '600', skills: ['Python', 'Middle'], client_name: 'Sardor A.', proposal_count: 9 },
-];
-
 export default function DashboardPage() {
   const { language, setLanguage, session, clearSession } = useApp();
   const t = labels[language];
   const [view, setView] = useState('home');
-  const [projects, setProjects] = useState(fallbackProjects);
+  const [projects, setProjects] = useState([]);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [mobile, setMobile] = useState(false);
@@ -60,7 +54,7 @@ export default function DashboardPage() {
         setView(selectedView);
       }
       fetchProjects({ signal: controller.signal })
-        .then((items) => { if (items.length) setProjects(items); })
+        .then((items) => setProjects(items))
         .catch(() => {});
     });
     return () => controller.abort();
@@ -70,7 +64,7 @@ export default function DashboardPage() {
     const matchesQuery = `${project.title} ${project.description}`.toLowerCase().includes(query.toLowerCase());
     return matchesQuery && (category === 'all' || project.category === category);
   }), [projects, query, category]);
-  const fullName = session?.user?.full_name || 'Azizbek Karimov';
+  const fullName = session?.user?.full_name || '';
 
   async function signOut() {
     try { if (session?.token) await logout(session.token); }
@@ -90,10 +84,10 @@ export default function DashboardPage() {
   return <div className="taskora-dashboard">
     <aside className={mobile ? 'open' : ''}>
       <div className="dash-logo"><LogoMark />Taskora<button aria-label="Yopish" onClick={() => setMobile(false)}><X /></button></div>
-      <nav>{nav.map(([Icon, id, name]) => <button key={id} className={view === id ? 'active' : ''} onClick={() => { setView(id); setMobile(false); }}><Icon /><span>{name}</span>{id === 'messages' && <i>3</i>}</button>)}</nav>
+      <nav>{nav.map(([Icon, id, name]) => <button key={id} className={view === id ? 'active' : ''} onClick={() => { setView(id); setMobile(false); }}><Icon /><span>{name}</span></button>)}</nav>
       <div className="dash-account">
         {accountOpen && <div className="dash-account-menu"><div><button className={language === 'uz' ? 'active' : ''} onClick={() => setLanguage('uz')}>UZ</button><button className={language === 'ru' ? 'active' : ''} onClick={() => setLanguage('ru')}>RU</button></div><button className="dash-logout" onClick={signOut}><LogOut />{t.logout}</button></div>}
-        <button className="dash-user" onClick={() => setAccountOpen(!accountOpen)} aria-expanded={accountOpen}><Avatar /><div><b>{fullName}</b><span>PREMIUM</span></div></button>
+        <button className="dash-user" onClick={() => setAccountOpen(!accountOpen)} aria-expanded={accountOpen}><Avatar /><div><b>{fullName}</b></div></button>
       </div>
     </aside>
     <div className="dash-main">
@@ -110,12 +104,11 @@ export default function DashboardPage() {
 }
 
 function HomeView({ t, fullName, projects, setView }) {
-  return <><div className="dash-welcome"><div><h1>{t.welcome}, {fullName.split(' ')[0]} 👋</h1><p>{t.subtitle}</p></div><div><button onClick={() => setView('orders')}>{t.find}</button><Link href="/projects/new">{t.create}</Link></div></div><div className="dash-stat-grid"><Stat icon={BriefcaseBusiness} value="4" label={t.active} /><Stat icon={CheckCircle2} value="2" label={t.inProgress} /><Stat icon={Mail} value="18" label={t.completed} /><Stat icon={Wallet} value="2 450 000 so‘m" label={t.earned} /></div><section className="dash-projects"><div className="dash-section-title"><h2>{t.recommended}</h2></div><div className="dash-project-grid">{projects.slice(0, 3).map((project) => <ProjectCard key={project.id} project={project} t={t} />)}</div></section></>;
+  return <><div className="dash-welcome"><div><h1>{t.welcome}{fullName ? `, ${fullName.split(' ')[0]}` : ''} 👋</h1><p>{t.subtitle}</p></div><div><button onClick={() => setView('orders')}>{t.find}</button><Link href="/projects/new">{t.create}</Link></div></div><div className="dash-stat-grid"><Stat icon={BriefcaseBusiness} value="0" label={t.active} /><Stat icon={CheckCircle2} value="0" label={t.inProgress} /><Stat icon={Mail} value="0" label={t.completed} /><Stat icon={Wallet} value="0" label={t.earned} /></div><section className="dash-projects"><div className="dash-section-title"><h2>{t.recommended}</h2></div><div className="dash-project-grid">{projects.slice(0, 3).map((project) => <ProjectCard key={project.id} project={project} t={t} />)}</div></section></>;
 }
 
 function ProfileView({ t, fullName, language, notify }) {
-  const portfolio = ['SavdoFlow — E-commerce dizayni', 'MedCare — Tibbiyot ilovasi', 'EcoHush — Ta’lim platformasi', 'Finance AI Dashboard', 'Travel mobile app', 'SaaS landing page'];
-  return <><section className="profile-hero"><Avatar large /><div><h1>{fullName}<ShieldCheck /></h1><p>@azizbekdesign · Toshkent, O‘zbekiston</p><b>UI/UX Designer & Tilda Developer</b><span>{language === 'uz' ? 'Zamonaviy va foydalanuvchilarga qulay dizayn yaratish — mening asosiy maqsadim. 2 yildan ortiq tajriba.' : 'Создаю современные и удобные интерфейсы. Более двух лет опыта.'}</span></div><div><button onClick={() => notify(language === 'uz' ? 'Xabar oynasi ochildi' : 'Открыты сообщения')}><MessageSquare />{t.write}</button><button onClick={() => notify(language === 'uz' ? 'Buyurtma formasi ochildi' : 'Форма заказа открыта')}><BriefcaseBusiness />{t.order}</button></div></section><div className="profile-stats"><Stat icon={Star} value="4.9" label={t.rating} /><Stat icon={BriefcaseBusiness} value="27 loyiha" label={t.projects} /><Stat icon={Clock3} value="98%" label={t.deadline} /><Stat icon={ShieldCheck} value="2 yil Taskorada" label={t.activity} /></div><section className="profile-skills"><h2>{t.skills}</h2><div>{['UI/UX Design', 'Figma', 'Tilda', 'Web Design', 'Graphic Design'].map((skill) => <span key={skill}>{skill}</span>)}</div></section><section><div className="dash-section-title"><h2>{t.portfolio}</h2></div><div className="portfolio-grid">{portfolio.map((name, i) => <button key={name} onClick={() => notify(name)}><div className={`portfolio-art art-${i % 3}`}><span /><span /><span /></div><b>{name}</b><small>{language === 'uz' ? 'Ko‘rish' : 'Открыть'} →</small></button>)}</div></section></>;
+  return <><section className="profile-hero"><Avatar large /><div><h1>{fullName}</h1></div><div><button onClick={() => notify(language === 'uz' ? 'Xabar oynasi ochildi' : 'Открыты сообщения')}><MessageSquare />{t.write}</button><button onClick={() => notify(language === 'uz' ? 'Buyurtma formasi ochildi' : 'Форма заказа открыта')}><BriefcaseBusiness />{t.order}</button></div></section><div className="profile-stats"><Stat icon={Star} value="0" label={t.rating} /><Stat icon={BriefcaseBusiness} value="0" label={t.projects} /><Stat icon={Clock3} value="0%" label={t.deadline} /><Stat icon={ShieldCheck} value="0" label={t.activity} /></div></>;
 }
 
 function SimpleView({ id, t, language, projects, query, setQuery, category, setCategory, notify }) {
