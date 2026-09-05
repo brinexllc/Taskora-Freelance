@@ -1,0 +1,9 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>{{ title }}</h1>
+<p>Доступный баланс: {{ profile.balance }} UZS. Резерв договоров эта операция не изменяет.</p>
+<p>Положительная сумма увеличит доступный баланс, отрицательная — уменьшит. Операция сохраняется в финансовой истории и audit log.</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}
+<input type="submit" value="Подтвердить корректировку" class="default">
+</form>
+{% endblock %}

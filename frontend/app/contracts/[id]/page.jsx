@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { ContractWorkspace } from '@/components/contract-workspace';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -22,7 +23,6 @@ export default function ContractPage() {
     ready && session?.token && id ? `contracts/${id}` : null,
     { token: session?.token },
   );
-  const integrations = useRemote('integrations');
   const [agree, setAgree] = useState(false),
     [file, setFile] = useState(null),
     [preview, setPreview] = useState(''),
@@ -70,26 +70,6 @@ export default function ContractPage() {
     data.append('preview_text', preview);
     data.append('preview_image', image);
     await act('submit', data, 'workSent');
-  }
-  async function pay(provider) {
-    setBusy(true);
-    setError('');
-    try {
-      const result = await apiRequest('payments/checkout', {
-        method: 'POST',
-        token: session.token,
-        body: { contract: Number(id), provider },
-      });
-      if (result.checkout_url) window.location.assign(result.checkout_url);
-      else {
-        setNotice(t('paymentSuccess'));
-        remote.reload();
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
   }
   return (
     <PageShell>
@@ -145,27 +125,30 @@ export default function ContractPage() {
                   </div>
                 ))}
               </div>
-              {contract.status === 'signing' && !signed && (
-                <div className="t-form">
-                  <label className="t-check">
-                    <input
-                      type="checkbox"
-                      checked={agree}
-                      onChange={(e) => setAgree(e.target.checked)}
-                    />
-                    {t('agree')}
-                  </label>
-                  <button
-                    className="t-button"
-                    disabled={!agree || busy}
-                    onClick={() =>
-                      act('sign', { accepted: true }, 'contractSigned')
-                    }
-                  >
-                    {t('sign')}
-                  </button>
-                </div>
-              )}
+              {['draft', 'customer_accepted', 'freelancer_accepted'].includes(
+                contract.status,
+              ) &&
+                !signed && (
+                  <div className="t-form">
+                    <label className="t-check">
+                      <input
+                        type="checkbox"
+                        checked={agree}
+                        onChange={(e) => setAgree(e.target.checked)}
+                      />
+                      {t('agree')}
+                    </label>
+                    <button
+                      className="t-button"
+                      disabled={!agree || busy}
+                      onClick={() =>
+                        act('sign', { accepted: true }, 'contractSigned')
+                      }
+                    >
+                      {t('sign')}
+                    </button>
+                  </div>
+                )}
             </section>
             {work && (
               <section className="t-card">
@@ -265,30 +248,11 @@ export default function ContractPage() {
                 </form>
               </section>
             )}
-            {contract.status === 'review' && customer && (
+            {contract.status === 'submitted' && customer && (
               <section className="t-card">
-                <h2>{t('review')}</h2>
-                {!integrations.data?.click && (
-                  <Notice>{t('paymentUnavailable')}</Notice>
-                )}
-                <div className="actions">
-                  <button
-                    className="t-button"
-                    disabled={busy || !integrations.data?.click}
-                    onClick={() => pay('click')}
-                  >
-                    {t('payClick')}
-                  </button>
-                  <button
-                    className="t-button secondary"
-                    disabled={busy}
-                    onClick={() => pay('wallet')}
-                  >
-                    {t('payWallet')}
-                  </button>
-                </div>
+                <h2>{t('inReview')}</h2>
                 <form
-                  className="t-form section-heading"
+                  className="t-form revision-form"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void act('revision', { note }, 'revisionRequested');
@@ -308,7 +272,8 @@ export default function ContractPage() {
                 </form>
               </section>
             )}
-            <div className="actions section-heading">
+            <ContractWorkspace contract={contract} act={act} busy={busy} />
+            <div className="actions contract-actions">
               <button
                 className="t-button secondary"
                 disabled={busy || remote.loading}

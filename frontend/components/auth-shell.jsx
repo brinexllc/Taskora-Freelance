@@ -3,15 +3,16 @@ import Link from 'next/link';
 import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
+import { Logo } from '@/components/taskora-ui';
 import { languages } from '@/lib/i18n';
 
 export function AuthShell({ children, wide = false }) {
   const { language, setLanguage } = useApp();
   return (
     <main className="auth-page">
-      <Link className="auth-brand" href="/">
-        ✣ Taskora
-      </Link>
+      <div className="auth-brand">
+        <Logo />
+      </div>
       <div className="auth-language" aria-label="Language">
         {languages.map(([key, label]) => (
           <button

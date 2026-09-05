@@ -9,7 +9,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import Q, Avg
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.authtoken.models import Token
@@ -39,18 +39,31 @@ class PublicProfileListView(ListAPIView):
     serializer_class = PublicProfileSerializer
 
     def get_queryset(self):
-        qs = Profile.objects.select_related("user").filter(role=Profile.Role.FREELANCER, user__is_active=True).order_by("-created_at")
+        qs = Profile.objects.select_related("user").prefetch_related("skills").filter(Q(role=Profile.Role.FREELANCER) | Q(enabled_roles__icontains="freelancer"), user__is_active=True).order_by("-created_at")
         q = self.request.query_params.get("search", "").strip()
         if q:
-            qs = qs.filter(Q(full_name__icontains=q) | Q(skills__icontains=q) | Q(about__icontains=q))
-        return qs
+            qs = qs.filter(Q(full_name__icontains=q) | Q(skills__name__icontains=q) | Q(about__icontains=q) | Q(user__username__icontains=q))
+        params = self.request.query_params
+        if params.get("skill"):
+            qs = qs.filter(skills__name__iexact=params["skill"])
+        if params.get("available") == "true":
+            qs = qs.filter(available=True)
+        from rest_framework import serializers
+        for key, lookup in [("min_rate", "rate__gte"), ("max_rate", "rate__lte")]:
+            if params.get(key):
+                qs = qs.filter(**{lookup: serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0).run_validation(params[key])})
+        qs = qs.annotate(average_rating=Avg("user__received_reviews__rating", filter=Q(user__received_reviews__published=True)))
+        if params.get("rating"):
+            qs = qs.filter(average_rating__gte=serializers.IntegerField(min_value=1,max_value=5).run_validation(params["rating"]))
+        ordering = params.get("ordering", "-created_at")
+        return qs.order_by(ordering if ordering in ["-created_at", "rate", "-rate", "-average_rating"] else "-created_at", "id").distinct()
 
 
 class PublicProfileView(RetrieveAPIView):
     authentication_classes = []
     permission_classes = [AllowAny]
     serializer_class = PublicProfileSerializer
-    queryset = Profile.objects.select_related("user").filter(role=Profile.Role.FREELANCER, user__is_active=True)
+    queryset = Profile.objects.select_related("user").prefetch_related("skills").filter(Q(role=Profile.Role.FREELANCER) | Q(enabled_roles__icontains="freelancer"), user__is_active=True)
 
 
 def auth_response(user, status_code=status.HTTP_200_OK):
@@ -124,7 +137,8 @@ class SetRoleView(APIView):
         serializer.is_valid(raise_exception=True)
         profile, _ = Profile.objects.get_or_create(user=request.user, defaults={"full_name": request.user.get_full_name() or request.user.username})
         profile.role = serializer.validated_data["role"]
-        profile.save(update_fields=["role"])
+        profile.enabled_roles = list(dict.fromkeys([*profile.enabled_roles, profile.role]))
+        profile.save(update_fields=["role", "enabled_roles"])
         return Response(UserSerializer(request.user).data)
 
     put = post
@@ -207,3 +221,22 @@ class PasswordResetConfirmView(AuthPublicView):
         reset.save(update_fields=["used_at"])
         Token.objects.filter(user=user).delete()
         return auth_response(user)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
+
+    @transaction.atomic
+    def post(self, request):
+        from .validation import password_pair
+        from rest_framework import serializers
+        if not request.user.check_password(str(request.data.get("current_password", ""))):
+            return Response({"detail": "Неверный текущий пароль."}, status=400)
+        data = {key: serializers.CharField(min_length=8, max_length=128, trim_whitespace=False).run_validation(request.data.get(key)) for key in ["password", "password_confirm"]}
+        password_pair(data)
+        request.user.set_password(data["password"])
+        request.user.save(update_fields=["password"])
+        Token.objects.filter(user=request.user).delete()
+        return auth_response(request.user)

@@ -119,16 +119,18 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 local_origins = "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001"
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", local_origins if DEBUG else "")
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", local_origins if DEBUG else "")
-CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", not DEBUG)
+CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", False)
 CORS_ALLOW_CREDENTIALS = False
 
 REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "marketplace.exceptions.api_exception_handler",
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.TokenAuthentication"],
     "DEFAULT_PAGINATION_CLASS": "marketplace.pagination.ProjectPagination",
     "PAGE_SIZE": 12,
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
-    "DEFAULT_THROTTLE_RATES": {"auth": "30/hour", "reset": "5/hour", "verify": "30/hour"},
+    "DEFAULT_THROTTLE_CLASSES": ["marketplace.throttles.MutationThrottle"],
+    "DEFAULT_THROTTLE_RATES": {"sensitive": "120/minute","auth": "30/hour", "reset": "5/hour", "verify": "30/hour"},
 }
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -159,3 +161,10 @@ CLICK_SERVICE_ID = os.getenv("CLICK_SERVICE_ID", "")
 CLICK_MERCHANT_ID = os.getenv("CLICK_MERCHANT_ID", "")
 CLICK_SECRET_KEY = os.getenv("CLICK_SECRET_KEY", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+
+# Fee is fixed in each new contract; changing configuration never changes signed terms.
+PLATFORM_FEE_PERCENT = os.getenv("PLATFORM_FEE_PERCENT", "0")
+
+PAYME_MERCHANT_ID = os.getenv("PAYME_MERCHANT_ID", "")
+PAYME_SECRET_KEY = os.getenv("PAYME_SECRET_KEY", "")
+PAYME_TEST_MODE = env_bool("PAYME_TEST_MODE", True)

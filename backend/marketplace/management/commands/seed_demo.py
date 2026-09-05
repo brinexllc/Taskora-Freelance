@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 
-from marketplace.models import Project
+from marketplace.models import Project, Skill
+from django.db import transaction
 
 
 PROJECTS = [
@@ -41,9 +42,13 @@ PROJECTS = [
 class Command(BaseCommand):
     help = "Добавляет демонстрационные проекты Taskora без создания дублей."
 
+    @transaction.atomic
     def handle(self, *args, **options):
         created_count = 0
         for data in PROJECTS:
-            _, created = Project.objects.get_or_create(title=data["title"], defaults=data)
+            defaults = {key: value for key, value in data.items() if key != 'skills'}
+            project, created = Project.objects.get_or_create(title=data["title"], defaults=defaults)
+            if created:
+                project.skills.set([Skill.objects.get_or_create(name=name)[0] for name in data['skills']])
             created_count += int(created)
         self.stdout.write(self.style.SUCCESS(f"Создано проектов: {created_count}"))

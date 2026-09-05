@@ -17,7 +17,18 @@ export default function FreelancersPage() {
   const [search, setSearch] = useState(''),
     [query, setQuery] = useState(''),
     [page, setPage] = useState(1);
-  const remote = useRemote('profiles', { query: { search: query, page } });
+  const [filters, setFilters] = useState({
+    skill: '',
+    min_rate: '',
+    max_rate: '',
+    rating: '',
+    available: '',
+  });
+  const [applied, setApplied] = useState({});
+  const directory = useRemote('directory');
+  const remote = useRemote('profiles', {
+    query: { search: query, page, ...applied },
+  });
   return (
     <PageShell>
       <h1>{t('freelancers')}</h1>
@@ -26,6 +37,7 @@ export default function FreelancersPage() {
         onSubmit={(e) => {
           e.preventDefault();
           setQuery(search);
+          setApplied(filters);
           setPage(1);
         }}
       >
@@ -45,6 +57,67 @@ export default function FreelancersPage() {
             <button className="t-button">{t('search')}</button>
           </div>
         </Field>
+        <Field label={t('skills')}>
+          <select
+            value={filters.skill}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, skill: e.target.value }))
+            }
+          >
+            <option value="">{t('all')}</option>
+            {directory.data?.skills.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t('rating')}>
+          <select
+            value={filters.rating}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, rating: e.target.value }))
+            }
+          >
+            <option value="">{t('all')}</option>
+            {[5, 4, 3, 2, 1].map((n) => (
+              <option value={n} key={n}>
+                {n} ★ +
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t('budgetMin')}>
+          <input
+            type="number"
+            min="0"
+            value={filters.min_rate}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, min_rate: e.target.value }))
+            }
+          />
+        </Field>
+        <Field label={t('budgetMax')}>
+          <input
+            type="number"
+            min="0"
+            value={filters.max_rate}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, max_rate: e.target.value }))
+            }
+          />
+        </Field>
+        <label className="t-check">
+          <input
+            type="checkbox"
+            checked={filters.available === 'true'}
+            onChange={(e) =>
+              setFilters((f) => ({
+                ...f,
+                available: e.target.checked ? 'true' : '',
+              }))
+            }
+          />
+          {t('available')}
+        </label>
       </form>
       <RemoteState remote={remote}>
         {remote.data?.results.length ? (
@@ -54,6 +127,10 @@ export default function FreelancersPage() {
                 <Avatar profile={profile} />
                 <h3>{profile.full_name}</h3>
                 <p className="muted">@{profile.username}</p>
+                <p className="rating">
+                  ★ {profile.rating?.toFixed(1) || '—'} · {profile.review_count}{' '}
+                  {t('reviews')}
+                </p>
                 <div className="skill-tags">
                   {profile.skills.map((skill) => (
                     <span key={skill}>{skill}</span>

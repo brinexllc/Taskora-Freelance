@@ -75,9 +75,12 @@ export const verifyPasswordReset = (identifier, code) =>
 export const confirmPasswordReset = (body) =>
   apiRequest('auth/password-reset/confirm', { method: 'POST', body });
 
-export async function downloadWork(id, token, filename) {
-  const response = await fetch(apiEndpoint(`contracts/${id}/download`), {
-    headers: { Authorization: `Token ${token}` },
+export const downloadWork = (id, token, filename) =>
+  downloadFile(`contracts/${id}/download`, token, filename);
+
+export async function downloadFile(path, token, filename) {
+  const response = await fetch(apiEndpoint(path), {
+    headers: token ? { Authorization: `Token ${token}` } : {},
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));

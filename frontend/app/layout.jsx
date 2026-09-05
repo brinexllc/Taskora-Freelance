@@ -1,8 +1,8 @@
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Inter, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { AppProviders } from '@/components/app-providers';
 
-const geistSans = Geist({
+const geistSans = Inter({
   variable: '--font-geist-sans',
   subsets: ['cyrillic', 'latin'],
 });

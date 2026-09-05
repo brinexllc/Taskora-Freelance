@@ -1,7 +1,16 @@
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, FileText, Menu, Moon, Sun, X } from 'lucide-react';
+import {
+  ArrowRight,
+  FileText,
+  Menu,
+  Moon,
+  Sun,
+  X,
+  Bell,
+  MessageSquare,
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/components/app-providers';
 import { apiRequest } from '@/lib/api';
@@ -43,10 +52,37 @@ export function useRemote(path, { token, query } = {}) {
   const reload = useCallback(() => setVersion((v) => v + 1), []);
   return { data, error, loading, reload };
 }
-export function Logo() {
+export function Logo({ stacked = false }) {
   return (
-    <Link href="/" className="t-logo">
-      <span>✣</span> Taskora
+    <Link
+      href="/"
+      className={`t-logo${stacked ? ' t-logo-stacked' : ''}`}
+      aria-label="Taskora"
+    >
+      <svg className="taskora-mark" viewBox="0 0 100 104" aria-hidden="true">
+        <g fill="currentColor">
+          <circle cx="50" cy="35" r="13" />
+          <circle cx="20" cy="35" r="10.5" />
+          <circle cx="80" cy="35" r="10.5" />
+          <circle cx="50" cy="64" r="13" />
+          <circle cx="50" cy="94" r="10.5" />
+        </g>
+        <g fill="#3faaa5">
+          <circle cx="34" cy="15" r="6" />
+          <circle cx="50" cy="8" r="3.5" />
+          <circle cx="66" cy="15" r="6" />
+          <circle cx="9" cy="58" r="6" />
+          <circle cx="27" cy="64" r="6" />
+          <circle cx="12" cy="75" r="3.5" />
+          <circle cx="25" cy="87" r="6" />
+          <circle cx="75" cy="87" r="6" />
+          <circle cx="88" cy="75" r="3.5" />
+          <circle cx="73" cy="64" r="6" />
+          <circle cx="91" cy="58" r="6" />
+        </g>
+      </svg>
+      <strong>Taskora</strong>
+      {stacked && <small>Work with Confidence</small>}
     </Link>
   );
 }
@@ -67,13 +103,13 @@ export function LanguageSelect() {
     </select>
   );
 }
-export function Header() {
+export function Header({ landing = false }) {
   const { t, session, theme, setTheme } = useApp();
   const [open, setOpen] = useState(false);
   return (
     <header className="t-header">
       <div className="t-container t-header-inner">
-        <Logo />
+        <Logo stacked={landing} />
         <button
           className="mobile-toggle"
           onClick={() => setOpen(!open)}
@@ -85,6 +121,19 @@ export function Header() {
         <nav className={open ? 'is-open' : ''}>
           <Link href="/projects">{t('orders')}</Link>
           <Link href="/freelancers">{t('freelancers')}</Link>
+          {session?.user && (
+            <>
+              <Link href="/dashboard?view=messages" aria-label={t('messages')}>
+                <MessageSquare size={19} />
+              </Link>
+              <Link
+                href="/dashboard?view=notifications"
+                aria-label={t('notifications')}
+              >
+                <Bell size={19} />
+              </Link>
+            </>
+          )}
           <LanguageSelect />
           <button
             className="icon-button"
@@ -155,7 +204,11 @@ export function Empty({ text }) {
 }
 export function Status({ value, label }) {
   const { t } = useApp();
-  return <span className={`status status-${value}`}>{label || t(value)}</span>;
+  return (
+    <span className={`status status-${value}`}>
+      {label || t(value === 'review' ? 'inReview' : value)}
+    </span>
+  );
 }
 export function Avatar({ profile, large = false }) {
   const name = profile?.full_name || '';
@@ -212,13 +265,21 @@ export function Pager({ data, page, onChange }) {
     </nav>
   );
 }
-export function ProjectCard({ project }) {
+export function ProjectCard({ project, compact = false }) {
   const { t, language } = useApp();
   return (
-    <article className="t-card project-row">
+    <article
+      className={`t-card project-row ${compact ? 'compact-project' : ''}`}
+    >
       <div className="row-between">
         <span className="eyebrow">{t(project.category)}</span>
-        <Status value={project.status} />
+        {compact && project.deadline ? (
+          <span className="compact-deadline">
+            {date(project.deadline, language)}
+          </span>
+        ) : (
+          <Status value={project.status} />
+        )}
       </div>
       <Link href={`/projects/${project.id}`}>
         <h3>{project.title}</h3>
@@ -231,6 +292,7 @@ export function ProjectCard({ project }) {
       </div>
       <div className="project-row-footer">
         <div>
+          {compact && <span className="budget-label">{t('budget')}</span>}
           <strong>
             {money(project.budget_min, language)} –{' '}
             {money(project.budget_max, language)}

@@ -1,7 +1,8 @@
+import { mvpCopy } from './mvp-copy';
 export const languages = [
   ['ru', 'RUS'],
   ['uz', 'UZ'],
-  ['uz-cyrl', 'УЗ'],
+  ['uz-cyrl', 'ЎЗ'],
   ['en', 'EN'],
 ];
 const ru = {
@@ -787,6 +788,10 @@ function cyrillic(text) {
     },
   );
 }
+Object.assign(ru, mvpCopy.ru);
+Object.assign(en, mvpCopy.en);
+Object.assign(uz, mvpCopy.uz);
+
 export const dictionaries = {
   ru,
   en,
@@ -807,4 +812,12 @@ export function date(value, language = 'ru') {
         value.length === 10 ? `${value}T12:00:00` : value,
       ).toLocaleDateString(language === 'uz-cyrl' ? 'uz-Cyrl' : language)
     : '—';
+}
+
+export function dateTime(value, language = 'ru') {
+  if (!value) return '—';
+  return new Intl.DateTimeFormat(
+    language === 'uz-cyrl' ? 'uz-Cyrl' : language,
+    { dateStyle: 'short', timeStyle: 'short' },
+  ).format(new Date(value));
 }

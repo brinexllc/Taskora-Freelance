@@ -30,8 +30,8 @@ def password_pair(attrs):
     password = attrs["password"]
     if password != attrs["password_confirm"]:
         raise serializers.ValidationError({"password_confirm": "Пароли не совпадают."})
-    if len(password) < 8 or not any(c.isupper() for c in password) or not re.search(r"\d", password) or not any(c in "!-_@#$&.<=>," for c in password):
-        raise serializers.ValidationError({"password": "Минимум 8 символов, одна заглавная буква, цифра и символ !-_@#$&.<=>,"})
+    if len(password) < 8 or not any(c.isupper() for c in password) or not any(c.islower() for c in password) or not re.search(r"\d", password) or not any(not c.isalnum() and not c.isspace() for c in password):
+        raise serializers.ValidationError({"password": "Минимум 8 символов, заглавная и строчная буквы, цифра и спецсимвол."})
     try:
         validate_password(password)
     except DjangoValidationError as exc:
@@ -74,3 +74,32 @@ def image_data(value):
         return "data:image/jpeg;base64," + base64.b64encode(output.getvalue()).decode()
     except (ValueError, OSError, UnidentifiedImageError, Image.DecompressionBombWarning, Image.DecompressionBombError) as exc:
         raise serializers.ValidationError("Повреждённое или слишком большое изображение.") from exc
+
+
+def uploaded_file(value):
+    from pathlib import Path
+    if not value.size or value.size > 25 * 1024 * 1024:
+        raise serializers.ValidationError("Размер файла должен быть от 1 байта до 25 МБ.")
+    suffix = Path(value.name).suffix.lower()
+    allowed = {".zip", ".pdf", ".txt", ".csv", ".json", ".md", ".png", ".jpg", ".jpeg", ".webp", ".docx", ".xlsx", ".pptx", ".fig"}
+    if suffix not in allowed:
+        raise serializers.ValidationError("Разрешены ZIP, PDF, изображения, документы, FIG и текстовые файлы. Исходный код упакуйте в ZIP.")
+    head = value.read(16)
+    value.seek(0)
+    if head.startswith(b"MZ") or head.startswith(b"\x7fELF"):
+        raise serializers.ValidationError("Исполняемые файлы запрещены.")
+    if suffix == ".pdf" and not head.startswith(b"%PDF-"):
+        raise serializers.ValidationError("Повреждённый PDF.")
+    if suffix in {".zip", ".docx", ".xlsx", ".pptx"} and not head.startswith(b"PK"):
+        raise serializers.ValidationError("Файл не соответствует формату ZIP/Office.")
+    if suffix in {".png", ".jpg", ".jpeg", ".webp"}:
+        try:
+            with Image.open(value) as uploaded:
+                if uploaded.width * uploaded.height > 16_000_000:
+                    raise ValueError()
+                uploaded.verify()
+        except (ValueError, OSError, Image.DecompressionBombError) as exc:
+            raise serializers.ValidationError("Повреждённое изображение.") from exc
+        finally:
+            value.seek(0)
+    return value

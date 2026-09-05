@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
-import { apiRequest, createProposal } from '@/lib/api';
+import { ProjectEditor } from '@/components/project-editor';
+import { apiRequest, createProposal, downloadFile } from '@/lib/api';
 import {
   Empty,
   Field,
@@ -127,6 +128,57 @@ export default function ProjectDetailsPage() {
                 </Link>
               )}
             </section>
+            {owner &&
+              ['draft', 'published'].includes(project.status) &&
+              !project.proposal_count && (
+                <section className="t-card">
+                  <details>
+                    <summary>{t('editProject')}</summary>
+                    <ProjectEditor project={project} onSaved={remote.reload} />
+                  </details>
+                  <button
+                    className="text-link danger"
+                    disabled={busy}
+                    onClick={async () => {
+                      if (!window.confirm(t('confirmCancelProject'))) return;
+                      setBusy(true);
+                      try {
+                        await apiRequest(`projects/${id}`, {
+                          method: 'DELETE',
+                          token: session.token,
+                        });
+                        remote.reload();
+                      } catch (e) {
+                        setError(e.message);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    {t('cancelProject')}
+                  </button>
+                </section>
+              )}
+            {!!project.attachments?.length && (
+              <section className="t-card">
+                <h2>{t('attachments')}</h2>
+                {project.attachments.map((a) => (
+                  <button
+                    key={a.id}
+                    className="text-link"
+                    onClick={() =>
+                      downloadFile(
+                        `projects/${id}/attachments/${a.id}/download`,
+                        session?.token,
+                        a.filename,
+                      ).catch((e) => setError(e.message))
+                    }
+                  >
+                    {a.filename}
+                  </button>
+                ))}
+              </section>
+            )}
             <Notice error>{error}</Notice>
             <Notice>{notice}</Notice>
             {session?.token && (
@@ -140,6 +192,15 @@ export default function ProjectDetailsPage() {
                           <div className="row-between">
                             <h3>{proposal.freelancer_name}</h3>
                             <Status value={proposal.status} />
+                            {proposal.status === 'pending' && (
+                              <button
+                                className="text-link"
+                                disabled={busy}
+                                onClick={() => decide(proposal.id, 'withdraw')}
+                              >
+                                {t('withdrawProposal')}
+                              </button>
+                            )}
                           </div>
                           <p className="preserve-lines">
                             {proposal.cover_letter}
@@ -149,7 +210,7 @@ export default function ProjectDetailsPage() {
                             {proposal.delivery_days} {t('days')}
                           </p>
                           {proposal.status === 'pending' &&
-                            project.status === 'active' && (
+                            project.status === 'published' && (
                               <div className="actions">
                                 <button
                                   className="t-button"
@@ -191,6 +252,15 @@ export default function ProjectDetailsPage() {
                     <section className="t-card" key={proposal.id}>
                       <h2>{t('myProposals')}</h2>
                       <Status value={proposal.status} />
+                      {proposal.status === 'pending' && (
+                        <button
+                          className="text-link"
+                          disabled={busy}
+                          onClick={() => decide(proposal.id, 'withdraw')}
+                        >
+                          {t('withdrawProposal')}
+                        </button>
+                      )}
                       <p className="preserve-lines">{proposal.cover_letter}</p>
                       <p>
                         {money(proposal.amount, language)} ·{' '}
@@ -209,7 +279,7 @@ export default function ProjectDetailsPage() {
                 )}
               </RemoteState>
             )}
-            {!owner && project.status === 'active' && !alreadyApplied && (
+            {!owner && project.status === 'published' && !alreadyApplied && (
               <section className="t-card" id="apply">
                 {!session?.user ? (
                   <>

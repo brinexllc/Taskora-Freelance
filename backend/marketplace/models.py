@@ -15,9 +15,13 @@ class Project(models.Model):
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Черновик"
-        ACTIVE = "active", "Активен"
+        ACTIVE = "published", "Опубликован"
+        CONTRACTING = "contracting", "Согласование договора"
         IN_PROGRESS = "in_progress", "В работе"
+        REVIEW = "review", "На проверке"
         COMPLETED = "completed", "Завершён"
+        CANCELLED = "cancelled", "Отменён"
+        DISPUTED = "disputed", "Спор"
 
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="projects")
     title = models.CharField("Название", max_length=180)
@@ -37,7 +41,7 @@ class Project(models.Model):
         decimal_places=2,
         validators=[MinValueValidator(0)],
     )
-    skills = models.JSONField("Навыки", default=list, blank=True)
+    skills = models.ManyToManyField("Skill", verbose_name="Навыки", related_name="projects", blank=True)
     client_name = models.CharField("Имя заказчика", max_length=120)
     client_company = models.CharField("Компания", max_length=120, blank=True)
     status = models.CharField(
@@ -45,6 +49,8 @@ class Project(models.Model):
     )
     featured = models.BooleanField("Рекомендуемый", default=False)
     deadline = models.DateField("Срок выполнения", null=True, blank=True)
+    budget_type = models.CharField(max_length=8, choices=[("fixed", "Fixed Price"), ("hourly", "Hourly"), ("daily", "Daily")], default="fixed")
+    visibility = models.CharField(max_length=8, default="public", editable=False)
     created_at = models.DateTimeField("Создан", auto_now_add=True)
     updated_at = models.DateTimeField("Обновлён", auto_now=True)
 
@@ -66,6 +72,7 @@ class Proposal(models.Model):
         PENDING = "pending", "Ожидает решения"
         ACCEPTED = "accepted", "Принят"
         REJECTED = "rejected", "Отклонён"
+        WITHDRAWN = "withdrawn", "Отозван"
 
     freelancer = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="proposals")
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
@@ -108,12 +115,16 @@ class Profile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
     full_name = models.CharField("Полное имя", max_length=160)
     role = models.CharField("Роль", max_length=16, choices=Role.choices, blank=True)
+    enabled_roles = models.JSONField(default=list, blank=True)
+    terms_accepted_at = models.DateTimeField(null=True, blank=True)
+    professional_experience = models.TextField(blank=True, max_length=3000)
+    available = models.BooleanField(default=True)
     birth_date = models.DateField(null=True, blank=True)
     phone = models.CharField(max_length=13, unique=True, null=True, blank=True)
     has_passport = models.BooleanField(default=False)
     about = models.TextField(blank=True, max_length=3000)
     avatar = models.TextField(blank=True)
-    skills = models.JSONField(default=list, blank=True)
+    skills = models.ManyToManyField("Skill", verbose_name="Навыки", related_name="profiles", blank=True)
     verified_skills = models.JSONField(default=list, blank=True)
     rate = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     rate_unit = models.CharField(max_length=8, choices=[("hour", "За час"), ("day", "За день")], default="hour")
@@ -164,10 +175,15 @@ def private_work_path(instance, filename):
 
 class Contract(models.Model):
     class Status(models.TextChoices):
-        SIGNING = "signing", "Ожидает подписей"
+        SIGNING = "draft", "Ожидает подписей"
+        CUSTOMER_ACCEPTED = "customer_accepted", "Подтверждён заказчиком"
+        FREELANCER_ACCEPTED = "freelancer_accepted", "Подтверждён исполнителем"
+        AWAITING_FUNDING = "awaiting_funding", "Ожидает резервирования"
         ACTIVE = "active", "В работе"
-        REVIEW = "review", "На проверке"
+        REVIEW = "submitted", "На проверке"
+        DISPUTED = "disputed", "Спор"
         COMPLETED = "completed", "Завершён"
+        CANCELLED = "cancelled", "Отменён"
 
     project = models.OneToOneField(Project, on_delete=models.PROTECT, related_name="contract")
     proposal = models.OneToOneField(Proposal, on_delete=models.PROTECT, related_name="contract")
@@ -176,7 +192,18 @@ class Contract(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     delivery_days = models.PositiveIntegerField()
     terms = models.TextField()
-    status = models.CharField(max_length=16, choices=Status.choices, default=Status.SIGNING)
+    status = models.CharField(max_length=24, choices=Status.choices, default=Status.SIGNING)
+    version = models.PositiveIntegerField(default=1)
+    scope = models.TextField(blank=True)
+    currency = models.CharField(max_length=3, default="UZS")
+    budget_type = models.CharField(max_length=8, default="fixed")
+    deadline = models.DateTimeField(null=True, blank=True)
+    funded_at = models.DateTimeField(null=True, blank=True)
+    escrow_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    fee_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    fee_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    released_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    refunded_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     customer_signed_at = models.DateTimeField(null=True, blank=True)
     freelancer_signed_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -184,6 +211,7 @@ class Contract(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [models.CheckConstraint(condition=models.Q(escrow_amount__gte=0), name="nonnegative_escrow")]
 
 
 class Deliverable(models.Model):
@@ -213,21 +241,25 @@ class Payment(models.Model):
     provider = models.CharField(max_length=12, default="click")
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
     click_trans_id = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    payme_trans_id = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    provider_data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     paid_at = models.DateTimeField(null=True, blank=True)
 
 
 class WalletEntry(models.Model):
+    reference = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    contract = models.ForeignKey(Contract, null=True, blank=True, on_delete=models.PROTECT, related_name="transactions")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="wallet_entries")
     amount = models.DecimalField(max_digits=16, decimal_places=2)
-    kind = models.CharField(max_length=24, choices=[("topup", "Пополнение"), ("income", "Оплата работы"), ("purchase", "Оплата заказа"), ("withdrawal", "Вывод средств"), ("refund", "Возврат")])
+    kind = models.CharField(max_length=24, choices=[("topup", "Пополнение"), ("escrow_hold", "Резервирование"), ("escrow_release", "Выплата по договору"), ("platform_fee", "Комиссия"), ("adjustment", "Корректировка"), ("income", "Оплата работы"), ("purchase", "Оплата заказа"), ("withdrawal", "Вывод средств"), ("refund", "Возврат")])
     description = models.CharField(max_length=240)
     payment = models.ForeignKey(Payment, null=True, blank=True, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at", "-id"]
-        constraints = [models.UniqueConstraint(fields=["payment", "user", "kind"], name="unique_payment_ledger_entry")]
+        constraints = [models.UniqueConstraint(fields=["payment", "user", "kind"], name="unique_payment_ledger_entry"), models.UniqueConstraint(fields=["contract", "user", "kind"], name="unique_contract_ledger_entry")]
 
 
 class Withdrawal(models.Model):
@@ -243,3 +275,112 @@ class Withdrawal(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+
+class Category(models.Model):
+    slug = models.SlugField(unique=True, max_length=24)
+    name = models.CharField(max_length=100)
+    active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Skill(models.Model):
+    name = models.CharField(max_length=60, unique=True)
+    active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+
+class ContractEvent(models.Model):
+    contract = models.ForeignKey(Contract, on_delete=models.PROTECT, related_name="events")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT)
+    kind = models.CharField(max_length=40)
+    description = models.TextField()
+    data = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+
+class Message(models.Model):
+    contract = models.ForeignKey(Contract, on_delete=models.PROTECT, related_name="messages")
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT)
+    text = models.TextField(max_length=5000, blank=True)
+    file = models.FileField(upload_to=private_work_path, blank=True)
+    filename = models.CharField(max_length=255, blank=True)
+    system = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+
+class Dispute(models.Model):
+    contract = models.OneToOneField(Contract, on_delete=models.PROTECT, related_name="dispute")
+    opened_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="opened_disputes")
+    reason = models.TextField(max_length=5000)
+    status = models.CharField(max_length=24, choices=[("opened", "Открыт"), ("evidence_collection", "Сбор доказательств"), ("admin_review", "На рассмотрении"), ("resolved", "Решён")], default="opened")
+    resolution = models.TextField(blank=True)
+    freelancer_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    resolved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="resolved_disputes")
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class Review(models.Model):
+    contract = models.ForeignKey(Contract, on_delete=models.PROTECT, related_name="reviews")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="written_reviews")
+    target = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="received_reviews")
+    rating = models.PositiveSmallIntegerField()
+    text = models.TextField(max_length=3000)
+    communication = models.PositiveSmallIntegerField(null=True, blank=True)
+    quality = models.PositiveSmallIntegerField(null=True, blank=True)
+    deadline = models.PositiveSmallIntegerField(null=True, blank=True)
+    published = models.BooleanField(default=True)
+    moderation_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [models.UniqueConstraint(fields=["contract", "author"], name="one_review_per_author"), models.CheckConstraint(condition=models.Q(rating__gte=1, rating__lte=5), name="review_rating_range")]
+
+
+class Notification(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
+    contract = models.ForeignKey(Contract, null=True, blank=True, on_delete=models.PROTECT)
+    kind = models.CharField(max_length=40)
+    text = models.CharField(max_length=500)
+    link = models.CharField(max_length=200, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+
+class AuditLog(models.Model):
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT)
+    action = models.CharField(max_length=80)
+    object_type = models.CharField(max_length=80)
+    object_id = models.CharField(max_length=80)
+    detail = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+
+def attachment_path(instance, filename):
+    return f"attachments/{uuid.uuid4().hex}"
+
+
+class ProjectAttachment(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.PROTECT, related_name="attachments")
+    file = models.FileField(upload_to=attachment_path)
+    filename = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)

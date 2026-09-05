@@ -1,11 +1,12 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from .payme_views import payme_callback
 from .auth_views import (
-    LoginView, LogoutView, MeView, PasswordResetConfirmView,
+    ChangePasswordView, LoginView, LogoutView, MeView, PasswordResetConfirmView,
     PasswordResetRequestView, PasswordResetVerifyView, PublicProfileListView, PublicProfileView, RegisterView, SetRoleView,
 )
-from .views import ContractViewSet, ProjectViewSet, ProposalViewSet, api_root, dashboard, health, overview
+from .views import admin_file_download, ContractViewSet, ProjectViewSet, ProposalViewSet, api_root, dashboard, health, overview, NotificationViewSet, DisputeViewSet, directory, profile_reviews
 from .payment_views import cancel_payment, cancel_withdrawal, checkout, click_callback, integrations, wallet, withdraw
 
 
@@ -13,8 +14,15 @@ router = DefaultRouter()
 router.register("projects", ProjectViewSet, basename="project")
 router.register("proposals", ProposalViewSet, basename="proposal")
 router.register("contracts", ContractViewSet, basename="contract")
+router.register("notifications", NotificationViewSet, basename="notification")
+router.register("disputes", DisputeViewSet, basename="dispute")
 
 urlpatterns = [
+    path("admin-files/<str:model>/<int:pk>/", admin_file_download, name="admin-file-download"),
+    path("payments/payme/", payme_callback),
+    path("directory/", directory),
+    path("profiles/<int:pk>/reviews/", profile_reviews),
+    path("auth/change-password/", ChangePasswordView.as_view()),
     path("profiles/", PublicProfileListView.as_view(), name="profile-list"),
     path("profiles/<int:pk>/", PublicProfileView.as_view(), name="profile-detail"),
     path("dashboard/", dashboard),

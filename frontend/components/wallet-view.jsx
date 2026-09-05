@@ -5,6 +5,7 @@ import { useApp } from '@/components/app-providers';
 import { apiRequest } from '@/lib/api';
 import {
   Empty,
+  Pager,
   Field,
   Notice,
   RemoteState,
@@ -14,7 +15,16 @@ import {
 import { date, money } from '@/lib/i18n';
 export function WalletView() {
   const { t, language, session } = useApp();
-  const remote = useRemote('wallet', { token: session.token });
+  const [page, setPage] = useState(1);
+  const [kind, setKind] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
+  const [paymentKey, setPaymentKey] = useState(null);
+  const [withdrawKey, setWithdrawKey] = useState(null);
+  const [provider, setProvider] = useState('click');
+  const remote = useRemote('wallet', {
+    token: session.token,
+    query: { page, kind },
+  });
   const [amount, setAmount] = useState(''),
     [withdrawAmount, setWithdrawAmount] = useState(''),
     [destination, setDestination] = useState(''),
@@ -33,6 +43,8 @@ export function WalletView() {
       else {
         remote.reload();
         setWithdrawAmount('');
+        setWithdrawKey(null);
+        setConfirmed(false);
       }
     } catch (err) {
       setError(err.message);
@@ -62,10 +74,22 @@ export function WalletView() {
               <strong>{money(data.balance, language)}</strong>
               <span>{t('history')}</span>
             </section>
+            <div className="t-stats">
+              {[
+                ['frozen_balance', 'frozenBalance'],
+                ['pending_balance', 'pendingBalance'],
+                ['pending_withdrawal', 'pendingWithdrawal'],
+              ].map(([key, label]) => (
+                <div className="t-stat" key={key}>
+                  <span>{t(label)}</span>
+                  <strong>{money(data[key], language)}</strong>
+                </div>
+              ))}
+            </div>
             <div className="two-columns">
               <section className="t-card">
                 <h2>{t('topup')}</h2>
-                {!data.click_available && (
+                {!data.click_available && !data.payme_available && (
                   <Notice>{t('paymentUnavailable')}</Notice>
                 )}
                 <form
@@ -74,27 +98,52 @@ export function WalletView() {
                     e.preventDefault();
                     void action('payments/checkout', {
                       amount,
-                      provider: 'click',
+                      idempotency_key: paymentKey || crypto.randomUUID(),
+                      provider,
                     });
                   }}
                 >
+                  <Field label={t('paymentMethod')}>
+                    <select
+                      value={provider}
+                      onChange={(e) => {
+                        setProvider(e.target.value);
+                        setPaymentKey(crypto.randomUUID());
+                      }}
+                    >
+                      <option value="click">CLICK</option>
+                      <option value="payme">PAYME</option>
+                    </select>
+                  </Field>
                   <Field label={t('topupAmount')}>
                     <input
                       type="number"
                       min="1000"
                       step="0.01"
                       value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
+                      onChange={(e) => {
+                        setAmount(e.target.value);
+                        setPaymentKey(crypto.randomUUID());
+                      }}
                       required
                     />
                   </Field>
                   <button
                     className="t-button"
-                    disabled={busy || !data.click_available}
+                    disabled={
+                      busy ||
+                      !(provider === 'click'
+                        ? data.click_available
+                        : data.payme_available)
+                    }
                   >
-                    {t('payClick')}
+                    {t(provider === 'click' ? 'payClick' : 'payPayme')}
                   </button>
-                  <small className="muted">{t('paymeSoon')}</small>
+                  {!(provider === 'click'
+                    ? data.click_available
+                    : data.payme_available) && (
+                    <small className="muted">{t('paymentUnavailable')}</small>
+                  )}
                 </form>
               </section>
               <section className="t-card">
@@ -107,6 +156,8 @@ export function WalletView() {
                     void action('wallet/withdraw', {
                       amount: withdrawAmount,
                       destination,
+                      confirmed,
+                      idempotency_key: withdrawKey || crypto.randomUUID(),
                     });
                   }}
                 >
@@ -117,29 +168,69 @@ export function WalletView() {
                       max={data.balance}
                       step="0.01"
                       value={withdrawAmount}
-                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                      onChange={(e) => {
+                        setWithdrawAmount(e.target.value);
+                        setWithdrawKey(crypto.randomUUID());
+                        setConfirmed(false);
+                      }}
                       required
                     />
                   </Field>
                   <Field label={t('destination')} hint={t('destinationHint')}>
                     <input
                       value={destination}
-                      onChange={(e) => setDestination(e.target.value)}
+                      onChange={(e) => {
+                        setDestination(e.target.value);
+                        setWithdrawKey(crypto.randomUUID());
+                        setConfirmed(false);
+                      }}
                       maxLength={160}
                       required
                     />
                   </Field>
+                  <label className="t-check">
+                    <input
+                      type="checkbox"
+                      checked={confirmed}
+                      onChange={(e) => setConfirmed(e.target.checked)}
+                    />
+                    {t('confirmWithdrawal')}: {money(withdrawAmount, language)}
+                  </label>
                   <button
                     className="t-button secondary"
-                    disabled={busy || Number(data.balance) <= 0}
+                    disabled={busy || !confirmed || Number(data.balance) <= 0}
                   >
                     {t('requestWithdrawal')}
                   </button>
                 </form>
               </section>
             </div>
-            <section className="t-card section-heading">
-              <h2>{t('history')}</h2>
+            <section className="t-card">
+              <div className="row-between">
+                <h2>{t('history')}</h2>
+                <select
+                  aria-label={t('history')}
+                  value={kind}
+                  onChange={(e) => {
+                    setKind(e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <option value="">{t('all')}</option>
+                  {[
+                    'topup',
+                    'escrow_hold',
+                    'escrow_release',
+                    'refund',
+                    'withdrawal',
+                    'platform_fee',
+                  ].map((k) => (
+                    <option key={k} value={k}>
+                      {t(k === 'topup' ? 'topupKind' : k)}
+                    </option>
+                  ))}
+                </select>
+              </div>
               {data.entries.length ? (
                 <div className="table-scroll">
                   <table className="t-table">
@@ -180,12 +271,15 @@ export function WalletView() {
                 <Empty text={t('noTransactions')} />
               )}
             </section>
+            <Pager data={data} page={page} onChange={setPage} />
             <section className="t-card">
               <h2>{t('payments')}</h2>
-              {data.payments.filter((p) => p.provider === 'click').length ? (
+              {data.payments.filter((p) =>
+                ['click', 'payme'].includes(p.provider),
+              ).length ? (
                 <div className="list-stack">
                   {data.payments
-                    .filter((p) => p.provider === 'click')
+                    .filter((p) => ['click', 'payme'].includes(p.provider))
                     .map((payment) => (
                       <article className="t-card" key={payment.reference}>
                         <div className="row-between">
@@ -200,6 +294,7 @@ export function WalletView() {
                           />
                         </div>
                         <p className="muted">
+                          {payment.provider.toUpperCase()} ·{' '}
                           {date(payment.created_at, language)}
                         </p>
                         <div className="actions">

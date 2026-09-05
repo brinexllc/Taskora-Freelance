@@ -2,23 +2,34 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
 
-from .models import Profile
-from .validation import birth_date as validate_age, image_data, password_pair, phone_number, skills_list
+from .models import Profile, Review, Skill
+from django.db.models import Avg
+from django.utils import timezone
+from .validation import birth_date as validate_age, image_data, password_pair, phone_number
 
 User = get_user_model()
 
 
 class PublicProfileSerializer(serializers.ModelSerializer):
+    skills = serializers.SlugRelatedField(many=True, slug_field="name", read_only=True)
     username = serializers.CharField(source="user.username", read_only=True)
     first_name = serializers.CharField(source="user.first_name", read_only=True)
     last_name = serializers.CharField(source="user.last_name", read_only=True)
     age = serializers.IntegerField(read_only=True)
     experience_days = serializers.SerializerMethodField()
     completed_projects = serializers.SerializerMethodField()
+    rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
-        fields = ["id", "username", "first_name", "last_name", "full_name", "age", "role", "avatar", "about", "skills", "verified_skills", "rate", "rate_unit", "created_at", "experience_days", "completed_projects"]
+        fields = ["id", "username", "first_name", "last_name", "full_name", "age", "role", "avatar", "about", "skills", "verified_skills", "rate", "rate_unit", "created_at", "experience_days", "completed_projects", "enabled_roles", "professional_experience", "available", "rating", "review_count"]
+
+    def get_rating(self, obj):
+        return obj.user.received_reviews.filter(published=True).aggregate(value=Avg("rating"))["value"]
+
+    def get_review_count(self, obj):
+        return obj.user.received_reviews.filter(published=True).count()
 
     def get_experience_days(self, obj):
         from django.utils import timezone
@@ -44,23 +55,33 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class ProfileUpdateSerializer(serializers.ModelSerializer):
+    skills = serializers.SlugRelatedField(many=True, slug_field="name", queryset=Skill.objects.filter(active=True), required=False)
     class Meta:
         model = Profile
-        fields = ["about", "avatar", "skills", "rate", "rate_unit", "language", "theme"]
+        fields = ["about", "avatar", "skills", "rate", "rate_unit", "language", "theme", "professional_experience", "available"]
 
-    validate_skills = staticmethod(skills_list)
+    def validate_skills(self, value):
+        if len(value) > 30:
+            raise serializers.ValidationError("Выберите до 30 навыков.")
+        return value
+
     validate_avatar = staticmethod(image_data)
 
+    @transaction.atomic
     def update(self, instance, validated_data):
+        skills = validated_data.pop("skills", None)
         changed_fields = list(validated_data)
-        if "skills" in validated_data:
-            instance.verified_skills = [s for s in instance.verified_skills if s in validated_data["skills"]]
+        if skills is not None:
+            selected = {skill.name for skill in skills}
+            instance.verified_skills = [s for s in instance.verified_skills if s in selected]
             changed_fields.append("verified_skills")
         for name, value in validated_data.items():
             setattr(instance, name, value)
         # Never write a stale balance when a concurrent profile/settings request finishes.
         if changed_fields:
             instance.save(update_fields=changed_fields)
+        if skills is not None:
+            instance.skills.set(skills)
         return instance
 
 
@@ -70,7 +91,8 @@ class RegisterSerializer(serializers.Serializer):
     username = serializers.RegexField(r"^[a-zA-Z0-9_]{3,30}$", max_length=30)
     birth_date = serializers.DateField()
     phone = serializers.CharField(max_length=30)
-    has_passport = serializers.BooleanField()
+    has_passport = serializers.BooleanField(required=False, default=False)
+    accept_terms = serializers.BooleanField()
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, min_length=8, max_length=128, trim_whitespace=False)
     password_confirm = serializers.CharField(write_only=True, max_length=128, trim_whitespace=False)
@@ -78,9 +100,9 @@ class RegisterSerializer(serializers.Serializer):
 
     validate_birth_date = staticmethod(validate_age)
 
-    def validate_has_passport(self, value):
+    def validate_accept_terms(self, value):
         if not value:
-            raise serializers.ValidationError("Для регистрации необходимо иметь паспорт.")
+            raise serializers.ValidationError("Необходимо согласиться с условиями сервиса и политикой обработки данных.")
         return value
 
     def validate_phone(self, value):
@@ -107,6 +129,8 @@ class RegisterSerializer(serializers.Serializer):
     def create(self, validated_data):
         profile = {key: validated_data.pop(key) for key in ["birth_date", "phone", "has_passport", "language"]}
         validated_data.pop("password_confirm")
+        validated_data.pop("accept_terms")
+        profile["terms_accepted_at"] = timezone.now()
         user = User.objects.create_user(**validated_data)
         Profile.objects.create(user=user, full_name=user.get_full_name(), **profile)
         return user

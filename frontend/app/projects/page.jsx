@@ -1,6 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Search, SlidersHorizontal } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
 import {
   Empty,
@@ -16,10 +17,13 @@ export default function ProjectsPage() {
   return (
     <PageShell>
       <div className="page-heading">
-        <h1>{t('orders')}</h1>
+        <div>
+          <span className="eyebrow">TASKORA</span>
+          <h1>{t('orders')}</h1>
+        </div>
         {session?.user?.role === 'client' && (
           <Link href="/projects/new" className="t-button">
-            {t('createOrder')}
+            + {t('createOrder')}
           </Link>
         )}
       </div>
@@ -29,69 +33,166 @@ export default function ProjectsPage() {
 }
 export function OrdersList({ mine = false }) {
   const { t, session } = useApp();
-  const [search, setSearch] = useState(''),
-    [query, setQuery] = useState(''),
-    [category, setCategory] = useState(''),
-    [sort, setSort] = useState('-created_at'),
-    [page, setPage] = useState(1);
+  const [filters, setFilters] = useState({
+    search: '',
+    category: '',
+    skill: '',
+    min_budget: '',
+    max_budget: '',
+    budget_type: '',
+    deadline: '',
+    status: '',
+  });
+  const [query, setQuery] = useState({});
+  const [sort, setSort] = useState('-created_at');
+  const [page, setPage] = useState(1);
+  const directory = useRemote('directory');
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      const q = new URLSearchParams(window.location.search);
+      const initial = {};
+      if (q.get('category')) initial.category = q.get('category');
+      if (q.get('status')) initial.status = q.get('status');
+      if (q.get('search')) initial.search = q.get('search');
+      if (Object.keys(initial).length) {
+        setFilters((f) => ({ ...f, ...initial }));
+        setQuery(initial);
+      }
+    });
+  }, []);
   const remote = useRemote('projects', {
     token: session?.token,
-    query: {
-      mine: mine ? 1 : undefined,
-      search: query,
-      category,
-      ordering: sort,
-      page,
-    },
+    query: { ...query, mine: mine ? 1 : undefined, ordering: sort, page },
   });
+  const change = (key) => (e) =>
+    setFilters((f) => ({ ...f, [key]: e.target.value }));
   return (
-    <>
+    <div className="catalog-layout">
       <form
-        className="filters-row"
-        onSubmit={(event) => {
-          event.preventDefault();
-          setQuery(search);
+        className="catalog-filters t-card t-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setQuery(filters);
           setPage(1);
         }}
       >
+        <h3>
+          <SlidersHorizontal size={18} />
+          {t('search')}
+        </h3>
         <Field label={t('search')}>
-          <div className="actions">
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                if (!e.target.value) {
-                  setQuery('');
-                  setPage(1);
-                }
-              }}
-            />
-            <button className="t-button" type="submit">
-              {t('search')}
-            </button>
-          </div>
+          <input
+            type="search"
+            value={filters.search}
+            onChange={change('search')}
+          />
         </Field>
         <Field label={t('category')}>
-          <select
-            value={category}
-            onChange={(e) => {
-              setCategory(e.target.value);
-              setPage(1);
-            }}
-          >
+          <select value={filters.category} onChange={change('category')}>
             <option value="">{t('all')}</option>
-            {['development', 'design', 'marketing', 'writing', 'other'].map(
-              (key) => (
-                <option key={key} value={key}>
-                  {t(key)}
-                </option>
-              ),
-            )}
+            {directory.data?.categories.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {t(c.slug) === c.slug ? c.name : t(c.slug)}
+              </option>
+            ))}
           </select>
         </Field>
-        <Field label={t('sort')}>
+        <Field label={t('skills')}>
+          <select value={filters.skill} onChange={change('skill')}>
+            <option value="">{t('all')}</option>
+            {directory.data?.skills.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t('budgetType')}>
+          <select value={filters.budget_type} onChange={change('budget_type')}>
+            <option value="">{t('all')}</option>
+            {['fixed', 'hourly', 'daily'].map((k) => (
+              <option key={k} value={k}>
+                {t(k)}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <div className="form-columns">
+          <Field label={t('budgetMin')}>
+            <input
+              type="number"
+              min="0"
+              value={filters.min_budget}
+              onChange={change('min_budget')}
+            />
+          </Field>
+          <Field label={t('budgetMax')}>
+            <input
+              type="number"
+              min="0"
+              value={filters.max_budget}
+              onChange={change('max_budget')}
+            />
+          </Field>
+        </div>
+        <Field label={t('deadline')}>
+          <input
+            type="date"
+            value={filters.deadline}
+            onChange={change('deadline')}
+          />
+        </Field>
+        {mine && (
+          <Field label={t('orders')}>
+            <select value={filters.status} onChange={change('status')}>
+              <option value="">{t('all')}</option>
+              {[
+                'draft',
+                'published',
+                'contracting',
+                'in_progress',
+                'review',
+                'completed',
+                'cancelled',
+                'disputed',
+              ].map((k) => (
+                <option key={k} value={k}>
+                  {t(k === 'review' ? 'inReview' : k)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <button className="t-button">
+          <Search size={17} />
+          {t('search')}
+        </button>
+        <button
+          type="button"
+          className="text-link"
+          onClick={() => {
+            setFilters({
+              search: '',
+              category: '',
+              skill: '',
+              min_budget: '',
+              max_budget: '',
+              budget_type: '',
+              deadline: '',
+              status: '',
+            });
+            setQuery({});
+            setPage(1);
+          }}
+        >
+          {t('all')}
+        </button>
+      </form>
+      <section>
+        <div className="row-between catalog-results-heading">
+          <span>
+            {t('resultCount')}: {remote.data?.count ?? '—'}
+          </span>
           <select
+            aria-label={t('sort')}
             value={sort}
             onChange={(e) => {
               setSort(e.target.value);
@@ -102,21 +203,18 @@ export function OrdersList({ mine = false }) {
             <option value="-budget_max">{t('priceHigh')}</option>
             <option value="budget_min">{t('priceLow')}</option>
           </select>
-        </Field>
-      </form>
-      <RemoteState remote={remote}>
-        <p className="result-count">
-          {t('resultCount')}: {remote.data?.count}
-        </p>
-        {remote.data?.results.length ? (
-          remote.data.results.map((project) => (
-            <ProjectCard key={project.id} project={project} />
-          ))
-        ) : (
-          <Empty text={t('noOrders')} />
-        )}
-        <Pager data={remote.data} page={page} onChange={setPage} />
-      </RemoteState>
-    </>
+        </div>
+        <RemoteState remote={remote}>
+          {remote.data?.results.length ? (
+            remote.data.results.map((project) => (
+              <ProjectCard key={project.id} project={project} />
+            ))
+          ) : (
+            <Empty text={t('noOrders')} />
+          )}
+          <Pager data={remote.data} page={page} onChange={setPage} />
+        </RemoteState>
+      </section>
+    </div>
   );
 }

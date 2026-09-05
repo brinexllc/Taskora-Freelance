@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
 import { apiRequest, setRole } from '@/lib/api';
 import { Avatar, Field, Notice, readImage } from '@/components/taskora-ui';
+import { SkillPicker } from '@/components/project-editor';
+import { PasswordChange } from '@/components/password-change';
 import { languages } from '@/lib/i18n';
 export function SettingsView() {
   const { t, session, updateUser, language, setLanguage, theme, setTheme } =
@@ -11,7 +13,9 @@ export function SettingsView() {
   const [form, setForm] = useState({
     about: profile.about,
     avatar: profile.avatar,
-    skills: profile.skills.join(', '),
+    skills: profile.skills,
+    professional_experience: profile.professional_experience || '',
+    available: profile.available,
     rate: profile.rate,
     rate_unit: profile.rate_unit,
   });
@@ -19,8 +23,10 @@ export function SettingsView() {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
-  const change = (key) => (e) =>
-    setForm((current) => ({ ...current, [key]: e.target.value }));
+  const change = (key) => (e) => {
+    const value = e.target.value;
+    setForm((current) => ({ ...current, [key]: value }));
+  };
   async function save(event) {
     event.preventDefault();
     setBusy(true);
@@ -32,10 +38,7 @@ export function SettingsView() {
         token: session.token,
         body: {
           ...form,
-          skills: form.skills
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean),
+          skills: form.skills,
         },
       });
       updateUser(user);
@@ -106,9 +109,27 @@ export function SettingsView() {
             </Field>
             {session.user.role === 'freelancer' && (
               <>
-                <Field label={t('skills')} hint={t('skillsHint')}>
-                  <input value={form.skills} onChange={change('skills')} />
+                <SkillPicker
+                  value={form.skills}
+                  onChange={(skills) => setForm((f) => ({ ...f, skills }))}
+                />
+                <Field label={t('professionalExperience')}>
+                  <textarea
+                    maxLength={3000}
+                    value={form.professional_experience}
+                    onChange={change('professional_experience')}
+                  />
                 </Field>
+                <label className="t-check">
+                  <input
+                    type="checkbox"
+                    checked={form.available}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, available: e.target.checked }))
+                    }
+                  />
+                  {t('available')}
+                </label>
                 <div className="form-columns">
                   <Field label={`${t('rate')} (UZS)`}>
                     <input
@@ -138,6 +159,7 @@ export function SettingsView() {
           </form>
         </section>
         <div className="list-stack">
+          <PasswordChange />
           <section className="t-card">
             <h2>{t('role')}</h2>
             <form className="t-form" onSubmit={changeRole}>

@@ -2,6 +2,9 @@
 import Link from 'next/link';
 import {
   BriefcaseBusiness,
+  Bell,
+  MessageSquare,
+  Send,
   FileCheck2,
   Home,
   LogOut,
@@ -21,14 +24,19 @@ import {
   Notice,
   Pager,
   ProfileSummary,
+  ProjectCard,
   RemoteState,
   Status,
   useRemote,
 } from '@/components/taskora-ui';
+import {
+  MessagesView,
+  NotificationsView,
+} from '@/components/contract-workspace';
 import { WalletView } from '@/components/wallet-view';
 import { SettingsView } from '@/components/settings-view';
 import { OrdersList } from '@/app/projects/page';
-import { logout } from '@/lib/api';
+import { apiRequest, logout } from '@/lib/api';
 import { date, money } from '@/lib/i18n';
 
 export default function DashboardPage() {
@@ -48,6 +56,8 @@ export default function DashboardPage() {
           'wallet',
           'settings',
           'proposals',
+          'messages',
+          'notifications',
         ].includes(key)
       )
         setView(key);
@@ -74,6 +84,9 @@ export default function DashboardPage() {
     [UserRound, 'profile'],
     [BriefcaseBusiness, 'orders'],
     [FileCheck2, 'contracts'],
+    [Send, 'proposals'],
+    [MessageSquare, 'messages'],
+    [Bell, 'notifications'],
     [Wallet, 'wallet'],
     [Settings, 'settings'],
   ];
@@ -137,12 +150,25 @@ export default function DashboardPage() {
             >
               {t(session.user.role === 'client' ? 'freelancers' : 'orders')}
             </Link>
+            <Link href="/dashboard?view=messages" aria-label={t('messages')}>
+              <MessageSquare size={19} />
+            </Link>
+            <Link
+              href="/dashboard?view=notifications"
+              aria-label={t('notifications')}
+            >
+              <Bell size={19} />
+            </Link>
             <LanguageSelect />
           </div>
         </header>
         <main className="workspace-main">
           <Notice error>{error}</Notice>
-          {view === 'wallet' ? (
+          {view === 'messages' ? (
+            <MessagesView />
+          ) : view === 'notifications' ? (
+            <NotificationsView />
+          ) : view === 'wallet' ? (
             <WalletView />
           ) : view === 'settings' ? (
             <SettingsView />
@@ -191,28 +217,46 @@ export default function DashboardPage() {
             <>
               <div className="page-heading">
                 <div>
-                  <span className="eyebrow">{t(session.user.role)}</span>
                   <h1>
                     {t('welcome')},{' '}
-                    {session.user.first_name || session.user.full_name}
+                    {session.user.first_name || session.user.full_name}{' '}
+                    <span aria-hidden="true">👋</span>
                   </h1>
+                  <p className="dashboard-subtitle">{t('dashboardPrompt')}</p>
                 </div>
-                <Link
-                  className="t-button"
-                  href={
-                    session.user.role === 'client'
-                      ? '/projects/new'
-                      : '/projects'
-                  }
-                >
-                  {t(
-                    session.user.role === 'client'
-                      ? 'createOrder'
-                      : 'browseOrders',
-                  )}
-                </Link>
+                <div className="actions">
+                  <Link
+                    className="t-button secondary"
+                    href={
+                      session.user.role === 'client'
+                        ? '/freelancers'
+                        : '/dashboard?view=profile'
+                    }
+                  >
+                    {t(
+                      session.user.role === 'client'
+                        ? 'findFreelancers'
+                        : 'profile',
+                    )}
+                  </Link>
+                  <Link
+                    className="t-button"
+                    href={
+                      session.user.role === 'client'
+                        ? '/projects/new'
+                        : '/projects'
+                    }
+                  >
+                    {t(
+                      session.user.role === 'client'
+                        ? 'createOrder'
+                        : 'browseOrders',
+                    )}
+                  </Link>
+                </div>
               </div>
               <Stats />
+              <RecommendedOrders />
               <ContractList compact />
               <p className="muted">{t('archiveHint')}</p>
             </>
@@ -225,31 +269,54 @@ export default function DashboardPage() {
 function Stats() {
   const { t, language, session } = useApp();
   const remote = useRemote('dashboard', { token: session.token });
+  const primary = [
+    ['active_orders', 'activeOrders', 'orders', BriefcaseBusiness],
+    ['active_contracts', 'activeContracts', 'contracts', FileCheck2],
+    [
+      'completed_orders',
+      'completedOrders',
+      'contracts&status=completed',
+      FileCheck2,
+    ],
+    ['balance', 'wallet', 'wallet', Wallet],
+  ];
   return (
     <RemoteState remote={remote}>
       <div className="t-stats">
-        {[
-          ['active_orders', 'activeOrders', 'orders'],
-          ['active_contracts', 'activeContracts', 'contracts'],
-          ['completed_orders', 'completedOrders', 'contracts'],
-          ['completed_contracts', 'completedContracts', 'contracts'],
-        ].map(([key, label, view]) => (
+        {primary.map(([key, label, view, Icon]) => (
           <Link
-            className="t-stat"
+            className={`t-stat ${key === 'balance' ? 'wallet-stat' : ''}`}
             key={key}
-            href={`/dashboard?view=${view}${key.startsWith('completed') ? '&status=completed' : ''}`}
+            href={`/dashboard?view=${String(view)}`}
           >
             <span>{t(label)}</span>
-            <strong>{remote.data?.[key]}</strong>
+            <i>
+              <Icon size={20} />
+            </i>
+            <strong>
+              {key === 'balance'
+                ? money(remote.data?.[key], language)
+                : remote.data?.[key]}
+            </strong>
           </Link>
         ))}
       </div>
-      <Link className="text-link" href="/dashboard?view=wallet">
-        {t('balance')}: {money(remote.data?.balance, language)}
-      </Link>
+      <div className="dashboard-activity">
+        {[
+          ['in_review', 'inReview', 'contracts'],
+          ['new_proposals', 'newProposals', 'orders'],
+          ['unread_messages', 'messages', 'messages'],
+          ['unread_notifications', 'notifications', 'notifications'],
+        ].map(([key, label, view]) => (
+          <Link key={key} href={`/dashboard?view=${String(view)}`}>
+            {t(label)} <b>{remote.data?.[key] || 0}</b>
+          </Link>
+        ))}
+      </div>
     </RemoteState>
   );
 }
+
 function ContractList({ compact = false }) {
   const { t, language, session } = useApp();
   const [page, setPage] = useState(1),
@@ -268,7 +335,7 @@ function ContractList({ compact = false }) {
     query: { page, status: filter },
   });
   return (
-    <section className={compact ? 'section-heading' : ''}>
+    <section className="contract-list">
       <div className="page-heading">
         <h2>{t('contracts')}</h2>
         {compact && (
@@ -339,6 +406,7 @@ function ContractList({ compact = false }) {
 function ProposalList() {
   const { t, session, language } = useApp();
   const [page, setPage] = useState(1);
+  const [error, setError] = useState('');
   const remote = useRemote('proposals', {
     token: session.token,
     query: { page, mine: 1 },
@@ -346,6 +414,7 @@ function ProposalList() {
   return (
     <>
       <h1>{t('myProposals')}</h1>
+      <Notice error>{error}</Notice>
       <RemoteState remote={remote}>
         {remote.data?.results.length ? (
           remote.data.results.map((item) => (
@@ -359,6 +428,24 @@ function ProposalList() {
                 {money(item.amount, language)} · {item.delivery_days}{' '}
                 {t('days')} · {date(item.created_at, language)}
               </p>
+              {item.status === 'pending' && (
+                <button
+                  className="text-link"
+                  onClick={async () => {
+                    try {
+                      await apiRequest(`proposals/${item.id}/withdraw`, {
+                        method: 'POST',
+                        token: session.token,
+                      });
+                      remote.reload();
+                    } catch (e) {
+                      setError(e.message);
+                    }
+                  }}
+                >
+                  {t('withdrawProposal')}
+                </button>
+              )}
               <Link
                 className="text-link"
                 href={
@@ -377,5 +464,31 @@ function ProposalList() {
         <Pager data={remote.data} page={page} onChange={setPage} />
       </RemoteState>
     </>
+  );
+}
+
+function RecommendedOrders() {
+  const { t } = useApp();
+  const remote = useRemote('projects', { query: { page_size: 3 } });
+  return (
+    <section className="dashboard-recommended">
+      <div className="page-heading">
+        <h2>{t('latestOrders')}</h2>
+        <Link className="text-link" href="/projects">
+          {t('all')} →
+        </Link>
+      </div>
+      <RemoteState remote={remote}>
+        {remote.data?.results.length ? (
+          <div className="t-grid">
+            {remote.data.results.map((project) => (
+              <ProjectCard key={project.id} project={project} compact />
+            ))}
+          </div>
+        ) : (
+          <Empty text={t('noOrders')} />
+        )}
+      </RemoteState>
+    </section>
   );
 }

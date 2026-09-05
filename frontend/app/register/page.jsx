@@ -18,14 +18,16 @@ export default function RegisterPage() {
     birth_date: '',
     phone: '+998',
     email: '',
-    has_passport: false,
+    accept_terms: false,
     password: '',
     password_confirm: '',
   });
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
-  const change = (key) => (event) =>
-    setForm((current) => ({ ...current, [key]: event.target.value }));
+  const change = (key) => (event) => {
+    const value = event.target.value;
+    setForm((current) => ({ ...current, [key]: value }));
+  };
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
@@ -138,16 +140,25 @@ export default function RegisterPage() {
         <label className="check-label">
           <input
             type="checkbox"
-            checked={form.has_passport}
+            checked={form.accept_terms}
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
-                has_passport: event.target.checked,
+                accept_terms: event.target.checked,
               }))
             }
             required
           />
-          {t('passport')}
+          <span>
+            {t('acceptTerms')}{' '}
+            <Link href="/terms" target="_blank">
+              {t('termsLink')}
+            </Link>{' '}
+            ·{' '}
+            <Link href="/privacy" target="_blank">
+              {t('privacyLink')}
+            </Link>
+          </span>
         </label>
         {error && (
           <p className="auth-error" role="alert">
