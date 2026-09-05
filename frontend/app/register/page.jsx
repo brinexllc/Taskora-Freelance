@@ -1,4 +1,168 @@
 'use client';
-import Link from 'next/link'; import { useRouter } from 'next/navigation'; import { useState } from 'react';
-import { AuthShell, copy, OneIdDisabled, PasswordInput } from '@/components/auth-shell'; import { useApp } from '@/components/app-providers'; import { register } from '@/lib/api';
-export default function RegisterPage(){const {language,setSession,ready}=useApp();const t=copy[language];const router=useRouter();const [form,setForm]=useState({full_name:'',email:'',password:'',password_confirm:''});const [terms,setTerms]=useState(false);const [error,setError]=useState('');const [loading,setLoading]=useState(false);const change=(key)=>(e)=>setForm({...form,[key]:e.target.value});async function submit(e){e.preventDefault();if(!terms){setError(language==='uz'?'Shartlarni qabul qiling':'Примите условия использования');return;}setLoading(true);setError('');try{const data=await register(form);setSession(data);router.replace('/role');}catch(err){setError(err.message);}finally{setLoading(false);}}return <AuthShell><h1>{language==='uz'?'Hisob yaratish':'Создать аккаунт'}</h1><p className="auth-subtitle">{language==='uz'?"Bir daqiqada ro'yxatdan o'ting":'Регистрация займёт минуту'}</p><form onSubmit={submit} className="auth-form"><label>{t.fullName}<input value={form.full_name} onChange={change('full_name')} placeholder="Aziz Rahimov" autoComplete="name" required /></label><label>{t.email}<input type="email" value={form.email} onChange={change('email')} placeholder="email@example.com" autoComplete="email" required /></label><label>{t.password}<PasswordInput value={form.password} onChange={change('password')} autoComplete="new-password" /></label><label>{t.passwordAgain}<PasswordInput value={form.password_confirm} onChange={change('password_confirm')} autoComplete="new-password" /></label><label className="check-label"><input type="checkbox" checked={terms} onChange={e=>setTerms(e.target.checked)} />{t.terms}</label>{error&&<p className="auth-error">{error}</p>}<button className="auth-primary" disabled={!ready||loading}>{loading?'…':t.register}</button></form><div className="auth-divider">{t.or}</div><OneIdDisabled/><p className="auth-footer">{t.hasAccount} <Link href="/login">{t.login}</Link></p></AuthShell>;}
+/* oxlint-disable jsx-a11y/autocomplete-valid -- given-name and family-name are standard HTML autocomplete tokens. */
+import Link from 'next/link';
+import { useState } from 'react';
+import {
+  AuthShell,
+  OneIdDisabled,
+  PasswordInput,
+} from '@/components/auth-shell';
+import { useApp } from '@/components/app-providers';
+import { register } from '@/lib/api';
+export default function RegisterPage() {
+  const { t, language, setSession, ready } = useApp();
+  const [form, setForm] = useState({
+    first_name: '',
+    last_name: '',
+    username: '',
+    birth_date: '',
+    phone: '+998',
+    email: '',
+    has_passport: false,
+    password: '',
+    password_confirm: '',
+  });
+  const [error, setError] = useState(''),
+    [busy, setBusy] = useState(false);
+  const change = (key) => (event) =>
+    setForm((current) => ({ ...current, [key]: event.target.value }));
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const data = await register({ ...form, language });
+      setSession(data);
+      window.location.assign('/role');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <AuthShell wide>
+      <h1>{t('createAccount')}</h1>
+      <p className="auth-subtitle">{t('ageHint')}</p>
+      <form onSubmit={submit} className="auth-form">
+        <div className="form-columns">
+          <label>
+            {t('firstName')}
+            <input
+              name="first_name"
+              autoComplete="given-name"
+              maxLength={80}
+              value={form.first_name}
+              onChange={change('first_name')}
+              required
+            />
+          </label>
+          <label>
+            {t('lastName')}
+            <input
+              name="last_name"
+              autoComplete="family-name"
+              maxLength={80}
+              value={form.last_name}
+              onChange={change('last_name')}
+              required
+            />
+          </label>
+        </div>
+        <label>
+          {t('username')}
+          <input
+            name="username"
+            autoComplete="username"
+            pattern="[a-zA-Z0-9_]{3,30}"
+            title="3–30: A–Z, a–z, 0–9, _"
+            value={form.username}
+            onChange={change('username')}
+            required
+          />
+        </label>
+        <label>
+          {t('birthDate')}
+          <input
+            name="birth_date"
+            type="date"
+            autoComplete="bday"
+            value={form.birth_date}
+            onChange={change('birth_date')}
+            required
+          />
+        </label>
+        <label>
+          {t('phone')}
+          <input
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            placeholder="+998901234567"
+            value={form.phone}
+            onChange={change('phone')}
+            required
+          />
+        </label>
+        <label>
+          {t('email')}
+          <input
+            name="email"
+            type="email"
+            autoComplete="email"
+            value={form.email}
+            onChange={change('email')}
+            required
+          />
+        </label>
+        <label>
+          {t('password')}
+          <PasswordInput
+            name="password"
+            value={form.password}
+            onChange={change('password')}
+            autoComplete="new-password"
+            minLength={8}
+          />
+        </label>
+        <small className="muted">{t('passwordHint')}</small>
+        <label>
+          {t('passwordAgain')}
+          <PasswordInput
+            name="password_confirm"
+            value={form.password_confirm}
+            onChange={change('password_confirm')}
+            autoComplete="new-password"
+          />
+        </label>
+        <label className="check-label">
+          <input
+            type="checkbox"
+            checked={form.has_passport}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                has_passport: event.target.checked,
+              }))
+            }
+            required
+          />
+          {t('passport')}
+        </label>
+        {error && (
+          <p className="auth-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button className="auth-primary" disabled={!ready || busy}>
+          {busy ? t('loading') : t('register')}
+        </button>
+      </form>
+      <div className="auth-divider">{t('or')}</div>
+      <OneIdDisabled />
+      <p className="auth-footer">
+        {t('hasAccount')} <Link href="/login">{t('login')}</Link>
+      </p>
+    </AuthShell>
+  );
+}

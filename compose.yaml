@@ -1,0 +1,51 @@
+# Local full-stack environment matching the versions in the specification.
+services:
+  db:
+    image: postgres:18.6
+    environment:
+      POSTGRES_DB: taskora
+      POSTGRES_USER: taskora
+      POSTGRES_PASSWORD: taskora-local-only
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskora -d taskora"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  migrate:
+    build: .
+    environment: &backend_environment
+      DATABASE_URL: postgresql://taskora:taskora-local-only@db:5432/taskora
+      DATABASE_SSL_REQUIRE: "false"
+      DJANGO_DEBUG: "true"
+      DJANGO_SECRET_KEY: taskora-local-only
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,backend
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      CORS_ALLOW_ALL_ORIGINS: "false"
+      FRONTEND_URL: http://localhost:3000
+      PRIVATE_MEDIA_ROOT: /data/private_media
+      EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+    command: ["python", "backend/manage.py", "migrate", "--noinput"]
+    depends_on:
+      db:
+        condition: service_healthy
+  backend:
+    build: .
+    environment: *backend_environment
+    ports: ["127.0.0.1:8000:8000"]
+    volumes:
+      - private_media:/data/private_media
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://127.0.0.1:8000/api
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on: [backend]
+volumes:
+  postgres_data:
+  private_media:

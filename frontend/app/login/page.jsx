@@ -1,6 +1,71 @@
 'use client';
-import Link from 'next/link'; import { useRouter } from 'next/navigation'; import { useState } from 'react';
-import { AuthShell, copy, OneIdDisabled, PasswordInput } from '@/components/auth-shell'; import { useApp } from '@/components/app-providers'; import { login } from '@/lib/api';
-export default function LoginPage() { const { language, setSession, ready } = useApp(); const t = copy[language]; const router = useRouter(); const [email,setEmail]=useState(''); const [password,setPassword]=useState(''); const [error,setError]=useState(''); const [loading,setLoading]=useState(false);
- async function submit(e){e.preventDefault();setLoading(true);setError('');try{const data=await login({email,password});setSession(data);router.replace(data.user.role?'/dashboard':'/role');}catch(err){setError(err.message);}finally{setLoading(false);}}
- return <AuthShell><h1>{language==='uz'?'Xush kelibsiz':'Добро пожаловать'}</h1><p className="auth-subtitle">{language==='uz'?'Hisobingizga kiring':'Войдите в свой аккаунт'}</p><form onSubmit={submit} className="auth-form"><label>{t.email}<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="email@example.com" autoComplete="email" required /></label><label>{t.password}<PasswordInput value={password} onChange={e=>setPassword(e.target.value)} /></label><div className="auth-form-row"><label className="check-label"><input type="checkbox" />{language==='uz'?'Eslab qolish':'Запомнить меня'}</label><Link href="/reset-password">{language==='uz'?'Parolni unutdingizmi?':'Забыли пароль?'}</Link></div>{error&&<p className="auth-error">{error}</p>}<button className="auth-primary" disabled={!ready||loading}>{loading?'…':t.login}</button></form><div className="auth-divider">{t.or}</div><OneIdDisabled/><p className="auth-footer">{t.noAccount} <Link href="/register">{t.register}</Link></p></AuthShell>; }
+import Link from 'next/link';
+import { useState } from 'react';
+import {
+  AuthShell,
+  OneIdDisabled,
+  PasswordInput,
+} from '@/components/auth-shell';
+import { useApp } from '@/components/app-providers';
+import { login } from '@/lib/api';
+export default function LoginPage() {
+  const { t, setSession, ready } = useApp();
+  const [identifier, setIdentifier] = useState(''),
+    [password, setPassword] = useState(''),
+    [error, setError] = useState(''),
+    [busy, setBusy] = useState(false);
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const data = await login({ identifier, password });
+      setSession(data);
+      window.location.assign(data.user.role ? '/dashboard' : '/role');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <AuthShell>
+      <h1>{t('welcome')}</h1>
+      <p className="auth-subtitle">{t('login')}</p>
+      <form onSubmit={submit} className="auth-form">
+        <label>
+          {t('identifier')}
+          <input
+            autoComplete="username"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            required
+          />
+        </label>
+        <label>
+          {t('password')}
+          <PasswordInput
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
+        <Link className="text-link" href="/reset-password">
+          {t('forgot')}
+        </Link>
+        {error && (
+          <p className="auth-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button className="auth-primary" disabled={!ready || busy}>
+          {busy ? t('loading') : t('login')}
+        </button>
+      </form>
+      <div className="auth-divider">{t('or')}</div>
+      <OneIdDisabled />
+      <p className="auth-footer">
+        {t('noAccount')} <Link href="/register">{t('register')}</Link>
+      </p>
+    </AuthShell>
+  );
+}

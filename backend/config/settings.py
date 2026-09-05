@@ -82,7 +82,7 @@ if "test" in sys.argv or not database_url:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / ("test.sqlite3" if "test" in sys.argv else "db.sqlite3"),
+            "NAME": BASE_DIR / ("test.sqlite3" if "test" in sys.argv else os.getenv("SQLITE_NAME", "db.sqlite3")),
         }
     }
 else:
@@ -128,6 +128,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "marketplace.pagination.ProjectPagination",
     "PAGE_SIZE": 12,
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_THROTTLE_RATES": {"auth": "30/hour", "reset": "5/hour", "verify": "30/hour"},
 }
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -147,3 +148,14 @@ EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+
+# Private work files must never be served with Django static()/MEDIA_URL.
+MEDIA_ROOT = Path(os.getenv("PRIVATE_MEDIA_ROOT") or str(BASE_DIR / "private_media"))
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 6 * 1024 * 1024
+ESKIZ_TOKEN = os.getenv("ESKIZ_TOKEN", "")
+ESKIZ_SENDER = os.getenv("ESKIZ_SENDER", "4546")
+CLICK_SERVICE_ID = os.getenv("CLICK_SERVICE_ID", "")
+CLICK_MERCHANT_ID = os.getenv("CLICK_MERCHANT_ID", "")
+CLICK_SECRET_KEY = os.getenv("CLICK_SECRET_KEY", "")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")

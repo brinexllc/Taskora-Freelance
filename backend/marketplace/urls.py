@@ -3,17 +3,29 @@ from rest_framework.routers import DefaultRouter
 
 from .auth_views import (
     LoginView, LogoutView, MeView, PasswordResetConfirmView,
-    PasswordResetRequestView, PasswordResetVerifyView, PublicProfileListView, RegisterView, SetRoleView,
+    PasswordResetRequestView, PasswordResetVerifyView, PublicProfileListView, PublicProfileView, RegisterView, SetRoleView,
 )
-from .views import ProjectViewSet, ProposalViewSet, api_root, health, overview
+from .views import ContractViewSet, ProjectViewSet, ProposalViewSet, api_root, dashboard, health, overview
+from .payment_views import cancel_payment, cancel_withdrawal, checkout, click_callback, integrations, wallet, withdraw
 
 
 router = DefaultRouter()
 router.register("projects", ProjectViewSet, basename="project")
 router.register("proposals", ProposalViewSet, basename="proposal")
+router.register("contracts", ContractViewSet, basename="contract")
 
 urlpatterns = [
     path("profiles/", PublicProfileListView.as_view(), name="profile-list"),
+    path("profiles/<int:pk>/", PublicProfileView.as_view(), name="profile-detail"),
+    path("dashboard/", dashboard),
+    path("integrations/", integrations),
+    path("wallet/", wallet),
+    path("wallet/withdraw/", withdraw),
+    path("wallet/withdrawals/<int:pk>/cancel/", cancel_withdrawal),
+    path("payments/checkout/", checkout),
+    path("payments/<uuid:reference>/cancel/", cancel_payment),
+    path("payments/click/prepare/", click_callback, {"phase": "prepare"}),
+    path("payments/click/complete/", click_callback, {"phase": "complete"}),
     path("auth/register/", RegisterView.as_view(), name="auth-register"),
     path("auth/login/", LoginView.as_view(), name="auth-login"),
     path("auth/logout/", LogoutView.as_view(), name="auth-logout"),

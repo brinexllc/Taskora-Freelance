@@ -1,58 +1,120 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
 from rest_framework import serializers
 
 from .models import Profile
-
+from .validation import birth_date as validate_age, image_data, password_pair, phone_number, skills_list
 
 User = get_user_model()
+
+
+class PublicProfileSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+    first_name = serializers.CharField(source="user.first_name", read_only=True)
+    last_name = serializers.CharField(source="user.last_name", read_only=True)
+    age = serializers.IntegerField(read_only=True)
+    experience_days = serializers.SerializerMethodField()
+    completed_projects = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Profile
+        fields = ["id", "username", "first_name", "last_name", "full_name", "age", "role", "avatar", "about", "skills", "verified_skills", "rate", "rate_unit", "created_at", "experience_days", "completed_projects"]
+
+    def get_experience_days(self, obj):
+        from django.utils import timezone
+        return max(0, (timezone.localdate() - obj.created_at.date()).days)
+
+    def get_completed_projects(self, obj):
+        return obj.user.freelancer_contracts.filter(status="completed").count()
 
 
 class UserSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source="profile.full_name", read_only=True)
     role = serializers.CharField(source="profile.role", read_only=True)
+    profile = PublicProfileSerializer(read_only=True)
+    phone = serializers.CharField(source="profile.phone", read_only=True)
+    birth_date = serializers.DateField(source="profile.birth_date", read_only=True)
+    has_passport = serializers.BooleanField(source="profile.has_passport", read_only=True)
+    language = serializers.CharField(source="profile.language", read_only=True)
+    theme = serializers.CharField(source="profile.theme", read_only=True)
 
     class Meta:
         model = User
-        fields = ["id", "email", "full_name", "role"]
+        fields = ["id", "username", "first_name", "last_name", "email", "full_name", "role", "phone", "birth_date", "has_passport", "profile", "language", "theme"]
 
 
-class PublicProfileSerializer(serializers.ModelSerializer):
+class ProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
-        fields = ["id", "full_name", "role"]
+        fields = ["about", "avatar", "skills", "rate", "rate_unit", "language", "theme"]
+
+    validate_skills = staticmethod(skills_list)
+    validate_avatar = staticmethod(image_data)
+
+    def update(self, instance, validated_data):
+        changed_fields = list(validated_data)
+        if "skills" in validated_data:
+            instance.verified_skills = [s for s in instance.verified_skills if s in validated_data["skills"]]
+            changed_fields.append("verified_skills")
+        for name, value in validated_data.items():
+            setattr(instance, name, value)
+        # Never write a stale balance when a concurrent profile/settings request finishes.
+        if changed_fields:
+            instance.save(update_fields=changed_fields)
+        return instance
 
 
 class RegisterSerializer(serializers.Serializer):
-    full_name = serializers.CharField(max_length=160)
+    first_name = serializers.CharField(max_length=80)
+    last_name = serializers.CharField(max_length=80)
+    username = serializers.RegexField(r"^[a-zA-Z0-9_]{3,30}$", max_length=30)
+    birth_date = serializers.DateField()
+    phone = serializers.CharField(max_length=30)
+    has_passport = serializers.BooleanField()
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, min_length=8)
-    password_confirm = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, min_length=8, max_length=128, trim_whitespace=False)
+    password_confirm = serializers.CharField(write_only=True, max_length=128, trim_whitespace=False)
+    language = serializers.ChoiceField(choices=Profile._meta.get_field("language").choices, default="ru")
+
+    validate_birth_date = staticmethod(validate_age)
+
+    def validate_has_passport(self, value):
+        if not value:
+            raise serializers.ValidationError("Для регистрации необходимо иметь паспорт.")
+        return value
+
+    def validate_phone(self, value):
+        value = phone_number(value)
+        if Profile.objects.filter(phone=value).exists():
+            raise serializers.ValidationError("Этот телефон уже зарегистрирован.")
+        return value
+
+    def validate_username(self, value):
+        value = value.lower()
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError("Это имя пользователя уже занято.")
+        return value
 
     def validate_email(self, value):
-        email = value.lower().strip()
-        if User.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError("Bu email bilan hisob allaqachon mavjud.")
-        return email
+        value = value.lower().strip()
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("Этот email уже зарегистрирован.")
+        return value
 
-    def validate(self, attrs):
-        if attrs["password"] != attrs["password_confirm"]:
-            raise serializers.ValidationError({"password_confirm": "Parollar bir xil emas."})
-        validate_password(attrs["password"])
-        return attrs
+    validate = staticmethod(password_pair)
 
+    @transaction.atomic
     def create(self, validated_data):
-        full_name = validated_data.pop("full_name").strip()
-        email = validated_data.pop("email")
+        profile = {key: validated_data.pop(key) for key in ["birth_date", "phone", "has_passport", "language"]}
         validated_data.pop("password_confirm")
-        user = User.objects.create_user(username=email, email=email, password=validated_data["password"])
-        Profile.objects.create(user=user, full_name=full_name)
+        user = User.objects.create_user(**validated_data)
+        Profile.objects.create(user=user, full_name=user.get_full_name(), **profile)
         return user
 
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
+    identifier = serializers.CharField(max_length=254)
+    password = serializers.CharField(write_only=True, max_length=128, trim_whitespace=False)
 
 
 class RoleSerializer(serializers.Serializer):
@@ -60,22 +122,21 @@ class RoleSerializer(serializers.Serializer):
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    identifier = serializers.CharField(max_length=254)
+
+    def validate_identifier(self, value):
+        if "@" in value:
+            return serializers.EmailField().run_validation(value).lower()
+        return phone_number(value)
 
 
-class PasswordResetVerifySerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    code = serializers.CharField(min_length=6, max_length=6)
+class PasswordResetVerifySerializer(PasswordResetRequestSerializer):
+    code = serializers.RegexField(r"^\d{6}$")
 
 
-class PasswordResetConfirmSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+class PasswordResetConfirmSerializer(PasswordResetRequestSerializer):
     reset_token = serializers.UUIDField()
-    password = serializers.CharField(write_only=True, min_length=8)
-    password_confirm = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, min_length=8, max_length=128, trim_whitespace=False)
+    password_confirm = serializers.CharField(write_only=True, max_length=128, trim_whitespace=False)
 
-    def validate(self, attrs):
-        if attrs["password"] != attrs["password_confirm"]:
-            raise serializers.ValidationError({"password_confirm": "Parollar bir xil emas."})
-        validate_password(attrs["password"])
-        return attrs
+    validate = staticmethod(password_pair)

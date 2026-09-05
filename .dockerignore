@@ -1,5 +1,7 @@
 .git
 .venv
+.venv-mvp
+.taskora-qa
 .env
 .env.*
 !.env.example
@@ -9,6 +11,7 @@ frontend/.vinext
 frontend/dist
 frontend/.wrangler
 backend/staticfiles
+backend/private_media
 **/__pycache__
 *.sqlite3
 *.log

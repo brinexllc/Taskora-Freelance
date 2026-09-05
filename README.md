@@ -1,112 +1,104 @@
-# Taskora Freelance
+# Taskora Freelance — MVP 1.0
 
-Full-stack платформа фриланс-проектов: React/Vinext frontend, Django REST API и PostgreSQL. Frontend и backend разворачиваются как два отдельных Railway-сервиса из одного monorepo.
+Платформа IT-заказов, профилей фрилансеров и договоров по «MVP v1.0 ТЗ-RUS.docx». Интерфейс: React **19.2.8** / Vinext, сервер: Python **3.14.7**, Django **6.1**, REST Framework **3.18.0**. Основная БД — PostgreSQL **18.6**. TypeScript использует ESNext; браузерная совместимость обеспечивается сборкой Vite.
 
-## Local Development
+## Запуск в Windows
 
-### Backend
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-Copy-Item .env.example .env
-python backend/manage.py migrate
-python backend/manage.py runserver
-```
-
-Если `DATABASE_URL` в `.env` пустой, Django использует локальную SQLite. Для PostgreSQL укажите полный URL подключения только в локальном `.env` или Railway Variables.
-
-### Frontend
+Два терминала из корня проекта:
 
 ```powershell
-Set-Location frontend
-Copy-Item .env.example .env.local
-pnpm install --frozen-lockfile
-pnpm dev
+.\start-local.ps1 backend
 ```
-
-По умолчанию интерфейс доступен на `http://localhost:3000`, API — на `http://127.0.0.1:8000/api`.
-
-## Backend Environment Variables
-
-| Variable | Назначение | Локальный пример |
-| --- | --- | --- |
-| `DJANGO_SECRET_KEY` | Секрет Django; обязателен при `DJANGO_DEBUG=false` | `change-me` |
-| `DJANGO_DEBUG` | Режим отладки (`true`/`false`) | `true` |
-| `DJANGO_ALLOWED_HOSTS` | Разрешённые host names через запятую | `localhost,127.0.0.1` |
-| `DATABASE_URL` | PostgreSQL URL; при пустом значении используется SQLite | пусто |
-| `DATABASE_SSL_REQUIRE` | Требовать TLS для PostgreSQL | `false` локально |
-| `CORS_ALLOWED_ORIGINS` | Frontend origins через запятую | `http://localhost:3000` |
-| `CORS_ALLOW_ALL_ORIGINS` | Разрешить запросы с Railway frontend; production-default `true`, API использует Token auth без cookies | `false` локально |
-| `CSRF_TRUSTED_ORIGINS` | Доверенные origins через запятую | `http://localhost:3000` |
-| `DJANGO_SECURE_SSL_REDIRECT` | HTTPS redirect; по умолчанию выключен для безопасности за Railway proxy | `false` |
-
-## Frontend Environment Variables
-
-```env
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api
-```
-
-URL нормализуется централизованно в `frontend/lib/api.js`, поэтому завершающий `/` у base URL необязателен. В production переменная должна быть доступна во время frontend build.
-
-## Railway Backend Deployment
-
-- Root Directory: `/`
-- Build Command: `pip install -r requirements.txt && python backend/manage.py collectstatic --noinput`
-- Pre-deploy Command: `python backend/manage.py migrate --noinput`
-- Start Command: `gunicorn --chdir backend config.wsgi:application --bind 0.0.0.0:$PORT`
-
-Railway Variables:
-
-```env
-DJANGO_SECRET_KEY=<secure-random-secret>
-DJANGO_DEBUG=false
-DJANGO_ALLOWED_HOSTS=taskora-freelance-production.up.railway.app
-DATABASE_URL=<Railway-PostgreSQL-connection-URL>
-DATABASE_SSL_REQUIRE=true
-CORS_ALLOWED_ORIGINS=https://FRONTEND-DOMAIN
-CORS_ALLOW_ALL_ORIGINS=true
-CSRF_TRUSTED_ORIGINS=https://FRONTEND-DOMAIN
-```
-
-Не запускайте `migrate` внутри Gunicorn start command: миграции должны выполняться один раз на pre-deploy этапе.
-
-## Railway Frontend Deployment
-
-- Root Directory: `/frontend`
-- Builder: `Dockerfile` (файл `frontend/Dockerfile` рассчитан на Root Directory `/frontend`)
-- Build Command (если Dockerfile отключён): `pnpm install --frozen-lockfile && pnpm run build`
-- Start Command (если Dockerfile отключён): `pnpm start`
-
-Railway Variable (должна быть доступна на build этапе):
-
-```env
-NEXT_PUBLIC_API_URL=https://taskora-freelance-production.up.railway.app/api
-```
-
-Vinext собирает standalone Node.js server в `dist/standalone`, а `pnpm start` запускает его на Railway `PORT` и адресе `0.0.0.0`.
-
-## Production URLs
-
-- Backend: https://taskora-freelance-production.up.railway.app
-- API: https://taskora-freelance-production.up.railway.app/api
-- Projects: https://taskora-freelance-production.up.railway.app/api/projects/
-- Proposals: https://taskora-freelance-production.up.railway.app/api/proposals/
-- Health: https://taskora-freelance-production.up.railway.app/api/health/
-- Frontend: добавьте Railway domain после создания frontend-сервиса. Для фиксированного домена можно установить `CORS_ALLOW_ALL_ORIGINS=false` и внести frontend URL в `CORS_ALLOWED_ORIGINS`; для generated/preview domains оставьте `CORS_ALLOW_ALL_ORIGINS=true`.
-
-## Validation
 
 ```powershell
-python backend/manage.py check
-python backend/manage.py makemigrations --check
-python backend/manage.py test marketplace
-python backend/manage.py collectstatic --noinput
+.\start-local.ps1 frontend
+```
 
-Set-Location frontend
+Нужны Python 3.14.7 (`py -3.14`), Node.js 22.13+ и pnpm. Скрипт создаёт изолированное окружение `.venv-mvp`, применяет миграции к **локальной** SQLite `backend/local-mvp.sqlite3` и задаёт локальный API. Существующий `.env` с production-базой при таком запуске не используется для соединения с БД. В локальном режиме коды восстановления по email выводятся в терминале Django.
+
+Интерфейс: [localhost:3000](http://localhost:3000). API: [127.0.0.1:8000/api](http://127.0.0.1:8000/api/). Начните с регистрации двух аккаунтов — заказчика и фрилансера. Демонстрационные пользователи и денежные балансы автоматически не создаются.
+
+Полный стек с PostgreSQL 18.6 при установленном Docker:
+
+```powershell
+docker compose up --build
+```
+
+Этот compose предназначен для локальной разработки: порты привязаны к localhost, пароль БД демонстрационный. Для production используйте переменные и постоянные диски своей площадки. Docker-сборку необходимо проверять в окружении с Docker.
+
+## Реализованные сценарии
+
+- Регистрация: отдельные имя и фамилия, уникальный username, дата рождения, телефон +998 с девятью национальными цифрами, email, подтверждение наличия паспорта, два поля пароля. Проверки действуют на сервере. Username и email уникальны без учёта регистра, включая одновременные запросы.
+- Вход по username, email или телефону; выход с отзывом токена. Восстановление по email/SMS, шестизначный код, срок 10 минут, максимум 5 попыток. После смены пароля предыдущий токен отзывается.
+- Выбор одной роли обязателен перед размещением заказа, откликом или платежом. Роль меняется в настройках; доступ к ранее заключённым договорам сохраняется.
+- Публичные каталоги заказов и фрилансеров: поиск, категории, сортировка и страницы результатов. Каталог исполнителей не раскрывает телефон, email или дату рождения.
+- Профиль: фото, имя, фамилия, возраст, описание, роль, реальные счётчики активных и завершённых заказов/договоров. У фрилансера — навыки, подтверждённые навыки, время с регистрации и ставка за час/день. Навыки подтверждает администратор; пользователь не может сам выставить подтверждение.
+- Настройки профиля, роли, четырёх языков (RUS, UZ, УЗ, EN), светлой/тёмной темы. Настройки аккаунта сохраняются на сервере; гостевые предпочтения — в браузере. Системные условия договора и серверные сообщения валидации пока на русском; пользовательский контент не переводится.
+- Заказчик размещает заказ; фрилансер отправляет один отклик на заказ; заказчик принимает или отклоняет отклики. Проверки владельца действуют на каждом изменяющем API, пользовательские имена берутся из аккаунта.
+- Принятие отклика создаёт договор с неизменяемыми условиями, суммой и сроком. Каждая сторона подтверждает договор в своём аккаунте; фиксируется время каждой подписи. После двух подписей исполнитель сдаёт файл, описание и необязательный скриншот. Заказчик может запросить доработку.
+- Исходный файл хранится вне публичных ресурсов и выдаётся только через авторизованный endpoint после подтверждённой оплаты. До оплаты доступны отдельные материалы для проверки. Максимум файла — 25 МБ; изображения — до 2 МБ, с проверкой декодирования и удалением метаданных. Видимый скриншот технически можно сохранить или сфотографировать; запрет распространяется на исходный файл проекта.
+- Кошелёк: доступный баланс, пополнение через CLICK, оплата работы из кошелька, история операций, заявки на вывод, отмена ожидающей заявки с возвратом резерва. Зачисления CLICK проверяют подпись, сумму, сервис, идентификатор и стадии prepare/complete; повторный callback не увеличивает баланс повторно.
+- После оплаты заказ скрывается из публичного каталога, договор закрывается, скачивание открывается. История и счётчики сохраняются у обеих сторон.
+
+## Подключение внешних сервисов
+
+В текущем окружении доступы CLICK и SMS ещё не выданы. Поэтому интерфейс прямо показывает отсутствие подключения. Сервер не имитирует успешную оплату или отправку SMS.
+
+**CLICK Shop API** — задайте в окружении сервера:
+
+```env
+CLICK_SERVICE_ID=
+CLICK_MERCHANT_ID=
+CLICK_SECRET_KEY=
+FRONTEND_URL=https://your-frontend-domain
+```
+
+В кабинете CLICK задайте HTTPS-адреса:
+
+- Prepare: `/api/payments/click/prepare/`
+- Complete: `/api/payments/click/complete/`
+
+Переход клиента по `return_url` не подтверждает оплату. Только подписанный Complete зачисляет сумму в кошелёк исполнителя и закрывает договор. Все расчёты проводятся в **UZS**. CLICK перечисляет средства мерчанту; запись в кошельке отражает обязательство платформы перед исполнителем. Автоматическая выплата на банковскую карту требует отдельного согласованного payout API и ещё не подключена.
+
+**Вывод средств:** заявка резервирует баланс и отображается как «В обработке». Оператор выполняет реальный перевод, указывает `provider_reference` в Django Admin и использует действие «Подтвердить фактическую выплату». Без номера перевода подтвердить заявку нельзя. Отклонение возвращает средства ровно один раз. Полные номера карт не принимаются; банковские реквизиты для фактической выплаты должны обрабатываться подключённым платёжным провайдером.
+
+**SMS:** подготовлен адаптер Eskiz. Нужны `ESKIZ_TOKEN`, `ESKIZ_SENDER` и согласованный SMS-шаблон. При отсутствии токена доступно восстановление по email. Обновление истёкшего токена выполняет оператор.
+
+**Email:** для реальной доставки задайте SMTP `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL` и `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend`.
+
+**ONEID** в MVP показан как функция следующих обновлений. Подтверждение наличия паспорта является заявлением пользователя, а не проверкой документа. Подписи в договоре — подтверждения из аккаунтов Taskora; ONEID/E-IMZO и сертифицированная электронная подпись не интегрированы. Юридический шаблон и способы подписания должны быть согласованы до коммерческого использования. PAYME, ИИ-агент и тендерный модуль описаны в общем видении проекта, но не входят в реализуемый здесь пошаговый MVP 1.0.
+
+Официальные протоколы и совместимость: [CLICK](https://docs.click.uz/), [Django 6.1](https://docs.djangoproject.com/en/6.1/releases/6.1/), [REST Framework 3.18](https://www.django-rest-framework.org/community/release-notes/#3180).
+
+## Уточнения противоречий ТЗ
+
+- Возраст принят как **16–65 включительно**, согласно текстовому требованию; формула `16 < x < 65` в документе ему противоречит.
+- Ограничение «не больше 9 цифр», размещённое после Gmail, применено к национальной части телефона. Email проверяется как обычный адрес; девять символов сделали бы большинство адресов недопустимыми.
+- «Автоматически стирается» реализовано как закрытие и исключение из публичного каталога, поскольку ТЗ одновременно требует историю завершённых заказов и договоров, их счётчики и скачивание оплаченной работы. Финансовые записи и исходники оплаченного заказа не удаляются.
+- Ставки и бюджеты указаны в UZS для согласованности с CLICK; долларовые ставки из примера ТЗ не предполагают автоматическую конвертацию.
+
+## Проверки
+
+```powershell
+.\.venv-mvp\Scripts\python.exe backend/manage.py check
+.\.venv-mvp\Scripts\python.exe backend/manage.py makemigrations --check --dry-run
+.\.venv-mvp\Scripts\python.exe backend/manage.py test marketplace --noinput
+.\.venv-mvp\Scripts\python.exe backend/manage.py collectstatic --noinput
+cd frontend
 pnpm lint
 pnpm build
 ```
 
-Файлы `.env` и `.env.*` исключены из Git; в репозитории хранятся только безопасные `.env.example`.
+Тесты используют отдельную SQLite и временное хранилище файлов. Покрыты поля регистрации, границы возраста, все способы входа, сброс пароля и лимит попыток, разграничение прав, повторные отклики, две подписи, доработка, скачивание до/после оплаты, суммы и повторные callbacks CLICK, резервирование и возврат при выводе. Эти проверки не заменяют приёмку на реальном CLICK/SMS после выдачи доступов и нагрузочную проверку на PostgreSQL.
+
+## Развёртывание существующих Railway-сервисов
+
+**Backend:** корень репозитория; `Dockerfile` использует Python 3.14.7. Pre-deploy: `python backend/manage.py migrate --noinput`. Старт: команда Dockerfile или `gunicorn --chdir backend config.wsgi:application --bind 0.0.0.0:$PORT`.
+
+Укажите `DJANGO_DEBUG=false`, уникальный `DJANGO_SECRET_KEY`, PostgreSQL 18.6 `DATABASE_URL`, `DATABASE_SSL_REQUIRE=true`, `DJANGO_ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS` и `CSRF_TRUSTED_ORIGINS`. Для фиксированного frontend-origin используйте `CORS_ALLOW_ALL_ORIGINS=false`.
+
+Подключите постоянный приватный диск и задайте `PRIVATE_MEDIA_ROOT=/data/private_media`. Не публикуйте этот каталог через static/media, CDN или публичный bucket. Один API-сервис должен иметь доступ к общему постоянному хранилищу; без диска файлы потеряются при пересборке контейнера.
+
+**Frontend:** Root Directory `/frontend`, его `Dockerfile`. Build variable `NEXT_PUBLIC_API_URL=https://your-backend-domain/api`; затем `pnpm build` и `pnpm start`. Файл `.openai/hosting.json` и Sites/Vinext-конфигурация сохранены; Django продолжает работать отдельным сервисом. Публикация только frontend без обновления backend не подключит новые функции.
+
+Миграции не угадывают владельцев прежних заказов: у старых записей `owner=NULL`. Администратор должен явно привязать такие заказы к реальным аккаунтам; до этого они не принимают отклики. Миграция `0004` добавляет уникальные индексы email/username без учёта регистра. Если в ранее вручную созданных аккаунтах есть дубликаты, их нужно разрешить до применения миграции, без автоматического объединения аккаунтов.

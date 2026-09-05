@@ -1,75 +1,177 @@
 'use client';
-
-import { createContext, useContext, useEffect, useState } from 'react';
-import { getCurrentUser } from '@/lib/api';
-
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
+import { apiRequest, getCurrentUser } from '@/lib/api';
+import { languages, translate } from '@/lib/i18n';
 const AppContext = createContext(null);
+const validLanguage = (value) => languages.some(([key]) => key === value);
 
 export function AppProviders({ children }) {
-  const [language, setLanguage] = useState('uz');
+  const [language, setLanguageState] = useState('ru');
+  const [theme, setThemeState] = useState('light');
   const [session, setSessionState] = useState(null);
   const [ready, setReady] = useState(false);
-
-  useEffect(() => { void Promise.resolve().then(() => {
-    const storedLanguage = localStorage.getItem('taskora-language');
-    if (storedLanguage === 'ru' || storedLanguage === 'uz') setLanguage(storedLanguage);
-    const token = localStorage.getItem('taskora-token');
-    const storedUser = localStorage.getItem('taskora-user');
-    if (!token) { setReady(true); return; }
-    setSessionState({ token, user: storedUser ? JSON.parse(storedUser) : null });
-    getCurrentUser(token).then((user) => setSessionState({ token, user })).catch(() => {
-      localStorage.removeItem('taskora-token'); localStorage.removeItem('taskora-user'); setSessionState(null);
-    }).finally(() => setReady(true));
-  }); }, []);
-
-  useEffect(() => { if (!ready) return; localStorage.setItem('taskora-language', language); document.documentElement.lang = language; }, [language, ready]);
-
-  useEffect(() => {
-    function navigateInternalLink(event) {
-      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      if (!(event.target instanceof Element)) return;
-      const anchor = event.target.closest('a[href]');
-      if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) return;
-      const href = anchor.getAttribute('href');
-      if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
-      const destination = new URL(href, window.location.href);
-      if (destination.origin !== window.location.origin) return;
-      event.preventDefault();
-      window.location.assign(destination.href);
-    }
-
-    document.addEventListener('click', navigateInternalLink, true);
-    return () => document.removeEventListener('click', navigateInternalLink, true);
+  const [connectionError, setConnectionError] = useState('');
+  const updateUser = useCallback((user) => {
+    setSessionState((current) => (current ? { ...current, user } : current));
+    if (validLanguage(user.language)) setLanguageState(user.language);
+    if (['light', 'dark'].includes(user.theme)) setThemeState(user.theme);
   }, []);
-
+  const clearSession = useCallback(() => {
+    localStorage.removeItem('taskora-token');
+    localStorage.removeItem('taskora-user');
+    setSessionState(null);
+  }, []);
+  const refreshSession = useCallback(async () => {
+    const token = localStorage.getItem('taskora-token');
+    if (!token) {
+      setReady(true);
+      return;
+    }
+    setConnectionError('');
+    try {
+      const user = await getCurrentUser(token);
+      setSessionState({ token, user });
+      if (validLanguage(user.language)) setLanguageState(user.language);
+      setThemeState(user.theme || 'light');
+    } catch (error) {
+      if (error.status === 401) clearSession();
+      else setConnectionError(error.message);
+    } finally {
+      setReady(true);
+    }
+  }, [clearSession]);
   useEffect(() => {
-    if (!ready) return;
+    void Promise.resolve().then(() => {
+      const storedLanguage = localStorage.getItem('taskora-language');
+      if (validLanguage(storedLanguage)) setLanguageState(storedLanguage);
+      if (localStorage.getItem('taskora-theme') === 'dark')
+        setThemeState('dark');
+      void refreshSession();
+    });
+  }, [refreshSession]);
+  useEffect(() => {
+    if (ready) {
+      localStorage.setItem('taskora-language', language);
+      document.documentElement.lang =
+        language === 'uz-cyrl' ? 'uz-Cyrl' : language;
+    }
+  }, [language, ready]);
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    if (ready) localStorage.setItem('taskora-theme', theme);
+  }, [theme, ready]);
+  useEffect(() => {
+    if (!ready || connectionError) return;
     const path = window.location.pathname;
-    if (!session?.token && (path === '/role' || path === '/dashboard' || path.startsWith('/projects'))) {
+    const protectedPath =
+      path === '/role' ||
+      path === '/dashboard' ||
+      path === '/projects/new' ||
+      path.startsWith('/contracts/');
+    if (!session?.token && protectedPath) {
       window.location.replace('/login');
       return;
     }
     if (!session?.token) return;
-    if (path === '/login' || path === '/register') {
-      window.location.replace(session.user?.role ? '/dashboard' : '/role');
+    if (!session.user?.role && protectedPath && path !== '/role') {
+      window.location.replace('/role');
       return;
     }
-    if (path === '/reset-password' || (path === '/role' && session.user?.role)) {
-      window.location.replace('/dashboard');
+    if (
+      path === '/login' ||
+      path === '/register' ||
+      path === '/reset-password' ||
+      (path === '/role' && session.user?.role)
+    )
+      window.location.replace(session.user?.role ? '/dashboard' : '/role');
+  }, [ready, session, connectionError]);
+  // Full navigation is used by the existing Vinext project for stable dynamic routes.
+  useEffect(() => {
+    function navigate(event) {
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        !(event.target instanceof Element)
+      )
+        return;
+      const anchor = event.target.closest('a[href]');
+      if (
+        !anchor ||
+        anchor.target === '_blank' ||
+        anchor.hasAttribute('download')
+      )
+        return;
+      const href = anchor.getAttribute('href');
+      if (!href || href.startsWith('#')) return;
+      const url = new URL(href, window.location.href);
+      if (
+        url.origin !== window.location.origin ||
+        !['http:', 'https:'].includes(url.protocol)
+      )
+        return;
+      event.preventDefault();
+      window.location.assign(url.href);
     }
-  }, [ready, session]);
-
-  const setSession = ({ token, user }) => {
-    localStorage.setItem('taskora-token', token); localStorage.setItem('taskora-user', JSON.stringify(user)); setSessionState({ token, user });
+    document.addEventListener('click', navigate, true);
+    return () => document.removeEventListener('click', navigate, true);
+  }, []);
+  const setSession = useCallback(({ token, user }) => {
+    localStorage.setItem('taskora-token', token);
+    localStorage.removeItem('taskora-user');
+    setSessionState({ token, user });
+    if (validLanguage(user.language)) setLanguageState(user.language);
+    setThemeState(user.theme || 'light');
+  }, []);
+  function preference(key, value) {
+    if (key === 'language') setLanguageState(value);
+    else setThemeState(value);
+    if (session?.token)
+      apiRequest('auth/me', {
+        method: 'PATCH',
+        token: session.token,
+        body: { [key]: value },
+      })
+        .then(updateUser)
+        .catch((error) => setConnectionError(error.message));
+  }
+  const value = {
+    language,
+    theme,
+    setLanguage: (v) => preference('language', v),
+    setTheme: (v) => preference('theme', v),
+    session,
+    ready,
+    setSession,
+    updateUser,
+    clearSession,
+    refreshSession,
+    t: (key) => translate(language, key),
   };
-  const updateUser = (user) => { setSessionState((value) => ({ ...value, user })); localStorage.setItem('taskora-user', JSON.stringify(user)); };
-  const clearSession = () => { localStorage.removeItem('taskora-token'); localStorage.removeItem('taskora-user'); setSessionState(null); };
-  const value = { language, setLanguage, session, ready, setSession, updateUser, clearSession };
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      {connectionError && (
+        <div className="connection-error" role="alert">
+          {translate(language, 'error')}: {connectionError}{' '}
+          <button onClick={refreshSession}>
+            {translate(language, 'retry')}
+          </button>
+        </div>
+      )}
+      {children}
+    </AppContext.Provider>
+  );
 }
-
 export function useApp() {
-  const context = useContext(AppContext);
-  if (!context) throw new Error('useApp must be used inside AppProviders');
-  return context;
+  const value = useContext(AppContext);
+  if (!value) throw new Error('AppProviders required');
+  return value;
 }
