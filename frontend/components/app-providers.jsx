@@ -45,7 +45,7 @@ export function AppProviders({ children }) {
   useEffect(() => {
     if (!ready) return;
     const path = window.location.pathname;
-    if (!session?.token && (path === '/role' || path === '/dashboard')) {
+    if (!session?.token && (path === '/role' || path === '/dashboard' || path.startsWith('/projects'))) {
       window.location.replace('/login');
       return;
     }
