@@ -234,10 +234,10 @@ class MarketplaceTests(BaseTests):
         with self.assertRaises(ValidationError): process_withdrawal(withdrawal.pk,'paid')
 
 
-@override_settings(CLICK_SERVICE_ID='123',CLICK_MERCHANT_ID='456',CLICK_SECRET_KEY='test-only-key')
+@override_settings(CLICK_SERVICE_ID='123',CLICK_MERCHANT_ID='456',CLICK_SECRET_KEY='test-only-key',CLICK_FISCALIZATION_ENABLED=False)
 class ClickTests(MarketplaceTests):
     def callback(self,payment,action='0',error='0',amount=None,trans='123456',signature=True):
-        data=dict(click_trans_id=trans,service_id='123',merchant_trans_id=str(payment.reference),amount=amount or str(payment.amount),action=action,sign_time='2026-09-06 12:00:00',error=error)
+        data=dict(click_trans_id=trans,click_paydoc_id='987654',service_id='123',merchant_trans_id=str(payment.reference),amount=amount or str(payment.amount),action=action,sign_time='2026-09-06 12:00:00',error=error)
         parts=[trans,'123','test-only-key',str(payment.reference)]
         if action=='1':
             data['merchant_prepare_id']=str(payment.pk); parts.append(str(payment.pk))

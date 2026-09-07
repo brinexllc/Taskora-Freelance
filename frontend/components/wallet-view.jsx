@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from '@/components/app-providers';
 import { apiRequest } from '@/lib/api';
 import {
@@ -21,6 +21,8 @@ export function WalletView() {
   const [paymentKey, setPaymentKey] = useState(null);
   const [withdrawKey, setWithdrawKey] = useState(null);
   const [provider, setProvider] = useState('click');
+  const [returnedPayment, setReturnedPayment] = useState(null);
+  const [checkingPayment, setCheckingPayment] = useState(false);
   const remote = useRemote('wallet', {
     token: session.token,
     query: { page, kind },
@@ -30,6 +32,47 @@ export function WalletView() {
     [destination, setDestination] = useState(''),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const reloadWallet = remote.reload;
+  useEffect(() => {
+    const reference = new URLSearchParams(window.location.search).get(
+      'payment',
+    );
+    if (!reference || !session.token) return;
+    const controller = new AbortController();
+    let timer;
+    let attempts = 0;
+    async function checkPayment() {
+      setCheckingPayment(true);
+      try {
+        const payment = await apiRequest(
+          `payments/${encodeURIComponent(reference)}`,
+          {
+            token: session.token,
+            signal: controller.signal,
+          },
+        );
+        if (controller.signal.aborted) return;
+        setReturnedPayment(payment);
+        if (['paid', 'cancelled'].includes(payment.status)) {
+          reloadWallet();
+          setCheckingPayment(false);
+          return;
+        }
+        if (++attempts < 30) timer = window.setTimeout(checkPayment, 4000);
+        else setCheckingPayment(false);
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setError(err.message);
+          setCheckingPayment(false);
+        }
+      }
+    }
+    void checkPayment();
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [session.token, reloadWallet]);
   async function action(path, body) {
     setBusy(true);
     setError('');
@@ -53,6 +96,10 @@ export function WalletView() {
     }
   }
   const data = remote.data;
+  const returnedStatus =
+    data?.payments.find(
+      (payment) => payment.reference === returnedPayment?.reference,
+    )?.status || returnedPayment?.status;
   return (
     <>
       <div className="page-heading">
@@ -66,6 +113,17 @@ export function WalletView() {
         </button>
       </div>
       <Notice error>{error}</Notice>
+      {(checkingPayment || returnedPayment) && (
+        <Notice>
+          {returnedStatus === 'paid'
+            ? t('paymentConfirmed')
+            : returnedStatus === 'cancelled'
+              ? t('paymentCancelled')
+              : checkingPayment
+                ? t('paymentChecking')
+                : t('paymentWaiting')}
+        </Notice>
+      )}
       <RemoteState remote={remote}>
         {data && (
           <>
@@ -96,9 +154,11 @@ export function WalletView() {
                   className="t-form"
                   onSubmit={(e) => {
                     e.preventDefault();
+                    const key = paymentKey || crypto.randomUUID();
+                    setPaymentKey(key);
                     void action('payments/checkout', {
                       amount,
-                      idempotency_key: paymentKey || crypto.randomUUID(),
+                      idempotency_key: key,
                       provider,
                     });
                   }}
@@ -111,8 +171,12 @@ export function WalletView() {
                         setPaymentKey(crypto.randomUUID());
                       }}
                     >
-                      <option value="click">CLICK</option>
-                      <option value="payme">PAYME</option>
+                      <option value="click" disabled={!data.click_available}>
+                        CLICK
+                      </option>
+                      <option value="payme" disabled={!data.payme_available}>
+                        PAYME
+                      </option>
                     </select>
                   </Field>
                   <Field label={t('topupAmount')}>
@@ -298,6 +362,26 @@ export function WalletView() {
                           {date(payment.created_at, language)}
                         </p>
                         <div className="actions">
+                          {payment.receipt?.url && (
+                            <a
+                              className="text-link"
+                              href={payment.receipt.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {t('fiscalReceipt')}
+                            </a>
+                          )}
+                          {payment.receipt?.status === 'pending' && (
+                            <small className="muted">
+                              {t('fiscalReceiptPending')}
+                            </small>
+                          )}
+                          {payment.receipt?.status === 'unavailable' && (
+                            <small className="muted">
+                              {t('fiscalReceiptUnavailable')}
+                            </small>
+                          )}
                           {payment.status === 'pending' && (
                             <button
                               className="text-link"

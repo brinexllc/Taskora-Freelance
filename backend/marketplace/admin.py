@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from rest_framework.exceptions import ValidationError
 from .models import Contract, Deliverable, PasswordResetCode, Payment, Profile, Project, Proposal, WalletEntry, Withdrawal
 from .services import process_withdrawal
-from .models import Category, Skill, ContractEvent, Message, Dispute, Review, Notification, AuditLog, ProjectAttachment
+from .models import Category, Skill, ContractEvent, Message, Dispute, Review, Notification, AuditLog, ProjectAttachment, ClickFiscalReceipt
 from .escrow import resolve_dispute
 from django import forms
 from decimal import Decimal
@@ -121,6 +121,13 @@ class DeliverableAdmin(AuditAdmin):
 class PaymentAdmin(AuditAdmin):
     list_display = ('reference', 'user', 'contract', 'amount', 'provider', 'status')
     list_filter = ('provider', 'status')
+
+
+@admin.register(ClickFiscalReceipt)
+class ClickFiscalReceiptAdmin(AuditAdmin):
+    list_display = ('payment', 'status', 'click_payment_id', 'attempts', 'last_error', 'updated_at')
+    list_filter = ('status',)
+    search_fields = ('payment__reference', 'click_payment_id')
 
 @admin.register(WalletEntry)
 class WalletEntryAdmin(AuditAdmin):

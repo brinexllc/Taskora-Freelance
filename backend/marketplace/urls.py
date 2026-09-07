@@ -7,7 +7,7 @@ from .auth_views import (
     PasswordResetRequestView, PasswordResetVerifyView, PublicProfileListView, PublicProfileView, RegisterView, SetRoleView,
 )
 from .views import admin_file_download, ContractViewSet, ProjectViewSet, ProposalViewSet, api_root, dashboard, health, overview, NotificationViewSet, DisputeViewSet, directory, profile_reviews
-from .payment_views import cancel_payment, cancel_withdrawal, checkout, click_callback, integrations, wallet, withdraw
+from .payment_views import cancel_payment, cancel_withdrawal, checkout, click_callback, integrations, payment_status, wallet, withdraw
 
 
 router = DefaultRouter()
@@ -31,6 +31,7 @@ urlpatterns = [
     path("wallet/withdraw/", withdraw),
     path("wallet/withdrawals/<int:pk>/cancel/", cancel_withdrawal),
     path("payments/checkout/", checkout),
+    path("payments/<uuid:reference>/", payment_status),
     path("payments/<uuid:reference>/cancel/", cancel_payment),
     path("payments/click/prepare/", click_callback, {"phase": "prepare"}),
     path("payments/click/complete/", click_callback, {"phase": "complete"}),

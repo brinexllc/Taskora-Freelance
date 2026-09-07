@@ -157,9 +157,18 @@ class WalletEntrySerializer(serializers.ModelSerializer):
 
 
 class PaymentSerializer(serializers.ModelSerializer):
+    receipt = serializers.SerializerMethodField()
+
+    def get_receipt(self, obj):
+        receipt = getattr(obj, "click_receipt", None) if obj.provider == "click" and obj.status == "paid" else None
+        if receipt is None:
+            return None
+        return {"status": "ready" if receipt.status == "ready" else "unavailable" if receipt.status == "review" else "pending",
+                "url": receipt.qr_code_url if receipt.status == "ready" else None}
+
     class Meta:
         model = Payment
-        fields = ["reference", "contract", "amount", "provider", "status", "created_at", "paid_at"]
+        fields = ["reference", "contract", "amount", "provider", "status", "created_at", "paid_at", "receipt"]
 
 
 class WithdrawalSerializer(serializers.ModelSerializer):

@@ -1,4 +1,4 @@
-param([ValidateSet('backend', 'frontend')][string]$Service = 'backend')
+param([ValidateSet('backend', 'frontend', 'click-receipts')][string]$Service = 'backend')
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 if ($Service -eq 'frontend') {
@@ -28,4 +28,8 @@ $env:EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 $env:FRONTEND_URL = 'http://localhost:3000'
 & .venv-mvp/Scripts/python.exe backend/manage.py migrate --noinput
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if ($Service -eq 'click-receipts') {
+    & .venv-mvp/Scripts/python.exe backend/manage.py process_click_receipts --watch
+    exit $LASTEXITCODE
+}
 & .venv-mvp/Scripts/python.exe backend/manage.py runserver 127.0.0.1:8000

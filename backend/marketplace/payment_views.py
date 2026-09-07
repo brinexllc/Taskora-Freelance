@@ -1,26 +1,26 @@
 import base64
 import hashlib
 import hmac
+import re
 import uuid
+from collections.abc import Mapping
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode, quote
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 from rest_framework import permissions, serializers
-from rest_framework.decorators import api_view, permission_classes, authentication_classes, throttle_classes
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.decorators import api_view, permission_classes, authentication_classes, throttle_classes, parser_classes
+from rest_framework.exceptions import ParseError, PermissionDenied, UnsupportedMediaType, ValidationError
+from rest_framework.parsers import FormParser, JSONParser
 from rest_framework.response import Response
 
 from .models import Contract, Payment, Profile, WalletEntry, Withdrawal
 from .serializers import PaymentSerializer, WalletEntrySerializer, WithdrawalSerializer
 from .services import process_withdrawal, settle_payment
 from .payme_views import payme_ready
-
-
-def click_ready():
-    return bool(settings.CLICK_SERVICE_ID and settings.CLICK_MERCHANT_ID and settings.CLICK_SECRET_KEY)
+from .click import click_ready, positive_id, shop_ready, snapshot_receipt
 
 
 @api_view(["GET"])
@@ -47,7 +47,7 @@ def wallet(request):
         "pending_balance": total(worker_contracts, "escrow_amount"), "pending_withdrawal": total(request.user.withdrawals.filter(status="pending"), "amount"),
         "currency": "UZS", "entries": WalletEntrySerializer(page, many=True).data, "count": entries.count(), "page_size": paginator.page.paginator.per_page,
         "next": paginator.get_next_link(), "previous": paginator.get_previous_link(),
-        "payments": PaymentSerializer(request.user.payments.order_by("-created_at")[:50], many=True).data,
+        "payments": PaymentSerializer(request.user.payments.select_related("click_receipt").order_by("-created_at")[:50], many=True).data,
         "withdrawals": WithdrawalSerializer(request.user.withdrawals.all()[:50], many=True).data, "click_available": click_ready(), "payme_available": payme_ready()})
 
 
@@ -82,8 +82,20 @@ def checkout(request):
         payload = f"m={settings.PAYME_MERCHANT_ID};ac.order_id={payment.reference};a={int(amount * 100)};c={return_url}"
         host = "https://test.paycom.uz/" if settings.PAYME_TEST_MODE else "https://checkout.paycom.uz/"
         return Response({"payment": PaymentSerializer(payment).data, "checkout_url": host + quote(base64.b64encode(payload.encode()).decode(), safe="")})
-    params = {"service_id": settings.CLICK_SERVICE_ID, "merchant_id": settings.CLICK_MERCHANT_ID, "amount": str(payment.amount), "transaction_param": str(payment.reference), "return_url": f"{settings.FRONTEND_URL}/dashboard?view=wallet&payment={payment.reference}"}
-    return Response({"payment": PaymentSerializer(payment).data, "checkout_url": "https://my.click.uz/services/pay?" + urlencode(params)})
+    snapshot_receipt(payment)
+    params = {"service_id": settings.CLICK_SERVICE_ID, "merchant_id": settings.CLICK_MERCHANT_ID, "amount": format(payment.amount, '.2f'), "transaction_param": str(payment.reference), "return_url": f"{settings.FRONTEND_URL}/dashboard?view=wallet&payment={payment.reference}"}
+    if settings.CLICK_MERCHANT_USER_ID:
+        params["merchant_user_id"] = settings.CLICK_MERCHANT_USER_ID
+    return Response({"payment": PaymentSerializer(payment).data, "checkout_url": "https://my.click.uz/services/pay/?" + urlencode(params)})
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def payment_status(request, reference):
+    payment = Payment.objects.filter(reference=reference, user=request.user).select_related("click_receipt").first()
+    if payment is None:
+        return Response({"detail": "Платёж не найден."}, status=404)
+    return Response(PaymentSerializer(payment).data)
 
 
 @api_view(["POST"])
@@ -141,7 +153,7 @@ def cancel_withdrawal(request, pk):
 
 
 def click_result(data, error=0, note="Success", payment=None):
-    result = {"click_trans_id": str(data.get("click_trans_id", "")), "merchant_trans_id": str(data.get("merchant_trans_id", "")), "error": error, "error_note": note}
+    result = {"click_trans_id": int(data["click_trans_id"]) if positive_id(data.get("click_trans_id")) else 0, "merchant_trans_id": str(data.get("merchant_trans_id", "")), "error": error, "error_note": note}
     if payment:
         result["merchant_prepare_id" if str(data.get("action")) == "0" else "merchant_confirm_id"] = payment.pk
     return Response(result)
@@ -151,14 +163,21 @@ def click_result(data, error=0, note="Success", payment=None):
 @authentication_classes([])
 @throttle_classes([])
 @permission_classes([permissions.AllowAny])
+@parser_classes([FormParser, JSONParser])
 def click_callback(request, phase):
-    data = request.data
-    if not click_ready():
+    try:
+        data = request.data
+    except (ParseError, UnsupportedMediaType):
+        return click_result({}, -8, "Invalid request")
+    if not isinstance(data, Mapping):
+        return click_result({}, -8, "Invalid request")
+    if not shop_ready():
         return click_result(data, -7, "Service unavailable")
-    required = ["click_trans_id", "service_id", "merchant_trans_id", "amount", "action", "sign_time", "sign_string", "error"]
+    required = ["click_trans_id", "click_paydoc_id", "service_id", "merchant_trans_id", "amount", "action", "sign_time", "sign_string", "error"]
     if phase == "complete":
         required.append("merchant_prepare_id")
-    if any(key not in data for key in required):
+    if any(key not in data or type(data[key]) not in (str, int, float) or len(str(data[key])) > 128
+           or (hasattr(data, "getlist") and len(data.getlist(key)) != 1) for key in required):
         return click_result(data, -8, "Invalid request")
     action = "0" if phase == "prepare" else "1"
     if str(data["action"]) != action:
@@ -170,13 +189,15 @@ def click_callback(request, phase):
         parts.append(str(data["merchant_prepare_id"]))
     parts.extend([str(data["amount"]), action, str(data["sign_time"])])
     expected = hashlib.md5("".join(parts).encode(), usedforsecurity=False).hexdigest()
-    if not hmac.compare_digest(expected, str(data["sign_string"]).lower()):
+    if not re.fullmatch(r"[a-fA-F0-9]{32}", str(data["sign_string"])) or not hmac.compare_digest(expected, str(data["sign_string"]).lower()):
         return click_result(data, -1, "Invalid signature")
     try:
         reference = uuid.UUID(str(data["merchant_trans_id"]))
         amount = Decimal(str(data["amount"]))
         provider_error = int(data["error"])
-        if not amount.is_finite() or amount <= 0 or not str(data["click_trans_id"]).isdigit():
+        datetime.strptime(str(data["sign_time"]), "%Y-%m-%d %H:%M:%S")
+        if (not amount.is_finite() or amount <= 0 or not positive_id(data["click_trans_id"])
+                or not positive_id(data["click_paydoc_id"]) or not re.fullmatch(r"-?[0-9]{1,10}", str(data["error"]))):
             raise ValueError
     except (ValueError, InvalidOperation, TypeError):
         return click_result(data, -8, "Invalid request")
@@ -191,6 +212,9 @@ def click_callback(request, phase):
                 return click_result(data, -2, "Incorrect amount")
             if payment.click_trans_id and payment.click_trans_id != str(data["click_trans_id"]):
                 return click_result(data, -4, "Transaction already bound")
+            previous = payment.provider_data.get("click", {})
+            if previous.get("click_paydoc_id") and previous["click_paydoc_id"] != str(data["click_paydoc_id"]):
+                return click_result(data, -6, "Payment document mismatch")
             if payment.status == Payment.Status.PAID:
                 return click_result(data, -4, "Already paid", payment)
             if payment.status == Payment.Status.CANCELLED:
@@ -199,15 +223,20 @@ def click_callback(request, phase):
                 return click_result(data, -5, "Order is not payable")
             if action == "1" and (str(data["merchant_prepare_id"]) != str(payment.pk) or payment.status != Payment.Status.PREPARED):
                 return click_result(data, -6, "Transaction not found")
+            if action == "0" and payment.status == Payment.Status.PENDING and provider_error == 0 and not click_ready():
+                return click_result(data, -7, "Fiscal configuration unavailable")
             payment.click_trans_id = str(data["click_trans_id"])
+            payment.provider_data["click"] = {"service_id": str(data["service_id"]),
+                "click_paydoc_id": str(data["click_paydoc_id"]), "sign_time": str(data["sign_time"])}
             if provider_error < 0:
                 payment.status = Payment.Status.CANCELLED
-                payment.save(update_fields=["status", "click_trans_id"])
+                payment.save(update_fields=["status", "click_trans_id", "provider_data"])
                 return click_result(data, -9, "Transaction cancelled", payment)
             if provider_error != 0:
                 return click_result(data, -8, "Invalid provider status")
             payment.status = Payment.Status.PREPARED
-            payment.save(update_fields=["status", "click_trans_id"])
+            payment.save(update_fields=["status", "click_trans_id", "provider_data"])
+            snapshot_receipt(payment)
             if action == "1":
                 settle_payment(payment, contract)
             return click_result(data, payment=payment)

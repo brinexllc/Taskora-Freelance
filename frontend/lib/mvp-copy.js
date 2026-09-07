@@ -1,5 +1,12 @@
 export const mvpCopy = {
   ru: {
+    paymentChecking: 'Проверяем подтверждение оплаты от CLICK / PAYME…',
+    paymentConfirmed: 'Оплата подтверждена. Кошелёк пополнен.',
+    paymentCancelled: 'Платёж отменён. Средства в кошелёк не зачислены.',
+    paymentWaiting: 'Подтверждение ещё не получено. Обновите кошелёк позже.',
+    fiscalReceipt: 'Фискальный чек',
+    fiscalReceiptPending: 'Фискальный чек готовится',
+    fiscalReceiptUnavailable: 'Чек пока недоступен. Обратитесь в поддержку.',
     payments: 'Платежи CLICK / PAYME',
     previewHint:
       'Материалы доступны для проверки. Исходный файл откроется после приёмки и выплаты исполнителю.',
@@ -124,6 +131,15 @@ export const mvpCopy = {
       'Юридические реквизиты оператора, контакты поддержки и окончательные сроки хранения должны быть заполнены владельцем платформы до коммерческого запуска.',
   },
   en: {
+    paymentChecking: 'Checking payment confirmation from CLICK / PAYME…',
+    paymentConfirmed: 'Payment confirmed. Your wallet has been credited.',
+    paymentCancelled:
+      'Payment cancelled. No funds were credited to your wallet.',
+    paymentWaiting: 'Confirmation is still pending. Refresh your wallet later.',
+    fiscalReceipt: 'Fiscal receipt',
+    fiscalReceiptPending: 'Fiscal receipt is being prepared',
+    fiscalReceiptUnavailable:
+      'The receipt is currently unavailable. Please contact support.',
     payments: 'CLICK / PAYME payments',
     previewHint:
       'Review the preview materials. The source file becomes available after acceptance and release of funds.',
@@ -248,6 +264,14 @@ export const mvpCopy = {
       'The platform owner must provide operator details, support contacts and final retention periods before commercial launch.',
   },
   uz: {
+    paymentChecking: 'CLICK / PAYME to‘lov tasdig‘i tekshirilmoqda…',
+    paymentConfirmed: 'To‘lov tasdiqlandi. Hamyon to‘ldirildi.',
+    paymentCancelled: 'To‘lov bekor qilindi. Hamyonga mablag‘ tushmadi.',
+    paymentWaiting: 'Tasdiq hali kelmadi. Hamyonni keyinroq yangilang.',
+    fiscalReceipt: 'Fiskal chek',
+    fiscalReceiptPending: 'Fiskal chek tayyorlanmoqda',
+    fiscalReceiptUnavailable:
+      'Chek hozircha mavjud emas. Yordam xizmatiga murojaat qiling.',
     payments: 'CLICK / PAYME to‘lovlari',
     previewHint:
       'Natijani tekshiring. Asl fayl ish qabul qilinib, mablag‘ ijrochiga o‘tkazilgandan keyin ochiladi.',

@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 
 class Project(models.Model):
@@ -245,6 +246,31 @@ class Payment(models.Model):
     provider_data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     paid_at = models.DateTimeField(null=True, blank=True)
+
+
+class ClickFiscalReceipt(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Ожидает отправки"
+        SUBMITTING = "submitting", "Проверяется результат отправки"
+        SUBMITTED = "submitted", "Ожидает чека CLICK"
+        READY = "ready", "Чек получен"
+        REVIEW = "review", "Требует проверки"
+
+    payment = models.OneToOneField(Payment, on_delete=models.PROTECT, related_name="click_receipt")
+    # Immutable checkout snapshot; later config changes cannot change an existing receipt.
+    payload = models.JSONField(default=dict)
+    click_payment_id = models.CharField(max_length=64, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    qr_code_url = models.URLField(max_length=2000, blank=True)
+    attempts = models.PositiveIntegerField(default=0)
+    last_error = models.CharField(max_length=240, blank=True)
+    next_attempt_at = models.DateTimeField(default=timezone.now)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["status", "next_attempt_at"])]
 
 
 class WalletEntry(models.Model):

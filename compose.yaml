@@ -26,6 +26,17 @@ services:
       FRONTEND_URL: http://localhost:3000
       PRIVATE_MEDIA_ROOT: /data/private_media
       EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+      CLICK_SERVICE_ID: ${CLICK_SERVICE_ID:-}
+      CLICK_MERCHANT_ID: ${CLICK_MERCHANT_ID:-}
+      CLICK_SECRET_KEY: ${CLICK_SECRET_KEY:-}
+      CLICK_MERCHANT_USER_ID: ${CLICK_MERCHANT_USER_ID:-}
+      CLICK_FISCALIZATION_ENABLED: ${CLICK_FISCALIZATION_ENABLED:-true}
+      CLICK_FISCAL_ITEM_NAME: ${CLICK_FISCAL_ITEM_NAME:-}
+      CLICK_FISCAL_SPIC: ${CLICK_FISCAL_SPIC:-}
+      CLICK_FISCAL_PACKAGE_CODE: ${CLICK_FISCAL_PACKAGE_CODE:-}
+      CLICK_FISCAL_VAT_PERCENT: ${CLICK_FISCAL_VAT_PERCENT:-}
+      CLICK_FISCAL_TIN: ${CLICK_FISCAL_TIN:-}
+      CLICK_FISCAL_PINFL: ${CLICK_FISCAL_PINFL:-}
     command: ["python", "backend/manage.py", "migrate", "--noinput"]
     depends_on:
       db:
@@ -36,6 +47,14 @@ services:
     ports: ["127.0.0.1:8000:8000"]
     volumes:
       - private_media:/data/private_media
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  click-receipts:
+    profiles: [click]
+    build: .
+    environment: *backend_environment
+    command: ["python", "backend/manage.py", "process_click_receipts", "--watch"]
     depends_on:
       migrate:
         condition: service_completed_successfully

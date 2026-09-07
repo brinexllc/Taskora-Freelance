@@ -58,7 +58,7 @@ $env:DJANGO_DEBUG = 'true'
 
 Провайдеры пополняют кошелёк плательщика. Callback не принимает работу и не закрывает договор. Резерв и приёмка — отдельные действия. Redirect не подтверждает оплату. До настройки ключей способ оплаты недоступен; успешные операции не имитируются.
 
-CLICK: `CLICK_SERVICE_ID`, `CLICK_MERCHANT_ID`, `CLICK_SECRET_KEY`. HTTPS callbacks: `/api/payments/click/prepare/`, `/api/payments/click/complete/`. Проверяются подпись, сумма, сервис, идентификатор и стадии. [Протокол CLICK](https://docs.click.uz/).
+CLICK: платёжная ссылка, HTTPS callbacks `/api/payments/click/prepare/` и `/api/payments/click/complete/`, проверка подписи/суммы/идентификаторов и защита от повторов. Добавлена фискализация Merchant API: снимок позиции, очередь в БД, отдельный worker, получение чека и ссылка в кошельке. Для активации нужны реквизиты мерчанта, включая `CLICK_MERCHANT_USER_ID`, и согласованная схема чека. Полная настройка, команды запуска и обработка сбоев: [docs/click-integration.md](docs/click-integration.md). Без реквизитов реальные платежи остаются недоступны.
 
 PAYME: `PAYME_MERCHANT_ID`, `PAYME_SECRET_KEY`, `PAYME_TEST_MODE=true` для тестовой кассы. В кассе настройте строковое поле счёта `order_id` с UUID платежа. Callback `/api/payments/payme/`, Basic auth `Paycom:<ключ кассы>`. Реализованы CheckPerformTransaction, CreateTransaction, PerformTransaction, CancelTransaction, CheckTransaction, GetStatement, SetFiscalData. Суммы протокола — в тийинах. Сохраняются транзакции, повторы, таймаут 12 часов и отмены; использованные средства нельзя отменить с уходом баланса в минус. [Merchant API](https://developer.help.paycom.uz/metody-merchant-api/), [checkout](https://developer.help.paycom.uz/initsializatsiya-platezhey/otpravka-cheka-po-metodu-get/).
 
@@ -92,7 +92,7 @@ PAYME: `PAYME_MERCHANT_ID`, `PAYME_SECRET_KEY`, `PAYME_TEST_MODE=true` для т
 
 ## Проверки
 
-Прошли 55 тестов Django, проверки приложения и схемы, lint и production-сборка. HTTP-проверки подтверждают основные страницы/API, неавторизованный доступ к кошельку/договорам возвращает 401. Миграции применены к локальной базе. Конкурирующие транзакции на PostgreSQL и банковская сертификация не проверялись.
+Прошли 74 теста Django, проверки приложения и схемы, lint, TypeScript и production-сборка. Миграция очереди CLICK применена к локальной базе. Тесты покрывают подписи, реальные форматы запросов, повторы, отмену, точные суммы чеков, потерю ответа Merchant API, блокировки очереди и приватность статуса платежа. Конкурирующие транзакции на PostgreSQL и банковская сертификация не проверялись.
 
 ```powershell
 $env:DATABASE_URL = 'sqlite:///' + (Join-Path (Get-Location) 'backend/local-mvp.sqlite3').Replace('\', '/')
