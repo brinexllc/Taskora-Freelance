@@ -13,7 +13,7 @@ export function SettingsView() {
   const [form, setForm] = useState({
     about: profile.about,
     avatar: profile.avatar,
-    skills: profile.skills,
+    skills: profile.skill_details || [],
     professional_experience: profile.professional_experience || '',
     available: profile.available,
     rate: profile.rate,
@@ -38,7 +38,8 @@ export function SettingsView() {
         token: session.token,
         body: {
           ...form,
-          skills: form.skills,
+          skills: undefined,
+          skill_ids: form.skills.map((s) => s.id),
         },
       });
       updateUser(user);

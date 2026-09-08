@@ -1,6 +1,5 @@
 from datetime import timedelta
-from decimal import Decimal, ROUND_HALF_UP
-from django.conf import settings
+from decimal import Decimal
 from pathlib import Path
 
 from django.db import connection, transaction
@@ -17,6 +16,8 @@ from .models import Contract, Deliverable, Profile, Project, Proposal, Message, 
 from .serializers import ContractSerializer, DeliverableUploadSerializer, ProjectSerializer, ProposalSerializer, MessageSerializer, MessageUploadSerializer, DisputeSerializer, ReviewSerializer, NotificationSerializer, AttachmentSerializer
 from .escrow import event, notify, fund_contract, distribute, project_status, resolve_dispute
 from .validation import uploaded_file
+from .fees import current_policy, check_expected_policy, settlement
+from .catalog_api import filter_skills
 
 
 def require_role(user, role):
@@ -33,7 +34,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     ordering = ["-featured", "-created_at"]
 
     def get_queryset(self):
-        qs = Project.objects.select_related("contract").prefetch_related("attachments", "skills").annotate(proposal_count=Count("proposals", distinct=True))
+        qs = Project.objects.select_related("contract", "category").prefetch_related("attachments", "skills__categories").annotate(proposal_count=Count("proposals", distinct=True))
         user = self.request.user
         public = Q(status=Project.Status.ACTIVE)
         if user.is_authenticated:
@@ -45,13 +46,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
             else:
                 qs = qs.filter(status=Project.Status.ACTIVE)
             if self.request.query_params.get("category"):
-                qs = qs.filter(category=self.request.query_params["category"])
+                category = self.request.query_params['category']
+                if not Category.objects.filter(slug=category).exists():
+                    raise ValidationError({'category': 'Неизвестная категория.'})
+                qs = qs.filter(category__slug=category)
             params = self.request.query_params
             for key, lookup in [("min_budget", "budget_max__gte"), ("max_budget", "budget_min__lte")]:
                 if params.get(key):
                     qs = qs.filter(**{lookup: serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0).run_validation(params[key])})
-            if params.get("skill"):
-                qs = qs.filter(skills__name__iexact=params["skill"])
+            qs = filter_skills(qs, params)
             if params.get("budget_type"):
                 qs = qs.filter(budget_type=params["budget_type"])
             if params.get("deadline"):
@@ -92,8 +95,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Публикует только заказчик.")
         if project.status != Project.Status.DRAFT:
             raise ValidationError("Публиковать можно только черновик.")
-        if not project.deadline or project.deadline < timezone.localdate() or not project.skills.exists():
-            raise ValidationError("Заполните срок и навыки перед публикацией.")
+        if not project.deadline or project.deadline < timezone.localdate() or not project.category.active:
+            raise ValidationError('Заполните срок и выберите активную категорию перед публикацией.')
+        if project.skills_unspecified and project.skills.exists():
+            raise ValidationError('При выборе технологий исполнителем список навыков должен быть пустым.')
+        if not project.skills_unspecified and (not project.skills.exists() or project.skills.filter(active=False).exists()):
+            raise ValidationError('Выберите активные навыки или поручите выбор технологий исполнителю.')
         project.status = Project.Status.ACTIVE
         project.save(update_fields=["status", "updated_at"])
         return Response(self.get_serializer(project).data)
@@ -145,6 +152,7 @@ class ProposalViewSet(viewsets.ModelViewSet):
             raise ValidationError("Этот заказ не принимает отклики.")
         if Proposal.objects.filter(project=project, freelancer=user).exists():
             raise ValidationError("Вы уже отправили отклик на этот заказ.")
+        check_expected_policy(self.request.data, current_policy())
         serializer.save(freelancer=user, freelancer_name=user.profile.full_name, freelancer_email=user.email)
         notify(project.owner_id, "proposal", "Новый отклик: " + project.title, link=f"/projects/{project.pk}")
 
@@ -172,12 +180,12 @@ class ProposalViewSet(viewsets.ModelViewSet):
             "Нажимая «Подписать», стороны подтверждают эти условия в своём аккаунте Taskora. "
             "Подтверждение в аккаунте не является электронной цифровой подписью ONEID или E-IMZO."
         )
-        fee_percent = Decimal(settings.PLATFORM_FEE_PERCENT)
-        if not fee_percent.is_finite() or not 0 <= fee_percent <= 100:
-            raise ValidationError("Некорректная комиссия платформы.")
-        fee = (proposal.amount * fee_percent / 100).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        policy = current_policy()
+        check_expected_policy(request.data, policy)
+        fee_percent = Decimal(policy['freelancer_fee_percent'])
+        fee = settlement(proposal.amount, proposal.amount, fee_percent)['fee']
         terms += f"\nВерсия 1. Модель: {project.budget_type}. Согласованная итоговая сумма: {proposal.amount} UZS. Комиссия: {fee_percent}% ({fee} UZS), удерживается из выплаты. Исполнителю: {proposal.amount-fee} UZS."
-        contract = Contract.objects.create(project=project, proposal=proposal, customer=request.user, freelancer=proposal.freelancer, amount=proposal.amount, delivery_days=proposal.delivery_days, terms=terms, scope=project.description, budget_type=project.budget_type, fee_percent=fee_percent, fee_amount=fee)
+        contract = Contract.objects.create(project=project, proposal=proposal, customer=request.user, freelancer=proposal.freelancer, amount=proposal.amount, delivery_days=proposal.delivery_days, terms=terms, scope=project.description, budget_type=project.budget_type, fee_percent=fee_percent, fee_amount=fee, fee_policy_snapshot=policy)
         event(contract, request.user, "created", "Договор создан. Подтвердите условия.", {"version": 1, "terms": terms})
         for other in Proposal.objects.filter(project=project, status="pending").exclude(pk=proposal.pk):
             notify(other.freelancer_id, "proposal_rejected", "Выбран другой исполнитель: " + project.title, link=f"/projects/{project.pk}")

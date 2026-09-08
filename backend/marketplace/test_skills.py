@@ -29,7 +29,9 @@ class SkillDirectoryTests(BaseTests):
                    'category': 'development', 'skills': ['React', 'Django'], 'deadline': '2099-01-01',
                    'budget_min': 1000, 'budget_max': 2000}
         self.assertEqual(self.post('projects', {**payload, 'skills': ['Unknown skill']}).status_code, 400)
-        self.assertEqual(self.post('projects', {**payload, 'skills': []}).status_code, 400)
+        draft = self.post('projects', {**payload, 'skills': []})
+        self.assertEqual(draft.status_code, 201)
+        self.assertEqual(self.post(f"projects/{draft.data['id']}/publish").status_code, 400)
         created = self.post('projects', payload)
         self.assertEqual(created.status_code, 201, created.data)
         project = Project.objects.get(pk=created.data['id'])

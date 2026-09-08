@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
+import { SkillPicker } from '@/components/project-editor';
 import {
   Avatar,
   Empty,
@@ -18,14 +19,13 @@ export default function FreelancersPage() {
     [query, setQuery] = useState(''),
     [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
-    skill: '',
     min_rate: '',
     max_rate: '',
     rating: '',
     available: '',
   });
   const [applied, setApplied] = useState({});
-  const directory = useRemote('directory');
+  const [selectedSkills, setSelectedSkills] = useState([]);
   const remote = useRemote('profiles', {
     query: { search: query, page, ...applied },
   });
@@ -37,7 +37,7 @@ export default function FreelancersPage() {
         onSubmit={(e) => {
           e.preventDefault();
           setQuery(search);
-          setApplied(filters);
+          setApplied({ ...filters, skill_id: selectedSkills.map((s) => s.id) });
           setPage(1);
         }}
       >
@@ -57,19 +57,11 @@ export default function FreelancersPage() {
             <button className="t-button">{t('search')}</button>
           </div>
         </Field>
-        <Field label={t('skills')}>
-          <select
-            value={filters.skill}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, skill: e.target.value }))
-            }
-          >
-            <option value="">{t('all')}</option>
-            {directory.data?.skills.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </Field>
+        <SkillPicker
+          value={selectedSkills}
+          onChange={setSelectedSkills}
+          hintKey={null}
+        />
         <Field label={t('rating')}>
           <select
             value={filters.rating}
@@ -132,8 +124,8 @@ export default function FreelancersPage() {
                   {t('reviews')}
                 </p>
                 <div className="skill-tags">
-                  {profile.skills.map((skill) => (
-                    <span key={skill}>{skill}</span>
+                  {profile.skill_details.map((skill) => (
+                    <span key={skill.id}>{skill.label}</span>
                   ))}
                 </div>
                 <p>

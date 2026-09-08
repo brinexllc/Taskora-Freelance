@@ -13,15 +13,16 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/components/app-providers';
-import { apiRequest } from '@/lib/api';
+import { remoteRequest } from '@/lib/api';
 import { date, languages, money } from '@/lib/i18n';
 
 export function useRemote(path, { token, query } = {}) {
+  const { language } = useApp();
   const [data, setData] = useState(null),
     [error, setError] = useState(''),
     [loading, setLoading] = useState(true),
     [version, setVersion] = useState(0);
-  const encoded = JSON.stringify(query || {});
+  const encoded = JSON.stringify({ ...query, lang: language });
   useEffect(() => {
     const controller = new AbortController();
     void Promise.resolve().then(() => {
@@ -32,7 +33,7 @@ export function useRemote(path, { token, query } = {}) {
       }
       setLoading(true);
       setError('');
-      return apiRequest(path, {
+      return remoteRequest(path, {
         token,
         query: JSON.parse(encoded),
         signal: controller.signal,
@@ -248,6 +249,7 @@ export function Pager({ data, page, onChange }) {
   return (
     <nav className="pager" aria-label="Pagination">
       <button
+        type="button"
         className="t-button secondary"
         disabled={!data.previous}
         onClick={() => onChange(page - 1)}
@@ -258,6 +260,7 @@ export function Pager({ data, page, onChange }) {
       <button
         className="t-button secondary"
         disabled={!data.next}
+        type="button"
         onClick={() => onChange(page + 1)}
       >
         {t('next')}
@@ -272,7 +275,7 @@ export function ProjectCard({ project, compact = false }) {
       className={`t-card project-row ${compact ? 'compact-project' : ''}`}
     >
       <div className="row-between">
-        <span className="eyebrow">{t(project.category)}</span>
+        <span className="eyebrow">{project.category_label}</span>
         {compact && project.deadline ? (
           <span className="compact-deadline">
             {date(project.deadline, language)}
@@ -286,8 +289,11 @@ export function ProjectCard({ project, compact = false }) {
       </Link>
       <p className="muted line-clamp">{project.description}</p>
       <div className="skill-tags">
-        {project.skills?.map((skill) => (
-          <span key={skill}>{skill}</span>
+        {project.skills_unspecified && (
+          <span>{t('technologiesDiscussed')}</span>
+        )}
+        {project.skill_details?.map((skill) => (
+          <span key={skill.id}>{skill.label}</span>
         ))}
       </div>
       <div className="project-row-footer">
@@ -366,7 +372,9 @@ export function ProfileSummary({ profile }) {
             <h2>{t('skills')}</h2>
             <div className="skill-tags">
               {profile.skills?.length ? (
-                profile.skills.map((skill) => <span key={skill}>{skill}</span>)
+                profile.skill_details.map((skill) => (
+                  <span key={skill.id}>{skill.label}</span>
+                ))
               ) : (
                 <span>{t('empty')}</span>
               )}

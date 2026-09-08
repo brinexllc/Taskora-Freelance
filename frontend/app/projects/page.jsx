@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
+import { SkillPicker } from '@/components/project-editor';
 import {
   Empty,
   Field,
@@ -36,7 +37,7 @@ export function OrdersList({ mine = false }) {
   const [filters, setFilters] = useState({
     search: '',
     category: '',
-    skill: '',
+    skill_match: 'all',
     min_budget: '',
     max_budget: '',
     budget_type: '',
@@ -46,7 +47,8 @@ export function OrdersList({ mine = false }) {
   const [query, setQuery] = useState({});
   const [sort, setSort] = useState('-created_at');
   const [page, setPage] = useState(1);
-  const directory = useRemote('directory');
+  const [selectedSkills, setSelectedSkills] = useState([]);
+  const directory = useRemote('catalog');
   useEffect(() => {
     void Promise.resolve().then(() => {
       const q = new URLSearchParams(window.location.search);
@@ -72,7 +74,7 @@ export function OrdersList({ mine = false }) {
         className="catalog-filters t-card t-form"
         onSubmit={(e) => {
           e.preventDefault();
-          setQuery(filters);
+          setQuery({ ...filters, skill_id: selectedSkills.map((s) => s.id) });
           setPage(1);
         }}
       >
@@ -92,17 +94,22 @@ export function OrdersList({ mine = false }) {
             <option value="">{t('all')}</option>
             {directory.data?.categories.map((c) => (
               <option key={c.slug} value={c.slug}>
-                {t(c.slug) === c.slug ? c.name : t(c.slug)}
+                {c.label}
               </option>
             ))}
           </select>
         </Field>
-        <Field label={t('skills')}>
-          <select value={filters.skill} onChange={change('skill')}>
-            <option value="">{t('all')}</option>
-            {directory.data?.skills.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
+        <SkillPicker
+          key={filters.category}
+          value={selectedSkills}
+          onChange={setSelectedSkills}
+          category={filters.category}
+          hintKey={null}
+        />
+        <Field label={t('skillMatch')}>
+          <select value={filters.skill_match} onChange={change('skill_match')}>
+            <option value="all">{t('allSelectedSkills')}</option>
+            <option value="any">{t('anySelectedSkill')}</option>
           </select>
         </Field>
         <Field label={t('budgetType')}>
@@ -172,7 +179,7 @@ export function OrdersList({ mine = false }) {
             setFilters({
               search: '',
               category: '',
-              skill: '',
+              skill_match: 'all',
               min_budget: '',
               max_budget: '',
               budget_type: '',
@@ -180,6 +187,7 @@ export function OrdersList({ mine = false }) {
               status: '',
             });
             setQuery({});
+            setSelectedSkills([]);
             setPage(1);
           }}
         >

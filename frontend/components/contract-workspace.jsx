@@ -29,10 +29,20 @@ export function ContractWorkspace({ contract, act, busy }) {
   const [review, setReview] = useState('');
   const customer = session.user.id === contract.customer;
   const confirmAction = (action) => setConfirm(action);
+  const settled = contract.actual_fee_amount !== null;
   const amounts = [
     ['amount', contract.amount],
-    ['platformFee', contract.fee_amount],
-    ['netAmount', contract.net_amount],
+    ...(settled
+      ? [
+          ['grossReleased', contract.released_amount],
+          ['platformFee', contract.actual_fee_amount],
+          ['netAmount', contract.actual_net_amount],
+          ['customerRefund', contract.refunded_amount],
+        ]
+      : [
+          ['platformFee', contract.fee_amount],
+          ['netAmount', contract.net_amount],
+        ]),
     ['frozenBalance', contract.escrow_amount],
   ];
   return (
@@ -44,6 +54,10 @@ export function ContractWorkspace({ contract, act, busy }) {
           </h2>
           <Status value={contract.status} />
         </div>
+        <p>
+          <strong>{t(settled ? 'actualSettlement' : 'originalPlan')}</strong> ·{' '}
+          {t('platformFee')}: {contract.fee_percent}%
+        </p>
         <dl className="escrow-amounts">
           {amounts.map(([label, value]) => (
             <div key={label}>
@@ -52,6 +66,22 @@ export function ContractWorkspace({ contract, act, busy }) {
             </div>
           ))}
         </dl>
+        {settled ? (
+          <details>
+            <summary>{t('originalPlan')}</summary>
+            <p>
+              {t('amount')}: {money(contract.amount, language)} ·{' '}
+              {t('platformFee')}: {contract.fee_percent}% (
+              {money(contract.fee_amount, language)}) · {t('netAmount')}:{' '}
+              {money(contract.net_amount, language)}
+            </p>
+          </details>
+        ) : (
+          <p>
+            {t('customerReserves')}: {money(contract.amount, language)}.{' '}
+            {t('feeNotSettled')}
+          </p>
+        )}
         <p className="muted">{t('escrowHint')}</p>
         {contract.deadline && (
           <p>
@@ -120,7 +150,8 @@ export function ContractWorkspace({ contract, act, busy }) {
             <strong>{t(`confirm_${confirm}`)}</strong>
             <p>
               {money(contract.amount, language)} · {t('platformFee')}:{' '}
-              {money(contract.fee_amount, language)}
+              {contract.fee_percent}% ({money(contract.fee_amount, language)}) ·{' '}
+              {t('netAmount')}: {money(contract.net_amount, language)}
             </p>
             <div className="actions">
               <button

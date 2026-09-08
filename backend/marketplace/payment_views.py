@@ -36,7 +36,7 @@ def wallet(request):
     contracts = Contract.objects.filter(customer=request.user)
     worker_contracts = Contract.objects.filter(freelancer=request.user)
     total = lambda qs, field: str(qs.aggregate(value=Sum(field))["value"] or Decimal("0"))
-    entries = request.user.wallet_entries.all()
+    entries = request.user.wallet_entries.select_related('contract')
     if request.query_params.get("kind"):
         entries = entries.filter(kind=request.query_params["kind"])
     order = request.query_params.get("ordering", "-created_at")

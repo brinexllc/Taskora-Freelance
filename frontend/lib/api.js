@@ -5,11 +5,12 @@ export const API_URL = (
 
 export function apiEndpoint(path, query) {
   const normalized = String(path).replace(/^\/+|\/+$/g, '');
-  const params = new URLSearchParams(
-    Object.entries(query || {}).filter(
-      ([, value]) => value !== '' && value != null,
-    ),
-  );
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query || {})) {
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (item !== '' && item != null) params.append(key, String(item));
+    }
+  }
   return `${API_URL}/${normalized}/${params.size ? `?${params}` : ''}`;
 }
 
@@ -40,9 +41,25 @@ export async function apiRequest(
       `HTTP ${response.status}`;
     const error = new Error(String(messages));
     error.status = response.status;
+    error.code = payload?.code;
+    error.payload = payload;
     throw error;
   }
   return payload;
+}
+
+const pendingDirectoryRequests = new Map();
+export function remoteRequest(path, options) {
+  if (!['directory', 'catalog', 'skills'].includes(path))
+    return apiRequest(path, options);
+  const key = apiEndpoint(path, options.query);
+  if (!pendingDirectoryRequests.has(key)) {
+    const promise = apiRequest(path, { query: options.query }).finally(() =>
+      pendingDirectoryRequests.delete(key),
+    );
+    pendingDirectoryRequests.set(key, promise);
+  }
+  return pendingDirectoryRequests.get(key);
 }
 
 export const fetchProjects = (options = {}) => apiRequest('projects', options);

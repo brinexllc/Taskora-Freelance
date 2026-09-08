@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from rest_framework.exceptions import ValidationError
 from .models import Contract, Deliverable, PasswordResetCode, Payment, Profile, Project, Proposal, WalletEntry, Withdrawal
 from .services import process_withdrawal
-from .models import Category, Skill, ContractEvent, Message, Dispute, Review, Notification, AuditLog, ProjectAttachment, ClickFiscalReceipt
+from .models import Category, Skill, SkillAlias, CategorySkill, PlatformFee, ContractEvent, Message, Dispute, Review, Notification, AuditLog, ProjectAttachment, ClickFiscalReceipt
 from .escrow import resolve_dispute
 from django import forms
 from decimal import Decimal
@@ -101,7 +101,11 @@ class AuditAdmin(admin.ModelAdmin):
 
 @admin.register(Contract)
 class ContractAdmin(AuditAdmin):
-    list_display = ('id', 'project', 'customer', 'freelancer', 'amount', 'status')
+    list_display = ('id', 'project', 'customer', 'freelancer', 'amount', 'fee_percent', 'fee_amount', 'actual_fee_amount', 'actual_net', 'released_amount', 'refunded_amount', 'status')
+
+    @admin.display(description='Чистая выплата')
+    def actual_net(self, obj):
+        return obj.released_amount - obj.actual_fee_amount if obj.actual_fee_amount is not None else None
     list_filter = ('status',)
     search_fields = ('project__title', 'customer__username', 'freelancer__username')
     def get_readonly_fields(self, request, obj=None):
@@ -165,6 +169,8 @@ class WithdrawalAdmin(AuditAdmin):
 
 
 class DisputeForm(forms.ModelForm):
+    settlement_preview = forms.CharField(required=False, widget=forms.HiddenInput)
+    confirm_settlement = forms.BooleanField(required=False, label='Подтверждаю показанные выплату, комиссию и возврат')
     class Meta:
         model = Dispute
         fields = '__all__'
@@ -177,6 +183,22 @@ class DisputeForm(forms.ModelForm):
                 raise forms.ValidationError('Укажите выплату исполнителю от 0 до суммы договора; остаток вернётся заказчику.')
             if len(data.get('resolution', '').strip()) < 10:
                 raise forms.ValidationError('Укажите основание решения (не менее 10 символов).')
+            from django.core import signing
+            from .fees import settlement
+            result = settlement(self.instance.contract.amount, amount, self.instance.contract.fee_percent)
+            expected = {'dispute': self.instance.pk, 'gross': str(result['gross']),
+                        'rate': str(self.instance.contract.fee_percent), 'reason': data['resolution']}
+            try:
+                preview = signing.loads(data.get('settlement_preview', ''), salt='dispute-settlement-preview', max_age=900)
+            except signing.BadSignature:
+                preview = None
+            if preview != expected or not data.get('confirm_settlement'):
+                self.data = self.data.copy()
+                self.data['settlement_preview'] = signing.dumps(expected, salt='dispute-settlement-preview')
+                raise forms.ValidationError(
+                    f"Проверьте расчёт, отметьте подтверждение и сохраните повторно. "
+                    f"Начислено: {result['gross']} UZS; комиссия: {result['fee']} UZS; "
+                    f"исполнителю: {result['net']} UZS; возврат заказчику: {result['refund']} UZS.")
         return data
 
 
@@ -231,13 +253,91 @@ class ReviewAdmin(AuditAdmin):
         AuditLog.objects.create(actor=request.user, action='review_moderation', object_type='review', object_id=str(obj.pk), detail={'published':obj.published, 'reason':obj.moderation_reason})
 
 
-@admin.register(Category, Skill)
+class DirectoryForm(forms.ModelForm):
+    reason = forms.CharField(label='Основание изменения', min_length=3, max_length=500)
+
+
 class DirectoryAdmin(admin.ModelAdmin):
+    form = DirectoryForm
     list_display = ('name', 'active')
     list_filter = ('active',)
     search_fields = ('name',)
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def get_readonly_fields(self, request, obj=None):
+        return ('slug',) if obj and hasattr(obj, 'slug') else ()
+
+    def save_model(self, request, obj, form, change):
+        from django.forms.models import model_to_dict
+        from .taxonomy import audit
+        before = model_to_dict(type(obj).objects.get(pk=obj.pk), exclude=['categories']) if change else {}
+        obj.save()
+        audit(obj, request.user, 'directory_change' if change else 'directory_create', before, form.cleaned_data['reason'])
+
+
+@admin.register(Category)
+class CategoryAdmin(DirectoryAdmin):
+    list_display = ('name', 'slug', 'active', 'sort_order', 'icon_key')
+
+
+class MergeSkillsForm(forms.Form):
+    target = forms.ModelChoiceField(queryset=Skill.objects.filter(active=True, merged_into__isnull=True), label='Канонический навык')
+    reason = forms.CharField(min_length=10, max_length=500, label='Основание объединения')
+    confirmed = forms.BooleanField(label='Подтверждаю перенос показанных связей. Подтверждения навыков требуют отдельной проверки.')
+
+
+@admin.register(Skill)
+class SkillAdmin(DirectoryAdmin):
+    list_display = ('name', 'slug', 'active', 'merged_into')
+    search_fields = ('name', 'aliases__key')
+    actions = ['merge_selected']
+
+    def get_readonly_fields(self, request, obj=None):
+        return super().get_readonly_fields(request, obj) + ('merged_into',)
+
+    @admin.action(description='Объединить навыки с предпросмотром связей', permissions=['change'])
+    def merge_selected(self, request, queryset):
+        from django.core.exceptions import ValidationError as ModelValidationError
+        from django.db import transaction
+        from .taxonomy import merge_skills
+        form = MergeSkillsForm(request.POST if request.POST.get('apply_merge') else None)
+        form.fields['target'].queryset = Skill.objects.filter(active=True, merged_into__isnull=True).exclude(pk__in=queryset.values('pk'))
+        if request.POST.get('apply_merge') and form.is_valid():
+            try:
+                with transaction.atomic():
+                    for skill in queryset.order_by('pk'):
+                        merge_skills(skill.pk, form.cleaned_data['target'].pk, actor=request.user, reason=form.cleaned_data['reason'])
+            except ModelValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                self.message_user(request, 'Навыки объединены. Старые ID сохранены; верификация не присваивалась.')
+                return None
+        rows = [{'skill':s,'profiles':s.profiles.count(),'projects':s.projects.count(),'categories':s.categories.count()} for s in queryset]
+        return TemplateResponse(request, 'admin/marketplace/merge_skills.html', {
+            **self.admin_site.each_context(request), 'title':'Объединение навыков', 'form':form, 'rows':rows,
+            'queryset':queryset, 'opts':self.model._meta})
+
+
+@admin.register(SkillAlias)
+class SkillAliasAdmin(DirectoryAdmin):
+    list_display = ('key', 'skill')
+    list_filter = ()
+    search_fields = ('key', 'skill__name')
+    readonly_fields = ()
+
+
+@admin.register(CategorySkill)
+class CategorySkillAdmin(DirectoryAdmin):
+    list_display = ('category', 'skill', 'sort_order')
+    list_filter = ('category',)
+    search_fields = ('skill__name',)
+
+
+@admin.register(PlatformFee)
+class PlatformFeeAdmin(AuditAdmin):
+    list_display = ('contract', 'gross_amount', 'fee_percent', 'fee_amount', 'currency', 'source', 'created_at')
+    list_filter = ('source', 'currency')
 
 admin.site.register(ContractEvent, AuditAdmin)
 admin.site.register(Message, AuditAdmin)

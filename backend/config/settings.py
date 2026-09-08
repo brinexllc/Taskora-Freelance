@@ -75,10 +75,13 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 database_url = os.getenv("DATABASE_URL", "").strip()
+if 'test' in sys.argv:
+    # Never run tests against DATABASE_URL; PostgreSQL requires an explicit isolated test target.
+    database_url = os.getenv('TEST_DATABASE_URL', '').strip()
 if not DEBUG and "test" not in sys.argv and not database_url:
     raise ImproperlyConfigured("DATABASE_URL is required when DJANGO_DEBUG=false.")
 
-if "test" in sys.argv or not database_url:
+if not database_url:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",

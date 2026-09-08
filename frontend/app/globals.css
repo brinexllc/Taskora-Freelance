@@ -6482,3 +6482,46 @@ p {
 .contract-actions {
   margin-top: 24px;
 }
+
+/* Catalog controls retain selections across recommendation/search pages. */
+.skill-picker {
+  min-width: 0;
+  max-width: 100%;
+}
+.skill-picker > div,
+.selected-skill-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.skill-picker label,
+.selected-skill {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.selected-skill {
+  border: 1px solid currentColor;
+  border-radius: 0.6rem;
+  padding: 0.4rem 0.65rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fee-estimate {
+  padding-block: 0.75rem;
+}
+.fee-estimate p {
+  margin-block: 0.5rem;
+}
+.filters-row > .skill-picker {
+  flex-basis: 100%;
+}
+.skill-picker > .selected-skill-tags {
+  max-height: none;
+  overflow: visible;
+}
+.skill-picker label {
+  font-size: 0.875rem;
+}

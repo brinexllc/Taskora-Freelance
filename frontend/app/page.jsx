@@ -11,6 +11,8 @@ import {
   Megaphone,
   PenLine,
   Boxes,
+  Smartphone,
+  Bot,
 } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
 import {
@@ -29,18 +31,21 @@ export default function LandingPage() {
   const overview = useRemote('overview');
   const people = useRemote('profiles', { query: { page_size: 8 } });
   const projects = useRemote('projects', { query: { page_size: 3 } });
-  const directory = useRemote('directory');
+  const directory = useRemote('catalog');
   const start = session?.user
     ? session.user.role
       ? '/dashboard'
       : '/role'
     : '/register';
   const icons = {
-    development: Code2,
-    design: Palette,
-    marketing: Megaphone,
-    writing: PenLine,
-    other: Boxes,
+    code: Code2,
+    smartphone: Smartphone,
+    bot: Bot,
+    shield: ShieldCheck,
+    palette: Palette,
+    megaphone: Megaphone,
+    pen: PenLine,
+    folder: Boxes,
   };
   return (
     <div
@@ -132,13 +137,11 @@ export default function LandingPage() {
             <RemoteState remote={directory}>
               <div className="category-cards">
                 {directory.data?.categories.map((c) => {
-                  const Icon = icons[c.slug] || Boxes;
+                  const Icon = icons[c.icon_key] || Boxes;
                   return (
                     <Link key={c.slug} href={`/projects?category=${c.slug}`}>
                       <Icon />
-                      <strong>
-                        {t(c.slug) === c.slug ? c.name : t(c.slug)}
-                      </strong>
+                      <strong>{c.label}</strong>
                       <ArrowRight size={18} />
                     </Link>
                   );
@@ -185,7 +188,10 @@ export default function LandingPage() {
                       <Avatar profile={p} />
                       <h3>{p.full_name}</h3>
                       <p>
-                        {p.skills.slice(0, 2).join(' · ') || t('freelancer')}
+                        {p.skill_details
+                          .slice(0, 2)
+                          .map((s) => s.label)
+                          .join(' · ') || t('freelancer')}
                       </p>
                       <div>
                         <b>★ {p.rating?.toFixed(1) || '—'}</b>

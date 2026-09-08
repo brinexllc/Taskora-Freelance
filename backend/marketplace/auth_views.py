@@ -44,8 +44,8 @@ class PublicProfileListView(ListAPIView):
         if q:
             qs = qs.filter(Q(full_name__icontains=q) | Q(skills__name__icontains=q) | Q(about__icontains=q) | Q(user__username__icontains=q))
         params = self.request.query_params
-        if params.get("skill"):
-            qs = qs.filter(skills__name__iexact=params["skill"])
+        from .catalog_api import filter_skills
+        qs = filter_skills(qs, params)
         if params.get("available") == "true":
             qs = qs.filter(available=True)
         from rest_framework import serializers
@@ -68,7 +68,7 @@ class PublicProfileView(RetrieveAPIView):
 
 def auth_response(user, status_code=status.HTTP_200_OK):
     token, _ = Token.objects.get_or_create(user=user)
-    return Response({"token": token.key, "user": UserSerializer(user).data}, status=status_code)
+    return Response({"token": token.key, "user": UserSerializer(user, context={'lang': user.profile.language}).data}, status=status_code)
 
 
 class AuthPublicView(APIView):
@@ -119,14 +119,14 @@ class MeView(APIView):
 
     def get(self, request):
         Profile.objects.get_or_create(user=request.user, defaults={"full_name": request.user.get_full_name() or request.user.username})
-        return Response(UserSerializer(request.user).data)
+        return Response(UserSerializer(request.user, context={'lang': request.user.profile.language}).data)
 
     def patch(self, request):
         profile, _ = Profile.objects.get_or_create(user=request.user, defaults={"full_name": request.user.get_full_name() or request.user.username})
         serializer = ProfileUpdateSerializer(profile, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(UserSerializer(request.user).data)
+        return Response(UserSerializer(request.user, context={'lang': request.user.profile.language}).data)
 
 
 class SetRoleView(APIView):
@@ -139,7 +139,7 @@ class SetRoleView(APIView):
         profile.role = serializer.validated_data["role"]
         profile.enabled_roles = list(dict.fromkeys([*profile.enabled_roles, profile.role]))
         profile.save(update_fields=["role", "enabled_roles"])
-        return Response(UserSerializer(request.user).data)
+        return Response(UserSerializer(request.user, context={'lang': request.user.profile.language}).data)
 
     put = post
 

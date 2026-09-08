@@ -28,6 +28,8 @@ $env:EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 $env:FRONTEND_URL = 'http://localhost:3000'
 & .venv-mvp/Scripts/python.exe backend/manage.py migrate --noinput
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+& .venv-mvp/Scripts/python.exe backend/manage.py seed_catalog --apply
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 if ($Service -eq 'click-receipts') {
     & .venv-mvp/Scripts/python.exe backend/manage.py process_click_receipts --watch
     exit $LASTEXITCODE

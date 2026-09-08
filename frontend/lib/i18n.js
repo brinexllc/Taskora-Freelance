@@ -1,4 +1,5 @@
 import { mvpCopy } from './mvp-copy';
+import { catalogCopy } from './catalog-copy';
 export const languages = [
   ['ru', 'RUS'],
   ['uz', 'UZ'],
@@ -791,6 +792,9 @@ function cyrillic(text) {
 Object.assign(ru, mvpCopy.ru);
 Object.assign(en, mvpCopy.en);
 Object.assign(uz, mvpCopy.uz);
+Object.assign(ru, catalogCopy.ru);
+Object.assign(en, catalogCopy.en);
+Object.assign(uz, catalogCopy.uz);
 
 export const dictionaries = {
   ru,

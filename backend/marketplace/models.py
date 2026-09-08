@@ -7,13 +7,6 @@ from django.utils import timezone
 
 
 class Project(models.Model):
-    class Category(models.TextChoices):
-        DEVELOPMENT = "development", "Разработка"
-        DESIGN = "design", "Дизайн"
-        MARKETING = "marketing", "Маркетинг"
-        WRITING = "writing", "Тексты"
-        OTHER = "other", "Другое"
-
     class Status(models.TextChoices):
         DRAFT = "draft", "Черновик"
         ACTIVE = "published", "Опубликован"
@@ -27,9 +20,9 @@ class Project(models.Model):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="projects")
     title = models.CharField("Название", max_length=180)
     description = models.TextField("Описание")
-    category = models.CharField(
-        "Категория", max_length=24, choices=Category.choices, default=Category.OTHER
-    )
+    legacy_category = models.CharField(max_length=24, default='other', editable=False)
+    category = models.ForeignKey('Category', on_delete=models.PROTECT, related_name='projects', verbose_name='Категория')
+    skills_unspecified = models.BooleanField(default=False)
     budget_min = models.DecimalField(
         "Минимальный бюджет",
         max_digits=12,
@@ -203,6 +196,8 @@ class Contract(models.Model):
     escrow_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     fee_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     fee_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    actual_fee_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    fee_policy_snapshot = models.JSONField(default=dict, blank=True)
     released_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     refunded_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     customer_signed_at = models.DateTimeField(null=True, blank=True)
@@ -307,6 +302,21 @@ class Category(models.Model):
     slug = models.SlugField(unique=True, max_length=24)
     name = models.CharField(max_length=100)
     active = models.BooleanField(default=True)
+    labels = models.JSONField(default=dict, blank=True)
+    sort_order = models.PositiveIntegerField(default=100)
+    icon_key = models.CharField(max_length=24, default='folder', choices=[(v, v) for v in ['code', 'smartphone', 'bot', 'palette', 'megaphone', 'pen', 'shield', 'folder']])
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+
+    def save(self, *args, **kwargs):
+        from .taxonomy import validate_identity
+        validate_identity(self)
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        from .taxonomy import validate_identity
+        validate_identity(self)
 
     def __str__(self):
         return self.name
@@ -315,9 +325,76 @@ class Category(models.Model):
 class Skill(models.Model):
     name = models.CharField(max_length=60, unique=True)
     active = models.BooleanField(default=True)
+    slug = models.SlugField(unique=True, max_length=100, allow_unicode=True)
+    normalized_name = models.CharField(max_length=180, unique=True, null=True, editable=False)
+    labels = models.JSONField(default=dict, blank=True)
+    merged_into = models.ForeignKey('self', null=True, blank=True, on_delete=models.PROTECT, related_name='merged_skills')
+    categories = models.ManyToManyField(Category, through='CategorySkill', related_name='skills')
+
+    def save(self, *args, **kwargs):
+        from .taxonomy import save_skill
+        return save_skill(self, *args, **kwargs)
+
+    def clean(self):
+        from .taxonomy import normalize_key, validate_identity
+        from django.core.exceptions import ValidationError
+        validate_identity(self)
+        if not self.merged_into_id and SkillAlias.objects.filter(key=normalize_key(self.name)).exclude(skill_id=self.pk).exists():
+            raise ValidationError({'name': 'Имя или алиас принадлежит другому навыку.'})
 
     def __str__(self):
         return self.name
+
+
+class SkillAlias(models.Model):
+    # This registry contains canonical names AND aliases, so their namespaces cannot collide.
+    key = models.CharField(max_length=180, unique=True)
+    skill = models.ForeignKey(Skill, on_delete=models.PROTECT, related_name='aliases')
+
+    def clean(self):
+        from .taxonomy import normalize_key
+        from django.core.exceptions import ValidationError
+        self.key = normalize_key(self.key)
+        if not self.key or self.skill.merged_into_id:
+            raise ValidationError('Укажите ключ канонического навыка.')
+        if self.pk:
+            old = type(self).objects.get(pk=self.pk)
+            if old.key == old.skill.normalized_name and (self.key != old.key or self.skill_id != old.skill_id):
+                raise ValidationError('Каноническое имя нельзя переназначить через алиас.')
+        if Skill.objects.filter(normalized_name=self.key).exclude(pk=self.skill_id).exists():
+            raise ValidationError('Ключ совпадает с именем другого навыка.')
+        conflict = type(self).objects.filter(key=self.key).exclude(pk=self.pk).first()
+        if conflict:
+            raise ValidationError({'key': 'Этот нормализованный ключ уже существует.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class CategorySkill(models.Model):
+    category = models.ForeignKey(Category, on_delete=models.PROTECT)
+    skill = models.ForeignKey(Skill, on_delete=models.PROTECT)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        constraints = [models.UniqueConstraint(fields=['category', 'skill'], name='unique_category_skill')]
+
+
+class PlatformFee(models.Model):
+    reference = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    settlement_reference = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    contract = models.OneToOneField(Contract, on_delete=models.PROTECT, related_name='platform_fee')
+    gross_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    fee_percent = models.DecimalField(max_digits=5, decimal_places=2)
+    fee_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3, default='UZS')
+    source = models.CharField(max_length=16, choices=[('settlement', 'Расчёт'), ('backfill', 'Историческая сверка')], default='settlement')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=models.Q(gross_amount__gte=0, fee_amount__gte=0, fee_amount__lte=models.F('gross_amount'), fee_percent__gte=0, fee_percent__lte=100), name='valid_platform_fee')]
 
 
 class ContractEvent(models.Model):

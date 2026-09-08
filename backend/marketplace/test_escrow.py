@@ -50,7 +50,7 @@ class EscrowTests(MarketplaceTests):
         self.assertIsNotNone(contract.deadline)
         self.assertEqual(WalletEntry.objects.filter(contract=contract,kind='escrow_hold').count(),1)
         self.assertEqual(Profile.objects.get(user=self.customer).balance,25000)
-        self.assertEqual(self.client.get('/api/wallet/').data['frozen_balance'],'25000')
+        self.assertEqual(Decimal(self.client.get('/api/wallet/').data['frozen_balance']),Decimal('25000'))
 
     @override_settings(PLATFORM_FEE_PERCENT='7.50')
     def test_acceptance_fee_snapshot_and_balanced_ledger(self):

@@ -4,6 +4,7 @@ from django.utils import timezone
 
 from .models import Contract, Deliverable, Payment, Project, Proposal, WalletEntry, Withdrawal, Category, Skill, ContractEvent, Message, Dispute, Review, Notification, ProjectAttachment
 from .validation import image_data
+from .catalog_api import SkillsWriteSerializer, label_for, request_language
 
 
 class AttachmentSerializer(serializers.ModelSerializer):
@@ -12,18 +13,20 @@ class AttachmentSerializer(serializers.ModelSerializer):
         fields = ["id", "filename", "created_at"]
 
 
-class ProjectSerializer(serializers.ModelSerializer):
-    skills = serializers.SlugRelatedField(many=True, slug_field="name", queryset=Skill.objects.filter(active=True))
-    category = serializers.CharField(max_length=24)
+class ProjectSerializer(SkillsWriteSerializer):
+    category = serializers.SlugRelatedField(slug_field='slug', queryset=Category.objects.all())
     attachments = AttachmentSerializer(many=True, read_only=True)
 
     proposal_count = serializers.IntegerField(read_only=True, default=0)
-    category_label = serializers.CharField(source="get_category_display", read_only=True)
+    category_label = serializers.SerializerMethodField()
+
+    def get_category_label(self, obj):
+        return label_for(obj.category, request_language(self.context.get('request')))
     contract_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
-        fields = ["id", "owner", "title", "description", "category", "category_label", "budget_min", "budget_max", "skills", "client_name", "client_company", "status", "featured", "deadline", "proposal_count", "contract_id", "created_at", "updated_at", "budget_type", "visibility", "attachments"]
+        fields = ["id", "owner", "title", "description", "category", "category_label", "budget_min", "budget_max", "skills", "skill_ids", "skill_details", "skills_unspecified", "client_name", "client_company", "status", "featured", "deadline", "proposal_count", "contract_id", "created_at", "updated_at", "budget_type", "visibility", "attachments"]
         read_only_fields = ["owner", "client_name", "status", "featured", "created_at", "updated_at"]
 
     def get_contract_id(self, obj):
@@ -34,15 +37,9 @@ class ProjectSerializer(serializers.ModelSerializer):
         return contract.pk if contract and request.user.id in (contract.customer_id, contract.freelancer_id) else None
 
     def validate_category(self, value):
-        if not Category.objects.filter(slug=value, active=True).exists():
+        if not value.active and (not self.instance or self.instance.category_id != value.pk):
             raise serializers.ValidationError("Выберите категорию из справочника.")
         return value
-
-    def validate_skills(self, value):
-        if not 1 <= len(value) <= 30:
-            raise serializers.ValidationError("Выберите от 1 до 30 навыков из справочника.")
-        return value
-
 
     def validate_deadline(self, value):
         if value and value < timezone.localdate():
@@ -50,6 +47,13 @@ class ProjectSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        attrs = super().validate(attrs)
+        skills = attrs.get('skills', list(self.instance.skills.all()) if self.instance else [])
+        unspecified = attrs.get('skills_unspecified', self.instance.skills_unspecified if self.instance else False)
+        if unspecified and skills:
+            raise serializers.ValidationError({'skills_unspecified': 'При выборе технологий исполнителем список навыков должен быть пустым.'})
+        if self.instance and self.instance.status == Project.Status.ACTIVE and not unspecified and not skills:
+            raise serializers.ValidationError({'skills': 'Выберите навыки или поручите выбор технологий исполнителю.'})
         minimum = attrs.get("budget_min", getattr(self.instance, "budget_min", None))
         maximum = attrs.get("budget_max", getattr(self.instance, "budget_max", None))
         if minimum is not None and maximum is not None and minimum > maximum:
@@ -128,6 +132,10 @@ class ContractSerializer(serializers.ModelSerializer):
     dispute = DisputeSerializer(read_only=True)
     reviews = serializers.SerializerMethodField()
     net_amount = serializers.SerializerMethodField()
+    actual_net_amount = serializers.SerializerMethodField()
+
+    def get_actual_net_amount(self, obj):
+        return str(obj.released_amount - obj.actual_fee_amount) if obj.actual_fee_amount is not None else None
 
     def get_reviews(self, obj):
         return ReviewSerializer(obj.reviews.filter(published=True), many=True).data
@@ -144,6 +152,7 @@ class ContractSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contract
         fields = ["id", "project", "project_title", "proposal", "customer", "customer_name", "freelancer", "freelancer_name", "amount", "delivery_days", "terms", "status", "customer_signed_at", "freelancer_signed_at", "created_at", "completed_at", "deliverables", "can_download", "version", "scope", "currency", "budget_type", "deadline", "funded_at", "escrow_amount", "fee_percent", "fee_amount", "net_amount", "released_amount", "refunded_amount", "events", "reviews", "dispute"]
+        fields += ['actual_fee_amount', 'actual_net_amount', 'fee_policy_snapshot']
         read_only_fields = fields
 
     def get_can_download(self, obj):
@@ -151,9 +160,10 @@ class ContractSerializer(serializers.ModelSerializer):
 
 
 class WalletEntrySerializer(serializers.ModelSerializer):
+    contract_actual_fee_amount = serializers.DecimalField(source='contract.actual_fee_amount', max_digits=12, decimal_places=2, read_only=True, allow_null=True)
     class Meta:
         model = WalletEntry
-        fields = ["id", "reference", "contract", "amount", "kind", "description", "created_at"]
+        fields = ["id", "reference", "contract", "amount", "kind", "description", "created_at", "contract_actual_fee_amount"]
 
 
 class PaymentSerializer(serializers.ModelSerializer):

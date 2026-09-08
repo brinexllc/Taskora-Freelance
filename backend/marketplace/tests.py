@@ -1,3 +1,4 @@
+from .models import Category
 import hashlib
 import re
 import shutil
@@ -106,7 +107,7 @@ class MarketplaceTests(BaseTests):
         self.customer=self.account('customer','client')
         self.freelancer=self.account('freelancer','freelancer')
         self.other=self.account('other','freelancer')
-        self.project=Project.objects.create(owner=self.customer,title='IT project',description='Build a dashboard',budget_min=10000,budget_max=50000,client_name='Customer')
+        self.project=Project.objects.create(category=Category.objects.get(slug='other'),owner=self.customer,title='IT project',description='Build a dashboard',budget_min=10000,budget_max=50000,client_name='Customer')
         from .models import Skill
         self.project.skills.set(Skill.objects.filter(name='React'))
         self.media=tempfile.mkdtemp()

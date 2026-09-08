@@ -6,12 +6,15 @@ from .models import Profile, Review, Skill
 from django.db.models import Avg
 from django.utils import timezone
 from .validation import birth_date as validate_age, image_data, password_pair, phone_number
+from .catalog_api import SkillSerializer, SkillsWriteSerializer
 
 User = get_user_model()
 
 
 class PublicProfileSerializer(serializers.ModelSerializer):
     skills = serializers.SlugRelatedField(many=True, slug_field="name", read_only=True)
+    skill_ids = serializers.PrimaryKeyRelatedField(source='skills', many=True, read_only=True)
+    skill_details = SkillSerializer(source='skills', many=True, read_only=True)
     username = serializers.CharField(source="user.username", read_only=True)
     first_name = serializers.CharField(source="user.first_name", read_only=True)
     last_name = serializers.CharField(source="user.last_name", read_only=True)
@@ -23,7 +26,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ["id", "username", "first_name", "last_name", "full_name", "age", "role", "avatar", "about", "skills", "verified_skills", "rate", "rate_unit", "created_at", "experience_days", "completed_projects", "enabled_roles", "professional_experience", "available", "rating", "review_count"]
+        fields = ["id", "username", "first_name", "last_name", "full_name", "age", "role", "avatar", "about", "skills", "skill_ids", "skill_details", "verified_skills", "rate", "rate_unit", "created_at", "experience_days", "completed_projects", "enabled_roles", "professional_experience", "available", "rating", "review_count"]
 
     def get_rating(self, obj):
         return obj.user.received_reviews.filter(published=True).aggregate(value=Avg("rating"))["value"]
@@ -54,11 +57,10 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "first_name", "last_name", "email", "full_name", "role", "phone", "birth_date", "has_passport", "profile", "language", "theme"]
 
 
-class ProfileUpdateSerializer(serializers.ModelSerializer):
-    skills = serializers.SlugRelatedField(many=True, slug_field="name", queryset=Skill.objects.filter(active=True), required=False)
+class ProfileUpdateSerializer(SkillsWriteSerializer):
     class Meta:
         model = Profile
-        fields = ["about", "avatar", "skills", "rate", "rate_unit", "language", "theme", "professional_experience", "available"]
+        fields = ["about", "avatar", "skills", "skill_ids", "skill_details", "rate", "rate_unit", "language", "theme", "professional_experience", "available"]
 
     def validate_skills(self, value):
         if len(value) > 30:
@@ -72,8 +74,10 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         skills = validated_data.pop("skills", None)
         changed_fields = list(validated_data)
         if skills is not None:
-            selected = {skill.name for skill in skills}
-            instance.verified_skills = [s for s in instance.verified_skills if s in selected]
+            from .taxonomy import resolve_skill_name
+            selected = {skill.pk for skill in skills}
+            instance.verified_skills = [name for name in instance.verified_skills
+                if (skill := resolve_skill_name(name)) and skill.pk in selected]
             changed_fields.append("verified_skills")
         for name, value in validated_data.items():
             setattr(instance, name, value)

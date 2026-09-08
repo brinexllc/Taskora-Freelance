@@ -4,6 +4,8 @@ import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
 import { ProjectEditor } from '@/components/project-editor';
+import { FeeEstimate } from '@/components/fee-estimate';
+import { feePreview } from '@/lib/fee-preview';
 import { apiRequest, createProposal, downloadFile } from '@/lib/api';
 import {
   Empty,
@@ -23,6 +25,7 @@ export default function ProjectDetailsPage() {
     token: session?.token,
   });
   const [page, setPage] = useState(1);
+  const fees = useRemote('platform-fees');
   const proposals = useRemote(ready && session?.token ? 'proposals' : null, {
     token: session?.token,
     query: { project: id, page },
@@ -47,28 +50,58 @@ export default function ProjectDetailsPage() {
     setBusy(true);
     setError('');
     try {
-      await createProposal({ ...form, project: Number(id) }, session.token);
+      await createProposal(
+        {
+          ...form,
+          project: Number(id),
+          expected_fee_policy_version: fees.data.policy_version,
+        },
+        session.token,
+      );
       setNotice(t('sent'));
       proposals.reload();
       remote.reload();
     } catch (err) {
-      setError(err.message);
+      setError(
+        err.code === 'FEE_POLICY_CHANGED' ? t('feePolicyChanged') : err.message,
+      );
+      if (err.code === 'FEE_POLICY_CHANGED') fees.reload();
     } finally {
       setBusy(false);
     }
   }
   async function decide(proposal, action) {
+    if (action === 'accept') {
+      const offer = proposals.data.results.find((p) => p.id === proposal);
+      const preview = feePreview(
+        offer.amount,
+        fees.data.freelancer_fee_percent,
+      );
+      if (
+        !window.confirm(
+          `${t('customerReserves')}: ${money(offer.amount, language)}\n${t('platformFee')}: ${fees.data.freelancer_fee_percent}% (${money(preview.fee, language)})\n${t('netAmount')}: ${money(preview.net, language)}`,
+        )
+      )
+        return;
+    }
     setBusy(true);
     setError('');
     try {
       const data = await apiRequest(`proposals/${proposal}/${action}`, {
         method: 'POST',
         token: session.token,
+        body:
+          action === 'accept'
+            ? { expected_fee_policy_version: fees.data.policy_version }
+            : undefined,
       });
       if (action === 'accept') window.location.assign(`/contracts/${data.id}`);
       else proposals.reload();
     } catch (err) {
-      setError(err.message);
+      setError(
+        err.code === 'FEE_POLICY_CHANGED' ? t('feePolicyChanged') : err.message,
+      );
+      if (err.code === 'FEE_POLICY_CHANGED') fees.reload();
     } finally {
       setBusy(false);
     }
@@ -83,15 +116,18 @@ export default function ProjectDetailsPage() {
           <>
             <section className="t-card">
               <div className="row-between">
-                <span className="eyebrow">{t(project.category)}</span>
+                <span className="eyebrow">{project.category_label}</span>
                 <Status value={project.status} />
               </div>
               <h1>{project.title}</h1>
               <div className="skill-tags">
-                {project.skills.map((skill) => (
-                  <span key={skill}>{skill}</span>
+                {project.skill_details.map((skill) => (
+                  <span key={skill.id}>{skill.label}</span>
                 ))}
               </div>
+              {project.skills_unspecified && (
+                <p className="muted">{t('technologiesDiscussed')}</p>
+              )}
               <p className="preserve-lines">{project.description}</p>
               <dl className="detail-list">
                 <div>
@@ -180,6 +216,12 @@ export default function ProjectDetailsPage() {
               </section>
             )}
             <Notice error>{error}</Notice>
+            <Notice error>{fees.error}</Notice>
+            {fees.error && (
+              <button type="button" className="text-link" onClick={fees.reload}>
+                {t('retry')}
+              </button>
+            )}
             <Notice>{notice}</Notice>
             {session?.token && (
               <RemoteState remote={proposals}>
@@ -214,7 +256,12 @@ export default function ProjectDetailsPage() {
                               <div className="actions">
                                 <button
                                   className="t-button"
-                                  disabled={busy}
+                                  disabled={
+                                    busy ||
+                                    fees.loading ||
+                                    !!fees.error ||
+                                    !fees.data
+                                  }
                                   onClick={() => decide(proposal.id, 'accept')}
                                 >
                                   {t('accept')}
@@ -331,9 +378,16 @@ export default function ProjectDetailsPage() {
                           />
                         </Field>
                       </div>
+                      <FeeEstimate amount={form.amount} policy={fees.data} />
                       <button
                         className="t-button"
-                        disabled={busy || proposals.loading}
+                        disabled={
+                          busy ||
+                          proposals.loading ||
+                          fees.loading ||
+                          !!fees.error ||
+                          !fees.data
+                        }
                       >
                         {busy ? t('loading') : t('send')}
                       </button>

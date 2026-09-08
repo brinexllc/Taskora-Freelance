@@ -319,6 +319,22 @@ export function WalletView() {
                             >
                               #{entry.id}
                             </small>
+                            {entry.contract && (
+                              <Link
+                                className="text-link"
+                                href={`/contracts/${entry.contract}`}
+                              >
+                                {t('contract')} #{entry.contract}
+                              </Link>
+                            )}
+                            {['escrow_release', 'refund'].includes(
+                              entry.kind,
+                            ) &&
+                              entry.contract_actual_fee_amount === '0.00' && (
+                                <small style={{ display: 'block' }}>
+                                  {t('platformFee')}: {money('0.00', language)}
+                                </small>
+                              )}
                           </td>
                           <td
                             className={`amount ${Number(entry.amount) > 0 ? 'positive' : ''}`}

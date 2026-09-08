@@ -19,5 +19,6 @@ frontend/.vinext/
 frontend/dist/
 frontend/build/
 frontend/.wrangler/
+frontend/*.tsbuildinfo
 *.log
 .DS_Store

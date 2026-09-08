@@ -8,6 +8,7 @@ from .auth_views import (
 )
 from .views import admin_file_download, ContractViewSet, ProjectViewSet, ProposalViewSet, api_root, dashboard, health, overview, NotificationViewSet, DisputeViewSet, directory, profile_reviews
 from .payment_views import cancel_payment, cancel_withdrawal, checkout, click_callback, integrations, payment_status, wallet, withdraw
+from .catalog_api import catalog, platform_fees, SkillListView
 
 
 router = DefaultRouter()
@@ -18,6 +19,9 @@ router.register("notifications", NotificationViewSet, basename="notification")
 router.register("disputes", DisputeViewSet, basename="dispute")
 
 urlpatterns = [
+    path('catalog/', catalog),
+    path('skills/', SkillListView.as_view()),
+    path('platform-fees/', platform_fees),
     path("admin-files/<str:model>/<int:pk>/", admin_file_download, name="admin-file-download"),
     path("payments/payme/", payme_callback),
     path("directory/", directory),

@@ -1,0 +1,1397 @@
+{
+  "version": "catalog-v1",
+  "categories": [
+    {
+      "slug": "development",
+      "name": "Сайты и веб-разработка",
+      "labels": {
+        "ru": "Сайты и веб-разработка",
+        "uz": "Saytlar va veb-dasturlash",
+        "uz-cyrl": "Сайтлар ва веб-дастурлаш",
+        "en": "Web development"
+      },
+      "icon_key": "code",
+      "sort_order": 10
+    },
+    {
+      "slug": "mobile",
+      "name": "Мобильные приложения",
+      "labels": {
+        "ru": "Мобильные приложения",
+        "uz": "Mobil ilovalar",
+        "uz-cyrl": "Мобил иловалар",
+        "en": "Mobile applications"
+      },
+      "icon_key": "smartphone",
+      "sort_order": 20
+    },
+    {
+      "slug": "automation",
+      "name": "Боты, интеграции и автоматизация",
+      "labels": {
+        "ru": "Боты, интеграции и автоматизация",
+        "uz": "Botlar, integratsiyalar va avtomatlashtirish",
+        "uz-cyrl": "Ботлар, интеграциялар ва автоматлаштириш",
+        "en": "Bots, integrations and automation"
+      },
+      "icon_key": "bot",
+      "sort_order": 30
+    },
+    {
+      "slug": "design",
+      "name": "Дизайн",
+      "labels": {
+        "ru": "Дизайн",
+        "uz": "Dizayn",
+        "uz-cyrl": "Дизайн",
+        "en": "Design"
+      },
+      "icon_key": "palette",
+      "sort_order": 40
+    },
+    {
+      "slug": "marketing",
+      "name": "Маркетинг и продвижение",
+      "labels": {
+        "ru": "Маркетинг и продвижение",
+        "uz": "Marketing va targ‘ibot",
+        "uz-cyrl": "Маркетинг ва тарғибот",
+        "en": "Marketing and promotion"
+      },
+      "icon_key": "megaphone",
+      "sort_order": 50
+    },
+    {
+      "slug": "writing",
+      "name": "Тексты и переводы",
+      "labels": {
+        "ru": "Тексты и переводы",
+        "uz": "Matnlar va tarjimalar",
+        "uz-cyrl": "Матнлар ва таржималар",
+        "en": "Writing and translation"
+      },
+      "icon_key": "pen",
+      "sort_order": 60
+    },
+    {
+      "slug": "qa-support",
+      "name": "Тестирование и техническая поддержка",
+      "labels": {
+        "ru": "Тестирование и техническая поддержка",
+        "uz": "Sinov va texnik yordam",
+        "uz-cyrl": "Синов ва техник ёрдам",
+        "en": "Testing and technical support"
+      },
+      "icon_key": "shield",
+      "sort_order": 70
+    },
+    {
+      "slug": "other",
+      "name": "Другое",
+      "labels": {
+        "ru": "Другое",
+        "uz": "Boshqa",
+        "uz-cyrl": "Бошқа",
+        "en": "Other"
+      },
+      "icon_key": "folder",
+      "sort_order": 80
+    }
+  ],
+  "skills": [
+    {
+      "slug": "html",
+      "name": "HTML",
+      "labels": {
+        "ru": "HTML",
+        "uz": "HTML",
+        "uz-cyrl": "HTML",
+        "en": "HTML"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "css",
+      "name": "CSS",
+      "labels": {
+        "ru": "CSS",
+        "uz": "CSS",
+        "uz-cyrl": "CSS",
+        "en": "CSS"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "javascript",
+      "name": "JavaScript",
+      "labels": {
+        "ru": "JavaScript",
+        "uz": "JavaScript",
+        "uz-cyrl": "JavaScript",
+        "en": "JavaScript"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "typescript",
+      "name": "TypeScript",
+      "labels": {
+        "ru": "TypeScript",
+        "uz": "TypeScript",
+        "uz-cyrl": "TypeScript",
+        "en": "TypeScript"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "react",
+      "name": "React",
+      "labels": {
+        "ru": "React",
+        "uz": "React",
+        "uz-cyrl": "React",
+        "en": "React"
+      },
+      "aliases": [
+        "ReactJS",
+        "React.js",
+        "Реакт"
+      ],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "nextjs",
+      "name": "Next.js",
+      "labels": {
+        "ru": "Next.js",
+        "uz": "Next.js",
+        "uz-cyrl": "Next.js",
+        "en": "Next.js"
+      },
+      "aliases": [
+        "NextJS"
+      ],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "vuejs",
+      "name": "Vue.js",
+      "labels": {
+        "ru": "Vue.js",
+        "uz": "Vue.js",
+        "uz-cyrl": "Vue.js",
+        "en": "Vue.js"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "nodejs",
+      "name": "Node.js",
+      "labels": {
+        "ru": "Node.js",
+        "uz": "Node.js",
+        "uz-cyrl": "Node.js",
+        "en": "Node.js"
+      },
+      "aliases": [
+        "NodeJS"
+      ],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "python",
+      "name": "Python",
+      "labels": {
+        "ru": "Python",
+        "uz": "Python",
+        "uz-cyrl": "Python",
+        "en": "Python"
+      },
+      "aliases": [],
+      "categories": [
+        "development",
+        "automation",
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "django",
+      "name": "Django",
+      "labels": {
+        "ru": "Django",
+        "uz": "Django",
+        "uz-cyrl": "Django",
+        "en": "Django"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "php",
+      "name": "PHP",
+      "labels": {
+        "ru": "PHP",
+        "uz": "PHP",
+        "uz-cyrl": "PHP",
+        "en": "PHP"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "laravel",
+      "name": "Laravel",
+      "labels": {
+        "ru": "Laravel",
+        "uz": "Laravel",
+        "uz-cyrl": "Laravel",
+        "en": "Laravel"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "go",
+      "name": "Go",
+      "labels": {
+        "ru": "Go",
+        "uz": "Go",
+        "uz-cyrl": "Go",
+        "en": "Go"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "sql",
+      "name": "SQL",
+      "labels": {
+        "ru": "SQL",
+        "uz": "SQL",
+        "uz-cyrl": "SQL",
+        "en": "SQL"
+      },
+      "aliases": [],
+      "categories": [
+        "development",
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "postgresql",
+      "name": "PostgreSQL",
+      "labels": {
+        "ru": "PostgreSQL",
+        "uz": "PostgreSQL",
+        "uz-cyrl": "PostgreSQL",
+        "en": "PostgreSQL"
+      },
+      "aliases": [
+        "Postgres"
+      ],
+      "categories": [
+        "development",
+        "automation",
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "git",
+      "name": "Git",
+      "labels": {
+        "ru": "Git",
+        "uz": "Git",
+        "uz-cyrl": "Git",
+        "en": "Git"
+      },
+      "aliases": [],
+      "categories": [
+        "development",
+        "mobile",
+        "automation",
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "rest-api",
+      "name": "REST API",
+      "labels": {
+        "ru": "REST API",
+        "uz": "REST API",
+        "uz-cyrl": "REST API",
+        "en": "REST API"
+      },
+      "aliases": [],
+      "categories": [
+        "development",
+        "mobile",
+        "automation",
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "fastapi",
+      "name": "FastAPI",
+      "labels": {
+        "ru": "FastAPI",
+        "uz": "FastAPI",
+        "uz-cyrl": "FastAPI",
+        "en": "FastAPI"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "wordpress",
+      "name": "WordPress",
+      "labels": {
+        "ru": "WordPress",
+        "uz": "WordPress",
+        "uz-cyrl": "WordPress",
+        "en": "WordPress"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "woocommerce",
+      "name": "WooCommerce",
+      "labels": {
+        "ru": "WooCommerce",
+        "uz": "WooCommerce",
+        "uz-cyrl": "WooCommerce",
+        "en": "WooCommerce"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "tilda",
+      "name": "Tilda",
+      "labels": {
+        "ru": "Tilda",
+        "uz": "Tilda",
+        "uz-cyrl": "Tilda",
+        "en": "Tilda"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "webflow",
+      "name": "Webflow",
+      "labels": {
+        "ru": "Webflow",
+        "uz": "Webflow",
+        "uz-cyrl": "Webflow",
+        "en": "Webflow"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "tailwind-css",
+      "name": "Tailwind CSS",
+      "labels": {
+        "ru": "Tailwind CSS",
+        "uz": "Tailwind CSS",
+        "uz-cyrl": "Tailwind CSS",
+        "en": "Tailwind CSS"
+      },
+      "aliases": [
+        "Tailwind"
+      ],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "mysql",
+      "name": "MySQL",
+      "labels": {
+        "ru": "MySQL",
+        "uz": "MySQL",
+        "uz-cyrl": "MySQL",
+        "en": "MySQL"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "java",
+      "name": "Java",
+      "labels": {
+        "ru": "Java",
+        "uz": "Java",
+        "uz-cyrl": "Java",
+        "en": "Java"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "spring-boot",
+      "name": "Spring Boot",
+      "labels": {
+        "ru": "Spring Boot",
+        "uz": "Spring Boot",
+        "uz-cyrl": "Spring Boot",
+        "en": "Spring Boot"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "csharp",
+      "name": "C#",
+      "labels": {
+        "ru": "C#",
+        "uz": "C#",
+        "uz-cyrl": "C#",
+        "en": "C#"
+      },
+      "aliases": [
+        "CSharp"
+      ],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "aspnet-core",
+      "name": "ASP.NET Core",
+      "labels": {
+        "ru": "ASP.NET Core",
+        "uz": "ASP.NET Core",
+        "uz-cyrl": "ASP.NET Core",
+        "en": "ASP.NET Core"
+      },
+      "aliases": [],
+      "categories": [
+        "development"
+      ]
+    },
+    {
+      "slug": "flutter",
+      "name": "Flutter",
+      "labels": {
+        "ru": "Flutter",
+        "uz": "Flutter",
+        "uz-cyrl": "Flutter",
+        "en": "Flutter"
+      },
+      "aliases": [],
+      "categories": [
+        "mobile"
+      ]
+    },
+    {
+      "slug": "swift",
+      "name": "Swift",
+      "labels": {
+        "ru": "Swift",
+        "uz": "Swift",
+        "uz-cyrl": "Swift",
+        "en": "Swift"
+      },
+      "aliases": [],
+      "categories": [
+        "mobile"
+      ]
+    },
+    {
+      "slug": "kotlin",
+      "name": "Kotlin",
+      "labels": {
+        "ru": "Kotlin",
+        "uz": "Kotlin",
+        "uz-cyrl": "Kotlin",
+        "en": "Kotlin"
+      },
+      "aliases": [],
+      "categories": [
+        "mobile"
+      ]
+    },
+    {
+      "slug": "react-native",
+      "name": "React Native",
+      "labels": {
+        "ru": "React Native",
+        "uz": "React Native",
+        "uz-cyrl": "React Native",
+        "en": "React Native"
+      },
+      "aliases": [],
+      "categories": [
+        "mobile"
+      ]
+    },
+    {
+      "slug": "dart",
+      "name": "Dart",
+      "labels": {
+        "ru": "Dart",
+        "uz": "Dart",
+        "uz-cyrl": "Dart",
+        "en": "Dart"
+      },
+      "aliases": [],
+      "categories": [
+        "mobile"
+      ]
+    },
+    {
+      "slug": "android-development",
+      "name": "Android Development",
+      "labels": {
+        "ru": "Разработка Android-приложений",
+        "uz": "Android ilovalarini ishlab chiqish",
+        "uz-cyrl": "Android иловаларини ишлаб чиқиш",
+        "en": "Android Development"
+      },
+      "aliases": [],
+      "categories": [
+        "mobile"
+      ]
+    },
+    {
+      "slug": "ios-development",
+      "name": "iOS Development",
+      "labels": {
+        "ru": "Разработка iOS-приложений",
+        "uz": "iOS ilovalarini ishlab chiqish",
+        "uz-cyrl": "iOS иловаларини ишлаб чиқиш",
+        "en": "iOS Development"
+      },
+      "aliases": [],
+      "categories": [
+        "mobile"
+      ]
+    },
+    {
+      "slug": "telegram-bot-api",
+      "name": "Telegram Bot API",
+      "labels": {
+        "ru": "Telegram Bot API",
+        "uz": "Telegram Bot API",
+        "uz-cyrl": "Telegram Bot API",
+        "en": "Telegram Bot API"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "telegram-mini-apps",
+      "name": "Telegram Mini Apps",
+      "labels": {
+        "ru": "Telegram Mini Apps",
+        "uz": "Telegram Mini Apps",
+        "uz-cyrl": "Telegram Mini Apps",
+        "en": "Telegram Mini Apps"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "aiogram",
+      "name": "aiogram",
+      "labels": {
+        "ru": "aiogram",
+        "uz": "aiogram",
+        "uz-cyrl": "aiogram",
+        "en": "aiogram"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "api-integration",
+      "name": "API Integration",
+      "labels": {
+        "ru": "Интеграция API",
+        "uz": "API integratsiyasi",
+        "uz-cyrl": "API интеграцияси",
+        "en": "API Integration"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "bitrix24",
+      "name": "Bitrix24",
+      "labels": {
+        "ru": "Bitrix24",
+        "uz": "Bitrix24",
+        "uz-cyrl": "Bitrix24",
+        "en": "Bitrix24"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "amocrm",
+      "name": "amoCRM",
+      "labels": {
+        "ru": "amoCRM",
+        "uz": "amoCRM",
+        "uz-cyrl": "amoCRM",
+        "en": "amoCRM"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "click-api",
+      "name": "CLICK API",
+      "labels": {
+        "ru": "CLICK API",
+        "uz": "CLICK API",
+        "uz-cyrl": "CLICK API",
+        "en": "CLICK API"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "payme-api",
+      "name": "PAYME API",
+      "labels": {
+        "ru": "PAYME API",
+        "uz": "PAYME API",
+        "uz-cyrl": "PAYME API",
+        "en": "PAYME API"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "eskiz-api",
+      "name": "Eskiz API",
+      "labels": {
+        "ru": "Eskiz API",
+        "uz": "Eskiz API",
+        "uz-cyrl": "Eskiz API",
+        "en": "Eskiz API"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "n8n",
+      "name": "n8n",
+      "labels": {
+        "ru": "n8n",
+        "uz": "n8n",
+        "uz-cyrl": "n8n",
+        "en": "n8n"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "make",
+      "name": "Make",
+      "labels": {
+        "ru": "Make",
+        "uz": "Make",
+        "uz-cyrl": "Make",
+        "en": "Make"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "llm-integration",
+      "name": "LLM Integration",
+      "labels": {
+        "ru": "Интеграция LLM",
+        "uz": "LLM integratsiyasi",
+        "uz-cyrl": "LLM интеграцияси",
+        "en": "LLM Integration"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "ai-chatbots",
+      "name": "AI Chatbots",
+      "labels": {
+        "ru": "Разработка ИИ-чатботов",
+        "uz": "Sun’iy intellekt chatbotlarini yaratish",
+        "uz-cyrl": "Сунъий интеллект чатботларини яратиш",
+        "en": "AI Chatbots"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "rag",
+      "name": "RAG",
+      "labels": {
+        "ru": "Поиск по документам с RAG",
+        "uz": "RAG orqali hujjatlarni qidirish",
+        "uz-cyrl": "RAG орқали ҳужжатларни қидириш",
+        "en": "RAG"
+      },
+      "aliases": [],
+      "categories": [
+        "automation"
+      ]
+    },
+    {
+      "slug": "figma",
+      "name": "Figma",
+      "labels": {
+        "ru": "Figma",
+        "uz": "Figma",
+        "uz-cyrl": "Figma",
+        "en": "Figma"
+      },
+      "aliases": [],
+      "categories": [
+        "design",
+        "development",
+        "mobile"
+      ]
+    },
+    {
+      "slug": "uiux",
+      "name": "UI/UX",
+      "labels": {
+        "ru": "UI/UX",
+        "uz": "UI/UX",
+        "uz-cyrl": "UI/UX",
+        "en": "UI/UX"
+      },
+      "aliases": [],
+      "categories": [
+        "design"
+      ]
+    },
+    {
+      "slug": "branding",
+      "name": "Branding",
+      "labels": {
+        "ru": "Брендинг",
+        "uz": "Brending",
+        "uz-cyrl": "Брендинг",
+        "en": "Branding"
+      },
+      "aliases": [],
+      "categories": [
+        "design",
+        "marketing"
+      ]
+    },
+    {
+      "slug": "adobe-photoshop",
+      "name": "Adobe Photoshop",
+      "labels": {
+        "ru": "Adobe Photoshop",
+        "uz": "Adobe Photoshop",
+        "uz-cyrl": "Adobe Photoshop",
+        "en": "Adobe Photoshop"
+      },
+      "aliases": [],
+      "categories": [
+        "design"
+      ]
+    },
+    {
+      "slug": "adobe-illustrator",
+      "name": "Adobe Illustrator",
+      "labels": {
+        "ru": "Adobe Illustrator",
+        "uz": "Adobe Illustrator",
+        "uz-cyrl": "Adobe Illustrator",
+        "en": "Adobe Illustrator"
+      },
+      "aliases": [
+        "Illustrator"
+      ],
+      "categories": [
+        "design"
+      ]
+    },
+    {
+      "slug": "web-design",
+      "name": "Web Design",
+      "labels": {
+        "ru": "Веб-дизайн",
+        "uz": "Veb-dizayn",
+        "uz-cyrl": "Веб-дизайн",
+        "en": "Web Design"
+      },
+      "aliases": [],
+      "categories": [
+        "design"
+      ]
+    },
+    {
+      "slug": "logo-design",
+      "name": "Logo Design",
+      "labels": {
+        "ru": "Дизайн логотипов",
+        "uz": "Logotip dizayni",
+        "uz-cyrl": "Логотип дизайни",
+        "en": "Logo Design"
+      },
+      "aliases": [],
+      "categories": [
+        "design"
+      ]
+    },
+    {
+      "slug": "prototyping",
+      "name": "Prototyping",
+      "labels": {
+        "ru": "Прототипирование",
+        "uz": "Prototiplash",
+        "uz-cyrl": "Прототиплаш",
+        "en": "Prototyping"
+      },
+      "aliases": [],
+      "categories": [
+        "design"
+      ]
+    },
+    {
+      "slug": "ux-research",
+      "name": "UX Research",
+      "labels": {
+        "ru": "UX-исследования",
+        "uz": "UX tadqiqotlari",
+        "uz-cyrl": "UX тадқиқотлари",
+        "en": "UX Research"
+      },
+      "aliases": [],
+      "categories": [
+        "design"
+      ]
+    },
+    {
+      "slug": "presentation-design",
+      "name": "Presentation Design",
+      "labels": {
+        "ru": "Дизайн презентаций",
+        "uz": "Taqdimot dizayni",
+        "uz-cyrl": "Тақдимот дизайни",
+        "en": "Presentation Design"
+      },
+      "aliases": [],
+      "categories": [
+        "design"
+      ]
+    },
+    {
+      "slug": "seo",
+      "name": "SEO",
+      "labels": {
+        "ru": "SEO",
+        "uz": "SEO",
+        "uz-cyrl": "SEO",
+        "en": "SEO"
+      },
+      "aliases": [],
+      "categories": [
+        "marketing"
+      ]
+    },
+    {
+      "slug": "smm",
+      "name": "SMM",
+      "labels": {
+        "ru": "SMM",
+        "uz": "SMM",
+        "uz-cyrl": "SMM",
+        "en": "SMM"
+      },
+      "aliases": [],
+      "categories": [
+        "marketing"
+      ]
+    },
+    {
+      "slug": "google-ads",
+      "name": "Google Ads",
+      "labels": {
+        "ru": "Google Ads",
+        "uz": "Google Ads",
+        "uz-cyrl": "Google Ads",
+        "en": "Google Ads"
+      },
+      "aliases": [],
+      "categories": [
+        "marketing"
+      ]
+    },
+    {
+      "slug": "meta-ads",
+      "name": "Meta Ads",
+      "labels": {
+        "ru": "Meta Ads",
+        "uz": "Meta Ads",
+        "uz-cyrl": "Meta Ads",
+        "en": "Meta Ads"
+      },
+      "aliases": [],
+      "categories": [
+        "marketing"
+      ]
+    },
+    {
+      "slug": "google-analytics-4",
+      "name": "Google Analytics 4",
+      "labels": {
+        "ru": "Google Analytics 4",
+        "uz": "Google Analytics 4",
+        "uz-cyrl": "Google Analytics 4",
+        "en": "Google Analytics 4"
+      },
+      "aliases": [],
+      "categories": [
+        "marketing"
+      ]
+    },
+    {
+      "slug": "google-tag-manager",
+      "name": "Google Tag Manager",
+      "labels": {
+        "ru": "Google Tag Manager",
+        "uz": "Google Tag Manager",
+        "uz-cyrl": "Google Tag Manager",
+        "en": "Google Tag Manager"
+      },
+      "aliases": [],
+      "categories": [
+        "marketing"
+      ]
+    },
+    {
+      "slug": "email-marketing",
+      "name": "Email Marketing",
+      "labels": {
+        "ru": "Email-маркетинг",
+        "uz": "Email marketing",
+        "uz-cyrl": "Email маркетинг",
+        "en": "Email Marketing"
+      },
+      "aliases": [],
+      "categories": [
+        "marketing"
+      ]
+    },
+    {
+      "slug": "content-strategy",
+      "name": "Content Strategy",
+      "labels": {
+        "ru": "Контент-стратегия",
+        "uz": "Kontent strategiyasi",
+        "uz-cyrl": "Контент стратегияси",
+        "en": "Content Strategy"
+      },
+      "aliases": [],
+      "categories": [
+        "marketing"
+      ]
+    },
+    {
+      "slug": "copywriting",
+      "name": "Copywriting",
+      "labels": {
+        "ru": "Копирайтинг",
+        "uz": "Kopirayting",
+        "uz-cyrl": "Копирайтинг",
+        "en": "Copywriting"
+      },
+      "aliases": [],
+      "categories": [
+        "writing",
+        "marketing"
+      ]
+    },
+    {
+      "slug": "editing",
+      "name": "Editing",
+      "labels": {
+        "ru": "Редактирование",
+        "uz": "Tahrirlash",
+        "uz-cyrl": "Таҳрирлаш",
+        "en": "Editing"
+      },
+      "aliases": [],
+      "categories": [
+        "writing"
+      ]
+    },
+    {
+      "slug": "technical-writing",
+      "name": "Technical Writing",
+      "labels": {
+        "ru": "Техническая документация",
+        "uz": "Texnik hujjatlar",
+        "uz-cyrl": "Техник ҳужжатлар",
+        "en": "Technical Writing"
+      },
+      "aliases": [],
+      "categories": [
+        "writing"
+      ]
+    },
+    {
+      "slug": "ux-writing",
+      "name": "UX Writing",
+      "labels": {
+        "ru": "UX-тексты",
+        "uz": "UX matnlari",
+        "uz-cyrl": "UX матнлари",
+        "en": "UX Writing"
+      },
+      "aliases": [],
+      "categories": [
+        "writing"
+      ]
+    },
+    {
+      "slug": "interface-localization",
+      "name": "Interface Localization",
+      "labels": {
+        "ru": "Локализация интерфейсов",
+        "uz": "Interfeyslarni mahalliylashtirish",
+        "uz-cyrl": "Интерфейсларни маҳаллийлаштириш",
+        "en": "Interface Localization"
+      },
+      "aliases": [],
+      "categories": [
+        "writing"
+      ]
+    },
+    {
+      "slug": "translation-ru-uz",
+      "name": "Translation RU–UZ",
+      "labels": {
+        "ru": "Перевод RU ↔ UZ",
+        "uz": "RU ↔ UZ tarjima",
+        "uz-cyrl": "RU ↔ UZ таржима",
+        "en": "Translation RU–UZ"
+      },
+      "aliases": [
+        "Translation UZ–RU",
+        "Translation RU-UZ",
+        "Translation UZ-RU"
+      ],
+      "categories": [
+        "writing"
+      ]
+    },
+    {
+      "slug": "translation-en-uz",
+      "name": "Translation EN–UZ",
+      "labels": {
+        "ru": "Перевод EN ↔ UZ",
+        "uz": "EN ↔ UZ tarjima",
+        "uz-cyrl": "EN ↔ UZ таржима",
+        "en": "Translation EN–UZ"
+      },
+      "aliases": [
+        "Translation UZ–EN",
+        "Translation EN-UZ",
+        "Translation UZ-EN"
+      ],
+      "categories": [
+        "writing"
+      ]
+    },
+    {
+      "slug": "translation-ru-en",
+      "name": "Translation RU–EN",
+      "labels": {
+        "ru": "Перевод RU ↔ EN",
+        "uz": "RU ↔ EN tarjima",
+        "uz-cyrl": "RU ↔ EN таржима",
+        "en": "Translation RU–EN"
+      },
+      "aliases": [
+        "Translation EN–RU",
+        "Translation RU-EN",
+        "Translation EN-RU"
+      ],
+      "categories": [
+        "writing"
+      ]
+    },
+    {
+      "slug": "testing",
+      "name": "Testing",
+      "labels": {
+        "ru": "Тестирование",
+        "uz": "Sinov",
+        "uz-cyrl": "Синов",
+        "en": "Testing"
+      },
+      "aliases": [],
+      "categories": [
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "manual-testing",
+      "name": "Manual Testing",
+      "labels": {
+        "ru": "Ручное тестирование",
+        "uz": "Qo‘lda sinash",
+        "uz-cyrl": "Қўлда синаш",
+        "en": "Manual Testing"
+      },
+      "aliases": [
+        "Manual QA",
+        "ручное тестирование"
+      ],
+      "categories": [
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "api-testing",
+      "name": "API Testing",
+      "labels": {
+        "ru": "Тестирование API",
+        "uz": "API sinovi",
+        "uz-cyrl": "API синови",
+        "en": "API Testing"
+      },
+      "aliases": [],
+      "categories": [
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "test-automation",
+      "name": "Test Automation",
+      "labels": {
+        "ru": "Автоматизация тестирования",
+        "uz": "Sinovlarni avtomatlashtirish",
+        "uz-cyrl": "Синовларни автоматлаштириш",
+        "en": "Test Automation"
+      },
+      "aliases": [],
+      "categories": [
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "postman",
+      "name": "Postman",
+      "labels": {
+        "ru": "Postman",
+        "uz": "Postman",
+        "uz-cyrl": "Postman",
+        "en": "Postman"
+      },
+      "aliases": [],
+      "categories": [
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "playwright",
+      "name": "Playwright",
+      "labels": {
+        "ru": "Playwright",
+        "uz": "Playwright",
+        "uz-cyrl": "Playwright",
+        "en": "Playwright"
+      },
+      "aliases": [],
+      "categories": [
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "pytest",
+      "name": "pytest",
+      "labels": {
+        "ru": "pytest",
+        "uz": "pytest",
+        "uz-cyrl": "pytest",
+        "en": "pytest"
+      },
+      "aliases": [],
+      "categories": [
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "docker",
+      "name": "Docker",
+      "labels": {
+        "ru": "Docker",
+        "uz": "Docker",
+        "uz-cyrl": "Docker",
+        "en": "Docker"
+      },
+      "aliases": [],
+      "categories": [
+        "qa-support",
+        "development",
+        "automation"
+      ]
+    },
+    {
+      "slug": "linux",
+      "name": "Linux",
+      "labels": {
+        "ru": "Linux",
+        "uz": "Linux",
+        "uz-cyrl": "Linux",
+        "en": "Linux"
+      },
+      "aliases": [],
+      "categories": [
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "nginx",
+      "name": "Nginx",
+      "labels": {
+        "ru": "Nginx",
+        "uz": "Nginx",
+        "uz-cyrl": "Nginx",
+        "en": "Nginx"
+      },
+      "aliases": [],
+      "categories": [
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "cicd",
+      "name": "CI/CD",
+      "labels": {
+        "ru": "CI/CD",
+        "uz": "CI/CD",
+        "uz-cyrl": "CI/CD",
+        "en": "CI/CD"
+      },
+      "aliases": [],
+      "categories": [
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "github-actions",
+      "name": "GitHub Actions",
+      "labels": {
+        "ru": "GitHub Actions",
+        "uz": "GitHub Actions",
+        "uz-cyrl": "GitHub Actions",
+        "en": "GitHub Actions"
+      },
+      "aliases": [],
+      "categories": [
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "dnstls-configuration",
+      "name": "DNS/TLS Configuration",
+      "labels": {
+        "ru": "Настройка DNS/TLS",
+        "uz": "DNS/TLS sozlash",
+        "uz-cyrl": "DNS/TLS созлаш",
+        "en": "DNS/TLS Configuration"
+      },
+      "aliases": [],
+      "categories": [
+        "qa-support"
+      ]
+    },
+    {
+      "slug": "backup-and-recovery",
+      "name": "Backup and Recovery",
+      "labels": {
+        "ru": "Резервное копирование и восстановление",
+        "uz": "Zaxira nusxalash va tiklash",
+        "uz-cyrl": "Захира нусхалаш ва тиклаш",
+        "en": "Backup and Recovery"
+      },
+      "aliases": [],
+      "categories": [
+        "qa-support"
+      ]
+    }
+  ]
+}

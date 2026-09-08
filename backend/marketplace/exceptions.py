@@ -6,6 +6,10 @@ def api_exception_handler(exc, context):
     if response is None:
         return None
     original = response.data
+    if isinstance(original, dict) and original.get('code') == 'FEE_POLICY_CHANGED':
+        # Preserve the machine-readable conflict and fresh preview for new clients.
+        response.data = {**original, 'errors': {}}
+        return response
     if isinstance(original, dict) and 'detail' in original:
         response.data = {'detail': str(original['detail']), 'errors': {}}
     else:

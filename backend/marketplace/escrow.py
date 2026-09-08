@@ -1,12 +1,12 @@
 """Atomic contract transitions. Lock order: contract, dispute/payment, profiles by user ID."""
 from datetime import timedelta
-from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from .models import AuditLog, Contract, ContractEvent, Dispute, Message, Notification, Profile, WalletEntry
+from .models import AuditLog, Contract, ContractEvent, Dispute, Message, Notification, PlatformFee, Profile, WalletEntry
+from .fees import settlement
 
 
 def notify(user_id, kind, text, contract=None, link=""):
@@ -51,15 +51,18 @@ def fund_contract(contract, actor, *, external=False):
     event(contract, actor, "escrow_hold", "Средства зарезервированы. Работа началась.", {"amount": str(contract.amount)})
 
 
+@transaction.atomic
 def distribute(contract, actor, freelancer_amount, reason):
+    locked = Contract.objects.select_for_update().get(pk=contract.pk)
+    # Refresh the caller's instance too: responses must reflect the committed transition.
+    for field in Contract._meta.concrete_fields:
+        setattr(contract, field.attname, getattr(locked, field.attname))
     if not contract.funded_at or contract.escrow_amount != contract.amount:
         raise ValidationError("Средства уже распределены или резерв отсутствует.")
-    if freelancer_amount < 0 or freelancer_amount > contract.escrow_amount:
-        raise ValidationError("Выплата должна быть от 0 до суммы резерва.")
+    result = settlement(contract.amount, freelancer_amount, contract.fee_percent)
+    freelancer_amount, fee, refund = result['gross'], result['fee'], result['refund']
     profiles = {p.user_id: p for p in Profile.objects.select_for_update().filter(
         user_id__in=[contract.customer_id, contract.freelancer_id]).order_by("user_id")}
-    refund = contract.escrow_amount - freelancer_amount
-    fee = (freelancer_amount * contract.fee_percent / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     if freelancer_amount:
         worker = profiles[contract.freelancer_id]
         worker.balance += freelancer_amount - fee
@@ -75,14 +78,18 @@ def distribute(contract, actor, freelancer_amount, reason):
         customer.save(update_fields=["balance"])
         WalletEntry.objects.create(user_id=contract.customer_id, contract=contract, kind="refund", amount=refund,
                                    description=f"Возврат по договору №{contract.pk}")
+    fee_record = PlatformFee.objects.create(contract=contract, gross_amount=freelancer_amount,
+                                            fee_percent=contract.fee_percent, fee_amount=fee, currency=contract.currency)
+    contract.actual_fee_amount = fee
     contract.released_amount = freelancer_amount
     contract.refunded_amount = refund
     contract.escrow_amount = 0
     contract.completed_at = timezone.now()
     contract.status = Contract.Status.COMPLETED if freelancer_amount else Contract.Status.CANCELLED
-    contract.save(update_fields=["released_amount", "refunded_amount", "escrow_amount", "completed_at", "status"])
+    contract.save(update_fields=["actual_fee_amount", "released_amount", "refunded_amount", "escrow_amount", "completed_at", "status"])
     project_status(contract, contract.status)
-    event(contract, actor, "settled", reason, {"released": str(freelancer_amount), "refund": str(refund), "fee": str(fee)})
+    event(contract, actor, "settled", reason, {"released": str(freelancer_amount), "refund": str(refund), "fee": str(fee),
+                                             "net": str(result['net']), "settlement_reference": str(fee_record.settlement_reference)})
 
 
 @transaction.atomic

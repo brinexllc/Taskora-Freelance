@@ -2,46 +2,105 @@
 import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
 import { apiRequest } from '@/lib/api';
-import { Field, Notice, RemoteState, useRemote } from '@/components/taskora-ui';
+import {
+  Field,
+  Notice,
+  Pager,
+  RemoteState,
+  useRemote,
+} from '@/components/taskora-ui';
 
-export function SkillPicker({ value, onChange }) {
-  const { t } = useApp();
+export function SkillPicker({
+  value,
+  onChange,
+  category,
+  hintKey = 'profileSkillHint',
+  disabled = false,
+}) {
+  const { t, language } = useApp();
+  const skillLabel = (skill) =>
+    skill.labels?.[language] || skill.labels?.ru || skill.label || skill.name;
   const [search, setSearch] = useState('');
-  const remote = useRemote('directory');
+  const [all, setAll] = useState(false);
+  const [page, setPage] = useState(1);
+  const recommended = !!category && category !== 'other' && !all;
+  const remote = useRemote('skills', {
+    query: {
+      search,
+      category: recommended ? category : '',
+      page,
+      page_size: 20,
+    },
+  });
+  const selected = new Set(value.map((s) => s.id));
+  const choose = (skill) =>
+    onChange(
+      selected.has(skill.id)
+        ? value.filter((s) => s.id !== skill.id)
+        : [...value, skill],
+    );
   return (
-    <fieldset className="skill-picker">
+    <fieldset className="skill-picker" disabled={disabled}>
       <legend>{t('chooseSkills')}</legend>
+      {hintKey && <p className="muted">{t(hintKey)}</p>}
+      <p>
+        {t('selectedSkills')}: {value.length} / 30
+      </p>
+      <div className="skill-tags selected-skill-tags">
+        {value.map((skill) => (
+          <button
+            key={skill.id}
+            type="button"
+            className="selected-skill"
+            onClick={() => choose(skill)}
+            aria-label={`${t('removeSkill')}: ${skillLabel(skill)}`}
+          >
+            {skillLabel(skill)}
+            {skill.active === false ? ` (${t('inactiveSkill')})` : ''} ×
+          </button>
+        ))}
+      </div>
+      {category && category !== 'other' && (
+        <button
+          type="button"
+          className="text-link"
+          onClick={() => {
+            setAll(!all);
+            setPage(1);
+          }}
+        >
+          {t(all ? 'recommendedSkills' : 'allSkills')}
+        </button>
+      )}
       <input
         type="search"
         aria-label={t('search')}
         placeholder={t('search')}
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+        }}
       />
       <RemoteState remote={remote}>
         <div>
-          {remote.data?.skills
-            .filter((s) => s.toLowerCase().includes(search.toLowerCase()))
-            .map((skill) => (
-              <label
-                className={value.includes(skill) ? 'selected' : ''}
-                key={skill}
-              >
-                <input
-                  type="checkbox"
-                  checked={value.includes(skill)}
-                  onChange={(e) =>
-                    onChange(
-                      e.target.checked
-                        ? [...value, skill]
-                        : value.filter((s) => s !== skill),
-                    )
-                  }
-                />
-                {skill}
-              </label>
-            ))}
+          {remote.data?.results.map((skill) => (
+            <label
+              className={selected.has(skill.id) ? 'selected' : ''}
+              key={skill.id}
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(skill.id)}
+                disabled={!selected.has(skill.id) && value.length >= 30}
+                onChange={() => choose(skill)}
+              />
+              {skill.label}
+            </label>
+          ))}
         </div>
+        {remote.data?.count === 0 && <output>{t('noSkillsFound')}</output>}
+        <Pager data={remote.data} page={page} onChange={setPage} />
       </RemoteState>
     </fieldset>
   );
@@ -49,7 +108,7 @@ export function SkillPicker({ value, onChange }) {
 
 export function ProjectEditor({ project, onSaved }) {
   const { t, session } = useApp();
-  const remote = useRemote('directory');
+  const remote = useRemote('catalog');
   const [form, setForm] = useState({
     title: project?.title || '',
     description: project?.description || '',
@@ -57,7 +116,8 @@ export function ProjectEditor({ project, onSaved }) {
     budget_type: project?.budget_type || 'fixed',
     budget_min: project?.budget_min || '',
     budget_max: project?.budget_max || '',
-    skills: project?.skills || [],
+    skills: project?.skill_details || [],
+    skills_unspecified: project?.skills_unspecified || false,
     client_company: project?.client_company || '',
     deadline: project?.deadline || '',
   });
@@ -81,7 +141,11 @@ export function ProjectEditor({ project, onSaved }) {
         {
           method: savedId ? 'PATCH' : 'POST',
           token: session.token,
-          body: form,
+          body: {
+            ...form,
+            skills: undefined,
+            skill_ids: form.skills.map((s) => s.id),
+          },
         },
       );
       setSavedId(item.id);
@@ -130,13 +194,54 @@ export function ProjectEditor({ project, onSaved }) {
       <div className="form-columns">
         <Field label={t('category')}>
           <select value={form.category} onChange={change('category')}>
+            {project &&
+              !remote.data?.categories.some(
+                (c) => c.slug === project.category,
+              ) && (
+                <option value={project.category}>
+                  {project.category_label}
+                </option>
+              )}
             {remote.data?.categories.map((c) => (
               <option value={c.slug} key={c.slug}>
-                {t(c.slug) === c.slug ? c.name : t(c.slug)}
+                {c.label}
               </option>
             ))}
           </select>
         </Field>
+      </div>
+      <Notice error>{remote.error}</Notice>
+      <label className="t-check">
+        <input
+          type="checkbox"
+          checked={form.skills_unspecified}
+          onChange={(e) => {
+            const checked = e.target.checked;
+            if (
+              checked &&
+              form.skills.length &&
+              !window.confirm(t('confirmClearSkills'))
+            )
+              return;
+            setForm((f) => ({
+              ...f,
+              skills_unspecified: checked,
+              skills: checked ? [] : f.skills,
+            }));
+          }}
+        />
+        {t('technologiesByFreelancer')}
+      </label>
+      {!form.skills_unspecified && (
+        <SkillPicker
+          key={form.category}
+          category={form.category}
+          hintKey="projectSkillHint"
+          value={form.skills}
+          onChange={(skills) => setForm((f) => ({ ...f, skills }))}
+        />
+      )}
+      <div className="form-columns">
         <Field label={t('budgetType')}>
           <select value={form.budget_type} onChange={change('budget_type')}>
             {['fixed', 'hourly', 'daily'].map((type) => (
@@ -169,10 +274,6 @@ export function ProjectEditor({ project, onSaved }) {
           />
         </Field>
       </div>
-      <SkillPicker
-        value={form.skills}
-        onChange={(skills) => setForm((f) => ({ ...f, skills }))}
-      />
       <div className="form-columns">
         <Field label={t('deadline')}>
           <input
@@ -210,7 +311,9 @@ export function ProjectEditor({ project, onSaved }) {
         <button
           className="t-button secondary"
           value="draft"
-          disabled={busy || !form.skills.length || files.length > 5}
+          disabled={
+            busy || remote.loading || !!remote.error || files.length > 5
+          }
         >
           {t(project ? 'save' : 'saveDraft')}
         </button>
@@ -218,7 +321,13 @@ export function ProjectEditor({ project, onSaved }) {
           <button
             className="t-button"
             value="publish"
-            disabled={busy || !form.skills.length || files.length > 5}
+            disabled={
+              busy ||
+              remote.loading ||
+              !!remote.error ||
+              (!form.skills.length && !form.skills_unspecified) ||
+              files.length > 5
+            }
           >
             {t('publish')}
           </button>

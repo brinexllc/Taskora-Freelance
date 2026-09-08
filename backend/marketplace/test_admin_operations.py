@@ -1,3 +1,4 @@
+from .models import Category
 import uuid
 from decimal import Decimal
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -45,7 +46,7 @@ class AdminOperationsTests(BaseTests):
         import tempfile
         from django.test import override_settings
         with tempfile.TemporaryDirectory() as directory, override_settings(MEDIA_ROOT=directory):
-            project = Project.objects.create(owner=self.owner, title='Private draft', description='Brief', budget_min=100, budget_max=1000)
+            project = Project.objects.create(category=Category.objects.get(slug='other'),owner=self.owner, title='Private draft', description='Brief', budget_min=100, budget_max=1000)
             attachment = ProjectAttachment.objects.create(project=project, file=SimpleUploadedFile('brief.txt', b'private'), filename='brief.txt')
             url = f'/api/admin-files/projectattachment/{attachment.pk}/'
             self.as_user(self.owner)
@@ -53,6 +54,6 @@ class AdminOperationsTests(BaseTests):
             self.as_user(self.admin)
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
+            self.assertEqual(AuditLog.objects.filter(action='admin_file_download', actor=self.admin).count(), 1)
             self.assertEqual(b''.join(response.streaming_content), b'private')
             response.close()
-            self.assertEqual(AuditLog.objects.filter(action='admin_file_download', actor=self.admin).count(), 1)
