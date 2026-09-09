@@ -10,10 +10,20 @@ import {
   X,
   Bell,
   MessageSquare,
+  LayoutDashboard,
+  BriefcaseBusiness,
+  UserRound,
+  Wallet,
+  Settings,
+  Plus,
+  LogOut,
+  Search,
+  CircleHelp,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/components/app-providers';
-import { remoteRequest } from '@/lib/api';
+import { logout, remoteRequest } from '@/lib/api';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { date, languages, money } from '@/lib/i18n';
 
 export function useRemote(path, { token, query } = {}) {
@@ -161,11 +171,239 @@ export function Header({ landing = false }) {
     </header>
   );
 }
-export function PageShell({ children }) {
+export function PageShell({ children, publicView = false }) {
+  const { session, t } = useApp();
+  if (session?.user?.role && !publicView)
+    return <WorkspaceFrame>{children}</WorkspaceFrame>;
   return (
     <div className="taskora-app">
       <Header />
-      <main className="t-container page-content">{children}</main>
+      <main
+        className={`t-container page-content ${publicView ? 'public-profile-content' : ''}`}
+      >
+        {children}
+      </main>
+      {publicView && (
+        <footer className="public-profile-footer">
+          <Logo />
+          <span>
+            © {new Date().getFullYear()} Taskora. {t('rights')}
+          </span>
+          <nav>
+            <Link href="/privacy">{t('privacyLink')}</Link>
+            <Link href="/terms">{t('termsLink')}</Link>
+            <Link href="/projects">{t('orders')}</Link>
+          </nav>
+        </footer>
+      )}
+    </div>
+  );
+}
+export function WorkspaceFrame({ children, activeView }) {
+  const { t, session, clearSession, theme, setTheme } = useApp();
+  const pathname = usePathname();
+  const search = useSearchParams();
+  const [error, setError] = useState('');
+  const stats = useRemote(session?.token ? 'dashboard' : null, {
+    token: session?.token,
+  });
+  const view =
+    activeView ||
+    (pathname === '/dashboard'
+      ? search.get('view') || 'home'
+      : pathname.startsWith('/freelancers/')
+        ? 'profile'
+        : 'orders');
+  const orderView = ['orders', 'contracts', 'proposals'].includes(view);
+  const selected = orderView
+    ? theme === 'dark' && session?.user?.role === 'client'
+      ? 'home'
+      : 'orders'
+    : view;
+  const nav =
+    theme === 'dark' && session?.user?.role === 'client'
+      ? [
+          [BriefcaseBusiness, 'home'],
+          [MessageSquare, 'messages'],
+          [Wallet, 'wallet'],
+          [Settings, 'settings'],
+        ]
+      : [
+          [LayoutDashboard, 'home'],
+          [UserRound, 'profile'],
+          [BriefcaseBusiness, 'orders'],
+          [MessageSquare, 'messages'],
+          [Wallet, 'wallet'],
+          [Settings, 'settings'],
+        ];
+  const createUrl =
+    session?.user?.role === 'client' ? '/projects/new' : '/projects';
+  async function signOut() {
+    try {
+      await logout(session.token);
+      clearSession();
+      window.location.assign('/');
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+  return (
+    <div
+      className={`taskora-app workspace figma-workspace ${theme === 'dark' ? 'elite-workspace' : ''}`}
+    >
+      <aside className="workspace-sidebar">
+        <div className="workspace-wordmark">
+          <Logo />
+          <small>ELITE MARKETPLACE</small>
+        </div>
+        <nav aria-label={t('dashboard')}>
+          {nav.map(([Icon, key]) => (
+            <Link
+              href={`/dashboard?view=${String(key)}`}
+              key={key}
+              className={selected === key ? 'active' : ''}
+              aria-current={selected === key ? 'page' : undefined}
+            >
+              <Icon size={20} />{' '}
+              <span>
+                {t(
+                  theme === 'dark' &&
+                    session?.user?.role === 'client' &&
+                    key === 'home'
+                    ? 'orders'
+                    : key,
+                )}
+              </span>
+              {key === 'messages' && stats.data?.unread_messages > 0 && (
+                <b className="nav-count">{stats.data.unread_messages}</b>
+              )}
+            </Link>
+          ))}
+        </nav>
+        <details className="sidebar-account account-menu">
+          <summary>
+            <Avatar profile={session?.user?.profile || {}} />
+            <span>
+              <strong>{session?.user?.full_name}</strong>
+              <small>{t(session?.user?.role || 'profile')}</small>
+            </span>
+          </summary>
+          <div className="account-menu-content">
+            <LanguageSelect />
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              {t(theme === 'dark' ? 'light' : 'dark')}
+            </button>
+            <Link href="/dashboard?view=notifications">
+              <Bell size={18} />
+              {t('notifications')}
+            </Link>
+            <button onClick={signOut}>
+              <LogOut size={18} />
+              {t('logout')}
+            </button>
+          </div>
+        </details>
+        <Link className="t-button sidebar-create" href={createUrl}>
+          {t(session?.user?.role === 'client' ? 'createOrder' : 'browseOrders')}
+        </Link>
+      </aside>
+      <div className="workspace-body">
+        <header className="elite-topbar">
+          <form action="/projects">
+            <Search size={17} />
+            <input
+              name="search"
+              type="search"
+              aria-label={t('search')}
+              placeholder={t('searchProjects')}
+            />
+          </form>
+          <div>
+            <Link
+              href="/dashboard?view=notifications"
+              aria-label={t('notifications')}
+            >
+              <Bell size={19} />
+            </Link>
+            <Link href="/terms" aria-label={t('termsLink')}>
+              <CircleHelp size={19} />
+            </Link>
+            <Link href="/dashboard?view=profile" aria-label={t('profile')}>
+              <Avatar profile={session?.user?.profile || {}} />
+            </Link>
+          </div>
+        </header>
+        <header className="workspace-mobile-header">
+          <Logo />
+          <div className="actions">
+            <Link
+              href="/dashboard?view=notifications"
+              aria-label={t('notifications')}
+            >
+              <Bell size={20} />
+              {stats.data?.unread_notifications > 0 && (
+                <span className="notification-dot" />
+              )}
+            </Link>
+            <Link href="/dashboard?view=settings" aria-label={t('settings')}>
+              <Avatar profile={session?.user?.profile || {}} />
+            </Link>
+          </div>
+        </header>
+        <main className={`workspace-main workspace-view-${view}`}>
+          <Notice error>{error}</Notice>
+          {children}
+        </main>
+        <footer className="elite-workspace-footer">
+          <span>
+            © {new Date().getFullYear()} TASKORA. {t('rights')}
+          </span>
+          <div>
+            <Link href="/terms">{t('termsLink')}</Link>
+            <Link href="/privacy">{t('privacyLink')}</Link>
+          </div>
+        </footer>
+      </div>
+      <nav className="workspace-bottom-nav" aria-label={t('dashboard')}>
+        {[
+          [LayoutDashboard, 'home'],
+          [BriefcaseBusiness, 'orders'],
+          [Plus, 'create'],
+          [MessageSquare, 'messages'],
+          [UserRound, 'profile'],
+        ].map(([Icon, key]) => (
+          <Link
+            key={key}
+            href={
+              key === 'create' ? createUrl : `/dashboard?view=${String(key)}`
+            }
+            className={
+              key === 'create'
+                ? 'bottom-create'
+                : selected === key
+                  ? 'active'
+                  : ''
+            }
+            aria-label={t(
+              key === 'create'
+                ? session?.user?.role === 'client'
+                  ? 'createOrder'
+                  : 'browseOrders'
+                : key,
+            )}
+            aria-current={selected === key ? 'page' : undefined}
+          >
+            <Icon size={20} />
+            {key !== 'create' && <span>{t(key)}</span>}
+            {key === 'messages' && stats.data?.unread_messages > 0 && (
+              <b>{stats.data.unread_messages}</b>
+            )}
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }

@@ -23,10 +23,18 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     completed_projects = serializers.SerializerMethodField()
     rating = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
+    on_time_percent = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
         fields = ["id", "username", "first_name", "last_name", "full_name", "age", "role", "avatar", "about", "skills", "skill_ids", "skill_details", "verified_skills", "rate", "rate_unit", "created_at", "experience_days", "completed_projects", "enabled_roles", "professional_experience", "available", "rating", "review_count"]
+        fields += ['professional_title', 'location', 'portfolio', 'services', 'spoken_languages', 'on_time_percent']
+
+    def get_on_time_percent(self, obj):
+        from django.db.models import F
+        completed = obj.user.freelancer_contracts.filter(status='completed', completed_at__isnull=False, deadline__isnull=False)
+        total = completed.count()
+        return round(completed.filter(completed_at__lte=F('deadline')).count() * 100 / total) if total else None
 
     def get_rating(self, obj):
         return obj.user.received_reviews.filter(published=True).aggregate(value=Avg("rating"))["value"]
@@ -57,10 +65,39 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "first_name", "last_name", "email", "full_name", "role", "phone", "birth_date", "has_passport", "profile", "language", "theme"]
 
 
+class PortfolioItemSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=160)
+    category = serializers.CharField(max_length=80, allow_blank=True, required=False, default='')
+    description = serializers.CharField(max_length=1000, allow_blank=True, required=False, default='')
+    image = serializers.CharField(allow_blank=True, required=False, default='')
+    url = serializers.URLField(allow_blank=True, required=False, default='')
+
+    validate_image = staticmethod(image_data)
+
+    def validate_url(self, value):
+        if value and not value.lower().startswith(('https://', 'http://')):
+            raise serializers.ValidationError('Укажите ссылку HTTP или HTTPS.')
+        return value
+
+
+class ProfileServiceSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=160)
+    description = serializers.CharField(max_length=1000, allow_blank=True, required=False, default='')
+    price = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0)
+    delivery_days = serializers.IntegerField(min_value=1, max_value=365)
+
+    def validate_price(self, value):
+        return str(value)
+
+
 class ProfileUpdateSerializer(SkillsWriteSerializer):
+    portfolio = serializers.ListField(child=PortfolioItemSerializer(), max_length=9, required=False)
+    services = serializers.ListField(child=ProfileServiceSerializer(), max_length=6, required=False)
+    spoken_languages = serializers.ListField(child=serializers.CharField(max_length=80), max_length=10, required=False)
     class Meta:
         model = Profile
         fields = ["about", "avatar", "skills", "skill_ids", "skill_details", "rate", "rate_unit", "language", "theme", "professional_experience", "available"]
+        fields += ['professional_title', 'location', 'portfolio', 'services', 'spoken_languages']
 
     def validate_skills(self, value):
         if len(value) > 30:

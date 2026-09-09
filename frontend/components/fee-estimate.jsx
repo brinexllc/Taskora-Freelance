@@ -10,7 +10,7 @@ export function FeeEstimate({ amount, policy }) {
     <div className="fee-estimate">
       <strong>{t('feeEstimate')}</strong>
       <p>
-        {t('platformFee')}: {policy.freelancer_fee_percent}%
+        {t('freelancerCommission')}: {policy.freelancer_fee_percent}%
         {preview ? ` · ${money(preview.fee, language)}` : ''}
       </p>
       {preview && (
@@ -19,6 +19,7 @@ export function FeeEstimate({ amount, policy }) {
           {t('customerReserves')}: {money(amount, language)}
         </p>
       )}
+      <p>{t('customerCommission')}: {policy.customer_fee_percent}%</p>
       <p className="muted">{t('feeEstimateHint')}</p>
     </div>
   );

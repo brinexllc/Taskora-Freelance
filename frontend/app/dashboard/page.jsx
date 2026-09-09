@@ -1,33 +1,17 @@
 'use client';
 import Link from 'next/link';
-import {
-  BriefcaseBusiness,
-  Bell,
-  MessageSquare,
-  Send,
-  FileCheck2,
-  Home,
-  LogOut,
-  Menu,
-  Settings,
-  UserRound,
-  Wallet,
-  X,
-} from 'lucide-react';
+import { BriefcaseBusiness, FileCheck2, Wallet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/components/app-providers';
 import {
-  Avatar,
   Empty,
-  LanguageSelect,
-  Logo,
   Notice,
   Pager,
-  ProfileSummary,
   ProjectCard,
   RemoteState,
   Status,
   useRemote,
+  WorkspaceFrame,
 } from '@/components/taskora-ui';
 import {
   MessagesView,
@@ -35,235 +19,127 @@ import {
 } from '@/components/contract-workspace';
 import { WalletView } from '@/components/wallet-view';
 import { SettingsView } from '@/components/settings-view';
+import { ProfileShowcase } from '@/components/profile-showcase';
+import { EliteDashboard } from '@/components/elite-dashboard';
 import { OrdersList } from '@/app/projects/page';
-import { apiRequest, logout } from '@/lib/api';
+import { apiRequest } from '@/lib/api';
+import { useSearchParams } from 'next/navigation';
 import { date, money } from '@/lib/i18n';
 
 export default function DashboardPage() {
-  const { t, session, ready, clearSession } = useApp();
-  const [view, setView] = useState('home'),
-    [mobile, setMobile] = useState(false),
-    [error, setError] = useState('');
-  useEffect(() => {
-    void Promise.resolve().then(() => {
-      const key = new URLSearchParams(window.location.search).get('view');
-      if (
-        [
-          'home',
-          'profile',
-          'orders',
-          'contracts',
-          'wallet',
-          'settings',
-          'proposals',
-          'messages',
-          'notifications',
-        ].includes(key)
-      )
-        setView(key);
-    });
-  }, []);
-  async function signOut() {
-    setError('');
-    try {
-      await logout(session.token);
-      clearSession();
-      window.location.assign('/');
-    } catch (err) {
-      setError(err.message);
-    }
-  }
+  const { t, session, ready, theme } = useApp();
+  const search = useSearchParams();
+  const view = search.get('view') || 'home';
   if (!ready || !session?.user || !session.user.role)
     return (
       <div className="taskora-app">
         <p className="empty-state">{t('loading')}</p>
       </div>
     );
-  const nav = [
-    [Home, 'home'],
-    [UserRound, 'profile'],
-    [BriefcaseBusiness, 'orders'],
-    [FileCheck2, 'contracts'],
-    [Send, 'proposals'],
-    [MessageSquare, 'messages'],
-    [Bell, 'notifications'],
-    [Wallet, 'wallet'],
-    [Settings, 'settings'],
-  ];
   return (
-    <div className="taskora-app workspace">
-      {mobile && (
-        <button
-          className="sidebar-overlay"
-          aria-label={t('close')}
-          onClick={() => setMobile(false)}
-        />
-      )}
-      <aside className={`workspace-sidebar ${mobile ? 'open' : ''}`}>
-        <Logo />
-        <nav>
-          {nav.map(([Icon, key]) => (
+    <WorkspaceFrame activeView={view}>
+      {['orders', 'contracts', 'proposals'].includes(view) && (
+        <nav className="workspace-order-tabs" aria-label={t('orders')}>
+          {['orders', 'contracts', 'proposals'].map((key) => (
             <Link
-              href={`/dashboard?view=${String(key)}`}
               key={key}
-              className={view === key ? 'active' : ''}
+              href={`/dashboard?view=${key}`}
               aria-current={view === key ? 'page' : undefined}
             >
-              <Icon size={19} />
               {t(key)}
             </Link>
           ))}
         </nav>
-        <div className="sidebar-account">
-          <div>
-            <Avatar profile={session.user.profile} />
-            <span>
-              <strong>{session.user.full_name}</strong>
-              <small>{t(session.user.role)}</small>
-            </span>
+      )}
+      {view === 'messages' ? (
+        <MessagesView />
+      ) : view === 'notifications' ? (
+        <NotificationsView />
+      ) : view === 'wallet' ? (
+        <WalletView />
+      ) : view === 'settings' ? (
+        <SettingsView />
+      ) : view === 'contracts' ? (
+        <ContractList />
+      ) : view === 'proposals' ? (
+        <ProposalList />
+      ) : view === 'orders' ? (
+        <>
+          <div className="page-heading">
+            <div>
+              <h1>
+                {t(session.user.role === 'client' ? 'myOrders' : 'orders')}
+              </h1>
+              <p className="dashboard-subtitle">{t('ordersSubtitle')}</p>
+            </div>
+            {session.user.role === 'client' ? (
+              <Link href="/projects/new" className="t-button">
+                {t('createOrder')}
+              </Link>
+            ) : (
+              <Link
+                href="/dashboard?view=proposals"
+                className="t-button secondary"
+              >
+                {t('myProposals')}
+              </Link>
+            )}
           </div>
-          <button onClick={signOut}>
-            <LogOut size={18} />
-            {t('logout')}
-          </button>
-        </div>
-      </aside>
-      <div className="workspace-body">
-        <header className="workspace-top">
-          <button
-            className="mobile-toggle"
-            onClick={() => setMobile(!mobile)}
-            aria-label={t('dashboard')}
-            aria-expanded={mobile}
-          >
-            {mobile ? <X /> : <Menu />}
-          </button>
-          <Link className="text-link" href="/">
-            Taskora / {t('home')}
-          </Link>
-          <div className="actions">
-            <Link
-              className="text-link"
-              href={
-                session.user.role === 'client' ? '/freelancers' : '/projects'
-              }
-            >
-              {t(session.user.role === 'client' ? 'freelancers' : 'orders')}
-            </Link>
-            <Link href="/dashboard?view=messages" aria-label={t('messages')}>
-              <MessageSquare size={19} />
-            </Link>
-            <Link
-              href="/dashboard?view=notifications"
-              aria-label={t('notifications')}
-            >
-              <Bell size={19} />
-            </Link>
-            <LanguageSelect />
-          </div>
-        </header>
-        <main className="workspace-main">
-          <Notice error>{error}</Notice>
-          {view === 'messages' ? (
-            <MessagesView />
-          ) : view === 'notifications' ? (
-            <NotificationsView />
-          ) : view === 'wallet' ? (
-            <WalletView />
-          ) : view === 'settings' ? (
-            <SettingsView />
-          ) : view === 'contracts' ? (
-            <ContractList />
-          ) : view === 'proposals' ? (
-            <ProposalList />
-          ) : view === 'orders' ? (
-            <>
-              <div className="page-heading">
-                <h1>
-                  {t(session.user.role === 'client' ? 'myOrders' : 'orders')}
-                </h1>
-                {session.user.role === 'client' ? (
-                  <Link href="/projects/new" className="t-button">
-                    {t('createOrder')}
-                  </Link>
-                ) : (
-                  <Link
-                    href="/dashboard?view=proposals"
-                    className="t-button secondary"
-                  >
-                    {t('myProposals')}
-                  </Link>
+          <OrdersList mine={session.user.role === 'client'} />
+        </>
+      ) : view === 'profile' ? (
+        <ProfileShowcase profile={session.user.profile} />
+      ) : theme === 'dark' ? (
+        <EliteDashboard />
+      ) : (
+        <>
+          <div className="page-heading">
+            <div>
+              <h1>
+                {t('welcome')},{' '}
+                {session.user.first_name || session.user.full_name}{' '}
+                <span aria-hidden="true">👋</span>
+              </h1>
+              <p className="dashboard-subtitle">{t('dashboardPrompt')}</p>
+            </div>
+            <div className="actions">
+              <Link
+                className="t-button secondary"
+                href={
+                  session.user.role === 'client'
+                    ? '/freelancers'
+                    : '/dashboard?view=profile'
+                }
+              >
+                {t(
+                  session.user.role === 'client'
+                    ? 'findFreelancers'
+                    : 'profile',
                 )}
-              </div>
-              <OrdersList mine={session.user.role === 'client'} />
-            </>
-          ) : view === 'profile' ? (
-            <>
-              <ProfileSummary profile={session.user.profile} />
-              <Stats />
-              <div className="actions">
-                <Link className="t-button" href="/dashboard?view=settings">
-                  {t('editProfile')}
-                </Link>
-                <Link
-                  className="t-button secondary"
-                  href="/dashboard?view=contracts"
-                >
-                  {t('contracts')}
-                </Link>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="page-heading">
-                <div>
-                  <h1>
-                    {t('welcome')},{' '}
-                    {session.user.first_name || session.user.full_name}{' '}
-                    <span aria-hidden="true">👋</span>
-                  </h1>
-                  <p className="dashboard-subtitle">{t('dashboardPrompt')}</p>
-                </div>
-                <div className="actions">
-                  <Link
-                    className="t-button secondary"
-                    href={
-                      session.user.role === 'client'
-                        ? '/freelancers'
-                        : '/dashboard?view=profile'
-                    }
-                  >
-                    {t(
-                      session.user.role === 'client'
-                        ? 'findFreelancers'
-                        : 'profile',
-                    )}
-                  </Link>
-                  <Link
-                    className="t-button"
-                    href={
-                      session.user.role === 'client'
-                        ? '/projects/new'
-                        : '/projects'
-                    }
-                  >
-                    {t(
-                      session.user.role === 'client'
-                        ? 'createOrder'
-                        : 'browseOrders',
-                    )}
-                  </Link>
-                </div>
-              </div>
-              <Stats />
-              <RecommendedOrders />
-              <ContractList compact />
-              <p className="muted">{t('archiveHint')}</p>
-            </>
-          )}
-        </main>
-      </div>
-    </div>
+              </Link>
+              <Link
+                className="t-button"
+                href={
+                  session.user.role === 'client' ? '/projects/new' : '/projects'
+                }
+              >
+                {t(
+                  session.user.role === 'client'
+                    ? 'createOrder'
+                    : 'browseOrders',
+                )}
+              </Link>
+            </div>
+          </div>
+          <Stats />
+          <RecommendedOrders />
+          <div className="dashboard-mobile-extra">
+            <ContractList compact />
+            <RecentMessages />
+          </div>
+        </>
+      )}
+    </WorkspaceFrame>
   );
 }
 function Stats() {
@@ -314,6 +190,48 @@ function Stats() {
         ))}
       </div>
     </RemoteState>
+  );
+}
+
+function RecentMessages() {
+  const { t, session } = useApp();
+  const remote = useRemote('contracts', {
+    token: session.token,
+    query: { page_size: 2 },
+  });
+  return (
+    <section className="dashboard-recent-messages">
+      <div className="page-heading">
+        <h2>{t('recentMessages')}</h2>
+        <Link href="/dashboard?view=messages" className="text-link">
+          {t('all')} →
+        </Link>
+      </div>
+      <RemoteState remote={remote}>
+        {remote.data?.results.length ? (
+          remote.data.results.map((c) => (
+            <Link key={c.id} href={`/dashboard?view=messages&contract=${c.id}`}>
+              <span className="conversation-avatar">
+                {(c.customer === session.user.id
+                  ? c.freelancer_name
+                  : c.customer_name
+                )?.slice(0, 1)}
+              </span>
+              <span className="conversation-copy">
+                <strong>
+                  {c.customer === session.user.id
+                    ? c.freelancer_name
+                    : c.customer_name}
+                </strong>
+                <span>{c.project_title}</span>
+              </span>
+            </Link>
+          ))
+        ) : (
+          <Empty text={t('noContracts')} />
+        )}
+      </RemoteState>
+    </section>
   );
 }
 

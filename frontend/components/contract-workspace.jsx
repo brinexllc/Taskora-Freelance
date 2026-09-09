@@ -1,12 +1,15 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   MessageSquare,
   Paperclip,
   Send,
   ShieldCheck,
   Star,
+  ArrowLeft,
+  Search,
 } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
 import { apiRequest, downloadFile } from '@/lib/api';
@@ -56,7 +59,9 @@ export function ContractWorkspace({ contract, act, busy }) {
         </div>
         <p>
           <strong>{t(settled ? 'actualSettlement' : 'originalPlan')}</strong> ·{' '}
-          {t('platformFee')}: {contract.fee_percent}%
+          {t('freelancerCommission')}: {contract.fee_percent}% ·{' '}
+          {t('customerCommission')}:{' '}
+          {contract.fee_policy_snapshot?.customer_fee_percent ?? '0.00'}%
         </p>
         <dl className="escrow-amounts">
           {amounts.map(([label, value]) => (
@@ -254,7 +259,7 @@ export function ContractWorkspace({ contract, act, busy }) {
   );
 }
 
-export function Chat({ contract }) {
+export function Chat({ contract, onBack }) {
   const { t, session, language } = useApp();
   const [page, setPage] = useState(1);
   const [text, setText] = useState('');
@@ -309,10 +314,36 @@ export function Chat({ contract }) {
   return (
     <section className="t-card chat-panel">
       <div className="row-between">
-        <h2>
-          <MessageSquare size={20} /> {t('workChat')}
-        </h2>
-        <span className="muted">#{contract.id}</span>
+        <div className="chat-heading">
+          {onBack && (
+            <button
+              className="chat-back"
+              onClick={onBack}
+              aria-label={t('messages')}
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
+          <span className="conversation-avatar">
+            {(contract.customer === session.user.id
+              ? contract.freelancer_name
+              : contract.customer_name
+            )?.slice(0, 1)}
+          </span>
+          <div>
+            <h2>
+              {contract.customer === session.user.id
+                ? contract.freelancer_name
+                : contract.customer_name}
+            </h2>
+            <Link className="muted" href={`/contracts/${contract.id}`}>
+              {contract.project_title}
+            </Link>
+          </div>
+        </div>
+        <Link className="muted" href={`/contracts/${contract.id}`}>
+          #{contract.id}
+        </Link>
       </div>
       <Notice error>{error || remote.error}</Notice>
       <div className="chat-messages" aria-live="polite">
@@ -445,32 +476,66 @@ export function NotificationsView() {
 
 export function MessagesView() {
   const { t, session } = useApp();
+  const router = useRouter();
+  const search = useSearchParams();
+  const [term, setTerm] = useState('');
   const [selected, setSelected] = useState(null);
   const [page, setPage] = useState(1);
   const remote = useRemote('contracts', {
     token: session.token,
-    query: { page },
+    query: { page, search: term },
   });
+  const selectedId = search.get('contract');
+  const direct = useRemote(selectedId ? `contracts/${selectedId}` : null, {
+    token: session.token,
+  });
+  const current = selected || (selectedId ? direct.data : null);
   return (
     <>
-      <h1>{t('messages')}</h1>
-      <div className="messenger-layout">
+      <div className="page-heading">
+        <div>
+          <h1>{t('messages')}</h1>
+          <p className="dashboard-subtitle">{t('messagesSubtitle')}</p>
+        </div>
+      </div>
+      <div className={`messenger-layout${current ? ' has-conversation' : ''}`}>
         <section className="conversation-list">
+          <label className="conversation-search">
+            <Search size={16} />
+            <input
+              type="search"
+              value={term}
+              onChange={(e) => {
+                setTerm(e.target.value);
+                setPage(1);
+              }}
+              placeholder={t('search')}
+              aria-label={t('search')}
+            />
+          </label>
+          <p className="conversation-caption">{t('recentMessages')}</p>
           <RemoteState remote={remote}>
             {remote.data?.results.length ? (
               remote.data.results.map((c) => (
                 <button
-                  className={selected?.id === c.id ? 'selected' : ''}
+                  className={current?.id === c.id ? 'selected' : ''}
                   key={c.id}
                   onClick={() => setSelected(c)}
                 >
-                  <strong>
-                    {c.customer === session.user.id
+                  <span className="conversation-avatar">
+                    {(c.customer === session.user.id
                       ? c.freelancer_name
-                      : c.customer_name}
-                  </strong>
-                  <span>{c.project_title}</span>
-                  <Status value={c.status} />
+                      : c.customer_name
+                    )?.slice(0, 1)}
+                  </span>
+                  <span className="conversation-copy">
+                    <strong>
+                      {c.customer === session.user.id
+                        ? c.freelancer_name
+                        : c.customer_name}
+                    </strong>
+                    <span>{c.project_title}</span>
+                  </span>
                 </button>
               ))
             ) : (
@@ -479,10 +544,20 @@ export function MessagesView() {
             <Pager data={remote.data} page={page} onChange={setPage} />
           </RemoteState>
         </section>
-        {selected ? (
-          <Chat key={selected.id} contract={selected} />
+        {current ? (
+          <Chat
+            key={current.id}
+            contract={current}
+            onBack={() => {
+              setSelected(null);
+              if (selectedId) router.replace('/dashboard?view=messages');
+            }}
+          />
         ) : (
-          <Empty text={t('selectConversation')} />
+          <div className="conversation-empty">
+            <MessageSquare size={40} />
+            <Empty text={t('selectConversation')} />
+          </div>
         )}
       </div>
     </>

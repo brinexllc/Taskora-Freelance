@@ -9,10 +9,11 @@ import {
   Field,
   PageShell,
   Pager,
-  ProjectCard,
+  Status,
   RemoteState,
   useRemote,
 } from '@/components/taskora-ui';
+import { date, money } from '@/lib/i18n';
 export default function ProjectsPage() {
   const { t, session } = useApp();
   return (
@@ -33,7 +34,8 @@ export default function ProjectsPage() {
   );
 }
 export function OrdersList({ mine = false }) {
-  const { t, session } = useApp();
+  const { t, language, session } = useApp();
+  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
     category: '',
@@ -69,8 +71,77 @@ export function OrdersList({ mine = false }) {
   const change = (key) => (e) =>
     setFilters((f) => ({ ...f, [key]: e.target.value }));
   return (
-    <div className="catalog-layout">
+    <div className="orders-catalog">
+      <div className="orders-toolbar">
+        {mine && (
+          <nav className="order-status-tabs" aria-label={t('status')}>
+            {[
+              ['', 'all'],
+              ['published', 'published'],
+              ['in_progress', 'in_progress'],
+              ['completed', 'completed'],
+              ['cancelled', 'cancelled'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                className={
+                  query.status === value || (!query.status && !value)
+                    ? 'active'
+                    : ''
+                }
+                onClick={() => {
+                  setFilters((f) => ({ ...f, status: value }));
+                  setQuery((q) => ({ ...q, status: value }));
+                  setPage(1);
+                }}
+              >
+                {t(label)}
+              </button>
+            ))}
+          </nav>
+        )}
+        <form
+          className="orders-search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setQuery((q) => ({ ...q, search: filters.search }));
+            setPage(1);
+          }}
+        >
+          <Search size={16} />
+          <input
+            type="search"
+            aria-label={t('search')}
+            placeholder={t('search')}
+            value={filters.search}
+            onChange={change('search')}
+          />
+        </form>
+        <button
+          className="order-filter-button"
+          onClick={() => setShowFilters(!showFilters)}
+          aria-expanded={showFilters}
+          aria-controls="order-advanced-filters"
+        >
+          <SlidersHorizontal size={16} />
+          {t('filters')}
+        </button>
+        <select
+          aria-label={t('sort')}
+          value={sort}
+          onChange={(e) => {
+            setSort(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="-created_at">{t('newest')}</option>
+          <option value="-budget_max">{t('priceHigh')}</option>
+          <option value="budget_min">{t('priceLow')}</option>
+        </select>
+      </div>
       <form
+        id="order-advanced-filters"
+        hidden={!showFilters}
         className="catalog-filters t-card t-form"
         onSubmit={(e) => {
           e.preventDefault();
@@ -195,7 +266,7 @@ export function OrdersList({ mine = false }) {
         </button>
       </form>
       <section>
-        <div className="row-between catalog-results-heading">
+        <div className="row-between catalog-results-heading" hidden>
           <span>
             {t('resultCount')}: {remote.data?.count ?? '—'}
           </span>
@@ -215,10 +286,72 @@ export function OrdersList({ mine = false }) {
         <RemoteState remote={remote}>
           {remote.data?.results.length ? (
             remote.data.results.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+              <article className="managed-order" key={project.id}>
+                <div className="row-between">
+                  <h3>
+                    <Link href={`/projects/${project.id}`}>
+                      {project.title}
+                    </Link>
+                  </h3>
+                  <Status value={project.status} />
+                </div>
+                <p className="managed-order-customer">
+                  <span>{project.client_name?.slice(0, 1)}</span>
+                  {project.client_name} ({t('client')})
+                </p>
+                <p className="managed-order-description">
+                  {project.description}
+                </p>
+                <div className="skill-tags">
+                  {project.skill_details?.map((skill) => (
+                    <span key={skill.id}>{skill.label}</span>
+                  ))}
+                  {project.skills_unspecified && (
+                    <span>{t('technologiesDiscussed')}</span>
+                  )}
+                </div>
+                {project.status === 'completed' && (
+                  <div className="order-complete-progress">
+                    <span>{t('completed')} · 100%</span>
+                    <progress
+                      value="100"
+                      max="100"
+                      aria-label={t('completed')}
+                    />
+                  </div>
+                )}
+                <footer>
+                  <div>
+                    <small>{t('budget')}</small>
+                    <strong>
+                      {money(project.budget_min, language)}
+                      {project.budget_min !== project.budget_max &&
+                        ` – ${money(project.budget_max, language)}`}
+                    </strong>
+                  </div>
+                  <div>
+                    <small>{t('deadline')}</small>
+                    <strong>{date(project.deadline, language)}</strong>
+                  </div>
+                  <Link
+                    className="t-button secondary"
+                    href={`/projects/${project.id}`}
+                  >
+                    {t('details')}
+                  </Link>
+                </footer>
+              </article>
             ))
           ) : (
-            <Empty text={t('noOrders')} />
+            <div className="orders-empty">
+              <SlidersHorizontal size={44} />
+              <Empty text={t('noOrders')} />
+              {mine && (
+                <Link href="/projects/new" className="t-button">
+                  + {t('createOrder')}
+                </Link>
+              )}
+            </div>
           )}
           <Pager data={remote.data} page={page} onChange={setPage} />
         </RemoteState>

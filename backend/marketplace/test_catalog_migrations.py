@@ -8,8 +8,8 @@ from django.test import TransactionTestCase
 class CatalogMigrationTests(TransactionTestCase):
     def test_legacy_categories_normalized_duplicates_and_ids_survive(self):
         old=[('marketplace','0008_clickfiscalreceipt')]
-        new=[('marketplace','0011_catalog_constraints')]
         executor=MigrationExecutor(connection)
+        new=executor.loader.graph.leaf_nodes('marketplace')
         executor.migrate(old)
         apps=executor.loader.project_state(old).apps
         Project=apps.get_model('marketplace','Project')

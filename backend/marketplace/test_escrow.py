@@ -65,6 +65,7 @@ class EscrowTests(MarketplaceTests):
         self.assertEqual(self.post(f'contracts/{pk}/accept',{'confirmed':True}).status_code,200)
         self.assertEqual(WalletEntry.objects.filter(contract_id=pk,kind='escrow_release').count(),1)
 
+    @override_settings(PLATFORM_FEE_PERCENT='5')
     def test_dispute_freezes_funds_and_admin_splits_once(self):
         pk = self.work()
         self.as_user(self.customer)
@@ -80,7 +81,8 @@ class EscrowTests(MarketplaceTests):
         result=self.post(f'disputes/{dispute.pk}/resolve',{'freelancer_amount':10000,'reason':'Partial work is usable'})
         self.assertEqual(result.status_code,200,result.data)
         self.assertEqual(Profile.objects.get(user=self.customer).balance,40000)
-        self.assertEqual(Profile.objects.get(user=self.freelancer).balance,10000)
+        self.assertEqual(Profile.objects.get(user=self.freelancer).balance,9500)
+        self.assertEqual(WalletEntry.objects.get(contract_id=pk,kind='platform_fee').amount,Decimal('-500'))
         self.assertEqual(self.post(f'disputes/{dispute.pk}/resolve',{'freelancer_amount':10000,'reason':'Partial work is usable'}).status_code,400)
         self.assertEqual(Contract.objects.get(pk=pk).escrow_amount,0)
 

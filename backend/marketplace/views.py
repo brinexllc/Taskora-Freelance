@@ -229,10 +229,17 @@ class ProposalViewSet(viewsets.ModelViewSet):
 class ContractViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ContractSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['project__title', 'customer__profile__full_name', 'freelancer__profile__full_name']
 
     def get_queryset(self):
         qs = Contract.objects.filter(Q(customer=self.request.user) | Q(freelancer=self.request.user)).select_related("project", "customer__profile", "freelancer__profile").prefetch_related("deliverables", "events", "reviews__author__profile").select_related("dispute")
         if self.action == "list":
+            participant = self.request.query_params.get('participant_profile')
+            if participant:
+                if not participant.isdigit():
+                    raise ValidationError('Некорректный профиль участника.')
+                qs = qs.filter(Q(customer__profile__pk=participant) | Q(freelancer__profile__pk=participant))
             selected_status = self.request.query_params.get("status")
             if selected_status == "active":
                 qs = qs.exclude(status__in=[Contract.Status.COMPLETED, Contract.Status.CANCELLED])
@@ -249,6 +256,9 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
         contract = self.locked()
         if request.data.get("accepted") is not True:
             raise ValidationError("Подтвердите согласие с условиями договора.")
+        if ((contract.version > 1 or 'expected_version' in request.data)
+                and request.data.get('expected_version') != contract.version):
+            raise ValidationError("Версия договора изменилась. Обновите страницу и подтвердите новые условия.")
         if contract.status not in {Contract.Status.SIGNING, Contract.Status.CUSTOMER_ACCEPTED, Contract.Status.FREELANCER_ACCEPTED}:
             raise ValidationError("Договор уже подписан.")
         field = "customer_signed_at" if request.user.id == contract.customer_id else "freelancer_signed_at"
@@ -506,7 +516,9 @@ def dashboard(request):
         "unread_messages": Message.objects.filter(contract__in=contracts, system=False, read_at__isnull=True).exclude(sender=user).count(),
         "unread_notifications": user.notifications.filter(read_at__isnull=True).count(),
         "balance": str(user.profile.balance), "frozen_balance": total(contracts.filter(customer=user)),
-        "pending_balance": total(contracts.filter(freelancer=user))})
+        "pending_balance": total(contracts.filter(freelancer=user)),
+        "total_spent": str(contracts.filter(customer=user).aggregate(value=Sum('released_amount'))['value'] or 0),
+        "total_earned": str(user.wallet_entries.filter(kind__in=['escrow_release','platform_fee']).aggregate(value=Sum('amount'))['value'] or 0)})
 
 
 @api_view(["GET"])

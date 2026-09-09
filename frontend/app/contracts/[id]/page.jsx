@@ -142,7 +142,7 @@ export default function ContractPage() {
                       className="t-button"
                       disabled={!agree || busy}
                       onClick={() =>
-                        act('sign', { accepted: true }, 'contractSigned')
+                        act('sign', { accepted: true, expected_version: contract.version }, 'contractSigned')
                       }
                     >
                       {t('sign')}

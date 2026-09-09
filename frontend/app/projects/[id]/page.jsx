@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
 import { ProjectEditor } from '@/components/project-editor';
 import { FeeEstimate } from '@/components/fee-estimate';
+import { Chat } from '@/components/contract-workspace';
 import { feePreview } from '@/lib/fee-preview';
 import { apiRequest, createProposal, downloadFile } from '@/lib/api';
 import {
@@ -39,6 +40,12 @@ export default function ProjectDetailsPage() {
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
   const project = remote.data;
+  const contract = useRemote(
+    project?.contract_id && session?.token
+      ? `contracts/${project.contract_id}`
+      : null,
+    { token: session?.token },
+  );
   const owner = project?.owner === session?.user?.id;
   const alreadyApplied = proposals.data?.results.some(
     (p) => p.freelancer === session?.user?.id,
@@ -114,7 +121,7 @@ export default function ProjectDetailsPage() {
       <RemoteState remote={remote}>
         {project && (
           <>
-            <section className="t-card">
+            <section className="t-card project-overview">
               <div className="row-between">
                 <span className="eyebrow">{project.category_label}</span>
                 <Status value={project.status} />
@@ -128,7 +135,10 @@ export default function ProjectDetailsPage() {
               {project.skills_unspecified && (
                 <p className="muted">{t('technologiesDiscussed')}</p>
               )}
-              <p className="preserve-lines">{project.description}</p>
+              <div className="project-description">
+                <h2>{t('description')}</h2>
+                <p className="preserve-lines">{project.description}</p>
+              </div>
               <dl className="detail-list">
                 <div>
                   <dt>{t('budget')}</dt>
@@ -196,7 +206,7 @@ export default function ProjectDetailsPage() {
                 </section>
               )}
             {!!project.attachments?.length && (
-              <section className="t-card">
+              <section className="t-card project-attachments">
                 <h2>{t('attachments')}</h2>
                 {project.attachments.map((a) => (
                   <button
@@ -215,6 +225,35 @@ export default function ProjectDetailsPage() {
                 ))}
               </section>
             )}
+            {contract.data && (
+              <section className="t-card project-stages">
+                <h2>{t('projectStages')}</h2>
+                <ol className="project-stage-list">
+                  {contract.data.events
+                    .filter((e) =>
+                      [
+                        'created',
+                        'funded',
+                        'submitted',
+                        'revision_requested',
+                        'completed',
+                        'resolved',
+                        'fee_revised',
+                      ].includes(e.kind),
+                    )
+                    .map((e) => (
+                      <li key={e.id}>
+                        <span />
+                        <div>
+                          <strong>{e.description}</strong>
+                          <time>{date(e.created_at, language)}</time>
+                        </div>
+                      </li>
+                    ))}
+                </ol>
+              </section>
+            )}
+            {contract.data && <Chat contract={contract.data} />}
             <Notice error>{error}</Notice>
             <Notice error>{fees.error}</Notice>
             {fees.error && (

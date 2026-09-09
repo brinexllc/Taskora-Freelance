@@ -11,7 +11,13 @@ export function LegalPage({ privacy = false }) {
         <p>{t(privacy ? 'privacyBody' : 'termsBody')}</p>
         {!privacy && (
           <>
-            <h2>{t('platformFee')}</h2>
+            <h2 id="how-it-works">{t('how')}</h2>
+            <ol>
+              {['step1', 'step2', 'step3'].map((key) => (
+                <li key={key}>{t(key)}</li>
+              ))}
+            </ol>
+            <h2 id="fees">{t('platformFee')}</h2>
             <p>{t('feeTerms')}</p>
           </>
         )}

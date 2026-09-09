@@ -166,6 +166,7 @@ class MarketplaceTests(BaseTests):
         self.as_user(self.other)
         self.assertEqual(self.client.get(f'/api/contracts/{contract}/').status_code,404)
         self.assertEqual(self.client.get(f'/api/projects/{self.project.pk}/').status_code,404)
+    @override_settings(PLATFORM_FEE_PERCENT='5')
     def test_review_revisions_wallet_payment_download_archive(self):
         contract=self.work()
         self.as_user(self.customer)
@@ -182,7 +183,8 @@ class MarketplaceTests(BaseTests):
         response=self.post(f'contracts/{contract}/accept',{'confirmed':True})
         self.assertEqual(response.status_code,200,response.data)
         self.assertEqual(Profile.objects.get(user=self.customer).balance,25000)
-        self.assertEqual(Profile.objects.get(user=self.freelancer).balance,25000)
+        self.assertEqual(Profile.objects.get(user=self.freelancer).balance,23750)
+        self.assertEqual(WalletEntry.objects.get(contract_id=contract,kind='platform_fee').amount,Decimal('-1250'))
         self.assertEqual(self.post(f'contracts/{contract}/accept',{'confirmed':True}).status_code,200)
         result=self.client.get(f'/api/contracts/{contract}/download/')
         self.assertEqual(result.status_code,200)

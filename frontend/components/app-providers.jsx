@@ -13,7 +13,7 @@ const validLanguage = (value) => languages.some(([key]) => key === value);
 
 export function AppProviders({ children }) {
   const [language, setLanguageState] = useState('ru');
-  const [theme, setThemeState] = useState('light');
+  const [theme, setThemeState] = useState('dark');
   const [session, setSessionState] = useState(null);
   const [ready, setReady] = useState(false);
   const [connectionError, setConnectionError] = useState('');
@@ -38,7 +38,7 @@ export function AppProviders({ children }) {
       const user = await getCurrentUser(token);
       setSessionState({ token, user });
       if (validLanguage(user.language)) setLanguageState(user.language);
-      setThemeState(user.theme || 'light');
+      setThemeState(user.theme || 'dark');
     } catch (error) {
       if (error.status === 401) clearSession();
       else setConnectionError(error.message);
@@ -50,8 +50,8 @@ export function AppProviders({ children }) {
     void Promise.resolve().then(() => {
       const storedLanguage = localStorage.getItem('taskora-language');
       if (validLanguage(storedLanguage)) setLanguageState(storedLanguage);
-      if (localStorage.getItem('taskora-theme') === 'dark')
-        setThemeState('dark');
+      const storedTheme = localStorage.getItem('taskora-theme');
+      if (['light', 'dark'].includes(storedTheme)) setThemeState(storedTheme);
       void refreshSession();
     });
   }, [refreshSession]);

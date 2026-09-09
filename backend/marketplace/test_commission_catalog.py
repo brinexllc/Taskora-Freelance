@@ -10,7 +10,7 @@ from django.test import override_settings
 from rest_framework.exceptions import ValidationError
 
 from .tests import BaseTests
-from .fees import check_fee_configuration, fee_rate, settlement
+from .fees import check_fee_configuration, current_policy, fee_rate, settlement
 from .escrow import distribute, fund_contract, resolve_dispute
 from .models import AuditLog, Category, CategorySkill, Contract, Dispute, PlatformFee, Profile, Project, Proposal, Skill, SkillAlias, WalletEntry
 from .taxonomy import merge_skills
@@ -54,6 +54,106 @@ class CommissionTests(BaseTests):
         out = io.StringIO()
         call_command(name, *args, stdout=out)
         return json.loads(out.getvalue())
+
+    @override_settings(PLATFORM_FEE_PERCENT='5')
+    def test_approved_five_percent_is_paid_only_by_freelancer(self):
+        policy = self.client.get('/api/platform-fees/').data
+        self.assertEqual(policy['freelancer_fee_percent'], '5.00')
+        self.assertEqual(policy['customer_fee_percent'], '0.00')
+        c = self.contract('5', amount='15000000', funded=False)
+        self.assertEqual(c.fee_amount, Decimal('750000'))
+        self.assertEqual(c.amount - c.fee_amount, Decimal('14250000'))
+
+    def test_contract_search_remains_private_and_filters_participant(self):
+        c = self.contract(funded=False)
+        self.as_user(self.customer)
+        result = self.client.get('/api/contracts/', {'participant_profile': self.worker.profile.pk, 'search': 'Commission'})
+        self.assertEqual([item['id'] for item in result.data['results']], [c.pk])
+        self.assertEqual(self.client.get('/api/contracts/', {'search': 'Missing title'}).data['count'], 0)
+        outsider = self.account('search_outsider', 'freelancer')
+        self.assertEqual(self.client.get('/api/contracts/', {'participant_profile': outsider.profile.pk}).data['count'], 0)
+        self.as_user(outsider)
+        self.assertEqual(self.client.get('/api/contracts/', {'participant_profile': self.worker.profile.pk}).data['count'], 0)
+
+    @override_settings(PLATFORM_FEE_PERCENT='5')
+    def test_dashboard_reports_actual_gross_spend_and_net_earnings(self):
+        c = self.contract(amount='15000000')
+        distribute(c, self.customer, Decimal('15000000'), 'Проверка фактического отчёта')
+        self.as_user(self.worker)
+        self.assertEqual(Decimal(self.client.get('/api/dashboard/').data['total_earned']), Decimal('14250000'))
+        self.as_user(self.customer)
+        self.assertEqual(Decimal(self.client.get('/api/dashboard/').data['total_spent']), Decimal('15000000'))
+
+    @override_settings(PLATFORM_FEE_PERCENT='5')
+    def test_explicit_fee_revision_preserves_history_and_requires_new_version_consent(self):
+        from .contract_revisions import revise_unfunded_fee
+        from django.utils import timezone
+        c = self.contract('0', amount='15000000', funded=False)
+        c.customer_signed_at = c.freelancer_signed_at = timezone.now()
+        c.status = Contract.Status.AWAITING_FUNDING
+        c.save()
+        old_terms = c.terms
+        self.admin.is_superuser = True
+        self.admin.save(update_fields=['is_superuser'])
+        c = revise_unfunded_fee(c.pk, self.admin, reason='Исправление ошибочного нулевого тарифа',
+                               expected_version=1, expected_policy=current_policy()['policy_version'])
+        self.assertEqual(c.version, 2)
+        self.assertIsNone(c.customer_signed_at)
+        self.assertIsNone(c.freelancer_signed_at)
+        self.assertEqual(c.status, 'draft')
+        self.assertEqual(c.fee_amount, Decimal('750000'))
+        self.assertEqual(c.events.get(kind='fee_revised').data['previous']['terms'], old_terms)
+        self.assertEqual(c.events.get(kind='fee_revised').data['previous']['fee_percent'], '0.00')
+        self.assertFalse(c.transactions.exists())
+        self.assertFalse(PlatformFee.objects.filter(contract=c).exists())
+        self.as_user(self.customer)
+        for body in [{'accepted': True}, {'accepted': True, 'expected_version': 1}]:
+            self.assertEqual(self.post(f'contracts/{c.pk}/sign', body).status_code, 400)
+        self.assertEqual(self.post(f'contracts/{c.pk}/sign', {'accepted': True, 'expected_version': 2}).status_code, 200)
+        self.as_user(self.worker)
+        self.assertEqual(self.post(f'contracts/{c.pk}/sign', {'accepted': True, 'expected_version': 2}).status_code, 200)
+        c.refresh_from_db()
+        self.assertEqual(c.status, Contract.Status.AWAITING_FUNDING)
+
+    @override_settings(PLATFORM_FEE_PERCENT='5')
+    def test_fee_revision_rejects_unauthorized_and_funded_contracts(self):
+        from .contract_revisions import revise_unfunded_fee
+        from rest_framework.exceptions import PermissionDenied
+        c = self.contract('0', funded=True)
+        args = dict(reason='Исправление ошибочного нулевого тарифа', expected_version=1,
+                    expected_policy=current_policy()['policy_version'])
+        with self.assertRaises(PermissionDenied):
+            revise_unfunded_fee(c.pk, self.customer, **args)
+        self.admin.is_superuser = True
+        self.admin.save(update_fields=['is_superuser'])
+        with self.assertRaises(ValidationError):
+            revise_unfunded_fee(c.pk, self.admin, **args)
+        self.client.force_login(self.admin)
+        result = self.client.get(f'/admin/marketplace/contract/{c.pk}/revise-fee/')
+        self.assertEqual(result.status_code, 200)
+        self.assertContains(result, 'Комиссию можно исправить только до резервирования')
+        self.assertNotContains(result, 'value="Исправить комиссию и запросить подтверждения"')
+
+    @override_settings(PLATFORM_FEE_PERCENT='5')
+    def test_admin_fee_revision_requires_confirmation_and_rejects_repeat(self):
+        c = self.contract('0', amount='15000000', funded=False)
+        self.admin.is_superuser = True
+        self.admin.save(update_fields=['is_superuser'])
+        self.client.force_login(self.admin)
+        url = f'/admin/marketplace/contract/{c.pk}/revise-fee/'
+        preview = self.client.get(url)
+        self.assertContains(preview, '750000')
+        payload = {'version':1,'policy':current_policy()['policy_version'],'reason':'Исправление ошибочного нулевого тарифа'}
+        self.assertEqual(self.client.post(url, payload).status_code, 200)
+        c.refresh_from_db()
+        self.assertEqual(c.version, 1)
+        payload['confirmed'] = 'on'
+        self.assertEqual(self.client.post(url, payload).status_code, 302)
+        c.refresh_from_db()
+        self.assertEqual(c.version, 2)
+        self.assertEqual(c.fee_amount, Decimal('750000'))
+        self.assertEqual(self.client.post(url, payload).status_code, 200)
+        self.assertEqual(c.events.filter(kind='fee_revised').count(), 1)
 
     def test_rate_snapshots_zero_five_eight_and_no_automatic_signing(self):
         for rate, fee in [('0','0.00'),('5','50000.00'),('8','80000.00')]:

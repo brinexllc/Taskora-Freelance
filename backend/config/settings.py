@@ -174,7 +174,8 @@ CLICK_FISCAL_PINFL = os.getenv("CLICK_FISCAL_PINFL", "").strip()
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 # Fee is fixed in each new contract; changing configuration never changes signed terms.
-PLATFORM_FEE_PERCENT = os.getenv("PLATFORM_FEE_PERCENT", "0")
+# Commercial tariff approved by the owner: charged only to the freelancer.
+PLATFORM_FEE_PERCENT = os.getenv("PLATFORM_FEE_PERCENT", "5")
 
 PAYME_MERCHANT_ID = os.getenv("PAYME_MERCHANT_ID", "")
 PAYME_SECRET_KEY = os.getenv("PAYME_SECRET_KEY", "")

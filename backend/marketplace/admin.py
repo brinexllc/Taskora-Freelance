@@ -1,5 +1,5 @@
 from django.contrib import admin, messages
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import APIException, ValidationError
 from .models import Contract, Deliverable, PasswordResetCode, Payment, Profile, Project, Proposal, WalletEntry, Withdrawal
 from .services import process_withdrawal
 from .models import Category, Skill, SkillAlias, CategorySkill, PlatformFee, ContractEvent, Message, Dispute, Review, Notification, AuditLog, ProjectAttachment, ClickFiscalReceipt
@@ -99,6 +99,13 @@ class AuditAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+class FeeCorrectionForm(forms.Form):
+    version = forms.IntegerField(widget=forms.HiddenInput)
+    policy = forms.CharField(widget=forms.HiddenInput)
+    reason = forms.CharField(label='Основание исправления', min_length=10, max_length=1000, widget=forms.Textarea)
+    confirmed = forms.BooleanField(label='Подтверждаю расчёт и сброс прежних подтверждений. Обе стороны должны принять новую версию.')
+
+
 @admin.register(Contract)
 class ContractAdmin(AuditAdmin):
     list_display = ('id', 'project', 'customer', 'freelancer', 'amount', 'fee_percent', 'fee_amount', 'actual_fee_amount', 'actual_net', 'released_amount', 'refunded_amount', 'status')
@@ -109,7 +116,53 @@ class ContractAdmin(AuditAdmin):
     list_filter = ('status',)
     search_fields = ('project__title', 'customer__username', 'freelancer__username')
     def get_readonly_fields(self, request, obj=None):
-        return super().get_readonly_fields(request, obj) + ('related_records',)
+        return super().get_readonly_fields(request, obj) + ('related_records', 'fee_correction')
+
+    def get_urls(self):
+        return [path('<int:pk>/revise-fee/', self.admin_site.admin_view(self.revise_fee),
+                     name='marketplace_contract_revise_fee')] + super().get_urls()
+
+    @admin.display(description='Исправление комиссии')
+    def fee_correction(self, obj):
+        from .contract_revisions import validate_fee_revision
+        try:
+            validate_fee_revision(obj)
+        except ValidationError:
+            return 'Недоступно после финансовых операций или закрытия договора.'
+        return format_html('<a href="{}">Пересчитать и запросить новые подтверждения</a>',
+                           reverse('admin:marketplace_contract_revise_fee', args=[obj.pk]))
+
+    def revise_fee(self, request, pk):
+        from .contract_revisions import revise_unfunded_fee, validate_fee_revision
+        from .fees import current_policy, settlement
+        if not request.user.is_superuser:
+            raise PermissionDenied
+        contract = get_object_or_404(Contract, pk=pk)
+        policy = current_policy()
+        estimate = settlement(contract.amount, contract.amount, policy['freelancer_fee_percent'])
+        form = FeeCorrectionForm(request.POST or None, initial={
+            'version': contract.version, 'policy': policy['policy_version']})
+        allowed = True
+        blocked_reason = ''
+        try:
+            validate_fee_revision(contract)
+        except ValidationError as error:
+            blocked_reason = str(error.detail)
+            allowed = False
+        if request.method == 'POST' and allowed and form.is_valid():
+            try:
+                revise_unfunded_fee(pk, request.user, reason=form.cleaned_data['reason'],
+                                   expected_version=form.cleaned_data['version'],
+                                   expected_policy=form.cleaned_data['policy'])
+            except APIException as error:
+                form.add_error(None, str(error.detail))
+            else:
+                self.message_user(request, 'Комиссия исправлена. Договор ожидает новых подтверждений обеих сторон.', messages.SUCCESS)
+                return redirect('admin:marketplace_contract_change', pk)
+        return TemplateResponse(request, 'admin/marketplace/fee_correction.html', {
+            **self.admin_site.each_context(request), 'title': f'Исправление комиссии договора №{pk}',
+            'opts': self.model._meta, 'contract': contract, 'form': form, 'policy': policy,
+            'estimate': estimate, 'allowed': allowed, 'blocked_reason': blocked_reason})
     @admin.display(description='История и материалы сделки')
     def related_records(self, obj):
         return format_html_join(' | ', '<a href="{}?contract__id__exact={}">{}</a>',

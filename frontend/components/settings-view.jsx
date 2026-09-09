@@ -16,6 +16,11 @@ export function SettingsView() {
     skills: profile.skill_details || [],
     professional_experience: profile.professional_experience || '',
     available: profile.available,
+    professional_title: profile.professional_title || '',
+    location: profile.location || '',
+    portfolio: profile.portfolio || [],
+    services: profile.services || [],
+    spoken_languages: (profile.spoken_languages || []).join('\n'),
     rate: profile.rate,
     rate_unit: profile.rate_unit,
   });
@@ -38,6 +43,10 @@ export function SettingsView() {
         token: session.token,
         body: {
           ...form,
+          spoken_languages: form.spoken_languages
+            .split('\n')
+            .map((value) => value.trim())
+            .filter(Boolean),
           skills: undefined,
           skill_ids: form.skills.map((s) => s.id),
         },
@@ -110,10 +119,32 @@ export function SettingsView() {
             </Field>
             {session.user.role === 'freelancer' && (
               <>
+                <Field label={t('professionalTitle')}>
+                  <input
+                    maxLength={160}
+                    value={form.professional_title}
+                    onChange={change('professional_title')}
+                  />
+                </Field>
+                <Field label={t('location')}>
+                  <input
+                    maxLength={160}
+                    value={form.location}
+                    onChange={change('location')}
+                  />
+                </Field>
                 <SkillPicker
                   value={form.skills}
                   onChange={(skills) => setForm((f) => ({ ...f, skills }))}
                 />
+                <Field label={t('spokenLanguages')}>
+                  <textarea
+                    value={form.spoken_languages}
+                    onChange={change('spoken_languages')}
+                    maxLength={800}
+                    placeholder={t('languagesHint')}
+                  />
+                </Field>
                 <Field label={t('professionalExperience')}>
                   <textarea
                     maxLength={3000}
@@ -152,6 +183,252 @@ export function SettingsView() {
                     </select>
                   </Field>
                 </div>
+                <fieldset id="portfolio" className="showcase-editor">
+                  <legend>{t('portfolio')}</legend>
+                  {form.portfolio.map((item, index) => (
+                    <div className="showcase-editor-item" key={index}>
+                      <Field label={t('itemTitle')}>
+                        <input
+                          required
+                          maxLength={160}
+                          value={item.title}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              portfolio: f.portfolio.map((p, i) =>
+                                i === index
+                                  ? { ...p, title: e.target.value }
+                                  : p,
+                              ),
+                            }))
+                          }
+                        />
+                      </Field>
+                      <Field label={t('category')}>
+                        <input
+                          maxLength={80}
+                          value={item.category}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              portfolio: f.portfolio.map((p, i) =>
+                                i === index
+                                  ? { ...p, category: e.target.value }
+                                  : p,
+                              ),
+                            }))
+                          }
+                        />
+                      </Field>
+                      <Field label={t('description')}>
+                        <textarea
+                          maxLength={1000}
+                          value={item.description}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              portfolio: f.portfolio.map((p, i) =>
+                                i === index
+                                  ? { ...p, description: e.target.value }
+                                  : p,
+                              ),
+                            }))
+                          }
+                        />
+                      </Field>
+                      <Field label={t('projectLink')}>
+                        <input
+                          type="url"
+                          value={item.url}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              portfolio: f.portfolio.map((p, i) =>
+                                i === index ? { ...p, url: e.target.value } : p,
+                              ),
+                            }))
+                          }
+                        />
+                      </Field>
+                      <Field label={t('coverImage')}>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={async (e) => {
+                            try {
+                              const image = await readImage(
+                                e.target.files?.[0],
+                              );
+                              setForm((f) => ({
+                                ...f,
+                                portfolio: f.portfolio.map((p, i) =>
+                                  i === index ? { ...p, image } : p,
+                                ),
+                              }));
+                            } catch (err) {
+                              setError(err.message);
+                            }
+                          }}
+                        />
+                      </Field>
+                      {item.image && (
+                        <Avatar
+                          profile={{
+                            avatar: item.image,
+                            full_name: item.title,
+                          }}
+                        />
+                      )}
+                      <button
+                        type="button"
+                        className="text-link danger"
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            portfolio: f.portfolio.filter(
+                              (_, i) => i !== index,
+                            ),
+                          }))
+                        }
+                      >
+                        {t('removeItem')}
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="t-button secondary"
+                    disabled={form.portfolio.length >= 9}
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        portfolio: [
+                          ...f.portfolio,
+                          {
+                            title: '',
+                            category: '',
+                            description: '',
+                            image: '',
+                            url: '',
+                          },
+                        ],
+                      }))
+                    }
+                  >
+                    + {t('addPortfolio')}
+                  </button>
+                </fieldset>
+                <fieldset id="services" className="showcase-editor">
+                  <legend>{t('services')}</legend>
+                  {form.services.map((item, index) => (
+                    <div className="showcase-editor-item" key={index}>
+                      <Field label={t('itemTitle')}>
+                        <input
+                          required
+                          maxLength={160}
+                          value={item.title}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              services: f.services.map((s, i) =>
+                                i === index
+                                  ? { ...s, title: e.target.value }
+                                  : s,
+                              ),
+                            }))
+                          }
+                        />
+                      </Field>
+                      <Field label={t('description')}>
+                        <textarea
+                          maxLength={1000}
+                          value={item.description}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              services: f.services.map((s, i) =>
+                                i === index
+                                  ? { ...s, description: e.target.value }
+                                  : s,
+                              ),
+                            }))
+                          }
+                        />
+                      </Field>
+                      <Field label={`${t('servicePrice')} (UZS)`}>
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          step="0.01"
+                          value={item.price}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              services: f.services.map((s, i) =>
+                                i === index
+                                  ? { ...s, price: e.target.value }
+                                  : s,
+                              ),
+                            }))
+                          }
+                        />
+                      </Field>
+                      <Field label={t('deliveryDays')}>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          max="365"
+                          value={item.delivery_days}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              services: f.services.map((s, i) =>
+                                i === index
+                                  ? { ...s, delivery_days: e.target.value }
+                                  : s,
+                              ),
+                            }))
+                          }
+                        />
+                      </Field>
+                      <button
+                        type="button"
+                        className="text-link danger"
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            services: f.services.filter((_, i) => i !== index),
+                          }))
+                        }
+                      >
+                        {t('removeItem')}
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="t-button secondary"
+                    disabled={form.services.length >= 6}
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        services: [
+                          ...f.services,
+                          {
+                            title: '',
+                            description: '',
+                            price: '',
+                            delivery_days: 7,
+                          },
+                        ],
+                      }))
+                    }
+                  >
+                    + {t('addService')}
+                  </button>
+                </fieldset>
               </>
             )}
             <button className="t-button" disabled={busy}>
