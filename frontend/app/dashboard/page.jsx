@@ -1,12 +1,14 @@
 'use client';
 import Link from 'next/link';
-import { BriefcaseBusiness, FileCheck2, Wallet } from 'lucide-react';
+import { Activity, CircleCheck, FileText, Wallet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/components/app-providers';
 import {
   Empty,
+  Avatar,
   Notice,
   Pager,
+  ProjectProgress,
   ProjectCard,
   RemoteState,
   Status,
@@ -20,14 +22,13 @@ import {
 import { WalletView } from '@/components/wallet-view';
 import { SettingsView } from '@/components/settings-view';
 import { ProfileShowcase } from '@/components/profile-showcase';
-import { EliteDashboard } from '@/components/elite-dashboard';
 import { OrdersList } from '@/app/projects/page';
 import { apiRequest } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
-import { date, money } from '@/lib/i18n';
+import { conversationTime, date, money } from '@/lib/i18n';
 
 export default function DashboardPage() {
-  const { t, session, ready, theme } = useApp();
+  const { t, session, ready } = useApp();
   const search = useSearchParams();
   const view = search.get('view') || 'home';
   if (!ready || !session?.user || !session.user.role)
@@ -38,7 +39,7 @@ export default function DashboardPage() {
     );
   return (
     <WorkspaceFrame activeView={view}>
-      {['orders', 'contracts', 'proposals'].includes(view) && (
+      {['contracts', 'proposals'].includes(view) && (
         <nav className="workspace-order-tabs" aria-label={t('orders')}>
           {['orders', 'contracts', 'proposals'].map((key) => (
             <Link
@@ -67,9 +68,7 @@ export default function DashboardPage() {
         <>
           <div className="page-heading">
             <div>
-              <h1>
-                {t(session.user.role === 'client' ? 'myOrders' : 'orders')}
-              </h1>
+              <h1>{t('myOrders')}</h1>
               <p className="dashboard-subtitle">{t('ordersSubtitle')}</p>
             </div>
             {session.user.role === 'client' ? (
@@ -85,12 +84,13 @@ export default function DashboardPage() {
               </Link>
             )}
           </div>
-          <OrdersList mine={session.user.role === 'client'} />
+          <OrdersList
+            mine={session.user.role === 'client'}
+            assigned={session.user.role === 'freelancer'}
+          />
         </>
       ) : view === 'profile' ? (
         <ProfileShowcase profile={session.user.profile} />
-      ) : theme === 'dark' ? (
-        <EliteDashboard />
       ) : (
         <>
           <div className="page-heading">
@@ -146,13 +146,13 @@ function Stats() {
   const { t, language, session } = useApp();
   const remote = useRemote('dashboard', { token: session.token });
   const primary = [
-    ['active_orders', 'activeOrders', 'orders', BriefcaseBusiness],
-    ['active_contracts', 'activeContracts', 'contracts', FileCheck2],
+    ['active_orders', 'activeOrders', 'orders', FileText],
+    ['active_contracts', 'activeContracts', 'contracts', Activity],
     [
       'completed_orders',
       'completedOrders',
       'contracts&status=completed',
-      FileCheck2,
+      CircleCheck,
     ],
     ['balance', 'wallet', 'wallet', Wallet],
   ];
@@ -194,10 +194,10 @@ function Stats() {
 }
 
 function RecentMessages() {
-  const { t, session } = useApp();
+  const { t, session, language } = useApp();
   const remote = useRemote('contracts', {
     token: session.token,
-    query: { page_size: 2 },
+    query: { page_size: 2, conversation: 1 },
   });
   return (
     <section className="dashboard-recent-messages">
@@ -211,20 +211,33 @@ function RecentMessages() {
         {remote.data?.results.length ? (
           remote.data.results.map((c) => (
             <Link key={c.id} href={`/dashboard?view=messages&contract=${c.id}`}>
-              <span className="conversation-avatar">
-                {(c.customer === session.user.id
-                  ? c.freelancer_name
-                  : c.customer_name
-                )?.slice(0, 1)}
-              </span>
+              <Avatar
+                profile={{
+                  full_name:
+                    c.customer === session.user.id
+                      ? c.freelancer_name
+                      : c.customer_name,
+                  avatar:
+                    c.customer === session.user.id
+                      ? c.freelancer_avatar
+                      : c.customer_avatar,
+                }}
+              />
               <span className="conversation-copy">
                 <strong>
                   {c.customer === session.user.id
                     ? c.freelancer_name
                     : c.customer_name}
                 </strong>
-                <span>{c.project_title}</span>
+                <span>
+                  {c.last_message_text ||
+                    c.last_message_filename ||
+                    c.project_title}
+                </span>
               </span>
+              <time className="conversation-time">
+                {conversationTime(c.last_message_at, language)}
+              </time>
             </Link>
           ))
         ) : (
@@ -250,12 +263,16 @@ function ContractList({ compact = false }) {
   }, []);
   const remote = useRemote('contracts', {
     token: session.token,
-    query: { page, status: filter },
+    query: {
+      page,
+      status: compact ? 'active' : filter,
+      page_size: compact ? 1 : undefined,
+    },
   });
   return (
     <section className="contract-list">
       <div className="page-heading">
-        <h2>{t('contracts')}</h2>
+        <h2>{t(compact ? 'activeOrders' : 'contracts')}</h2>
         {compact && (
           <Link className="text-link" href="/dashboard?view=contracts">
             {t('all')} →
@@ -296,6 +313,7 @@ function ContractList({ compact = false }) {
                     <Status value={contract.status} />
                   </div>
                   <h3>{contract.project_title}</h3>
+                  {compact && <ProjectProgress status={contract.status} />}
                   <p className="muted">
                     {contract.customer_name} · {contract.freelancer_name}
                   </p>
@@ -391,7 +409,7 @@ function RecommendedOrders() {
   return (
     <section className="dashboard-recommended">
       <div className="page-heading">
-        <h2>{t('latestOrders')}</h2>
+        <h2>{t('recommendedOrders')}</h2>
         <Link className="text-link" href="/projects">
           {t('all')} →
         </Link>

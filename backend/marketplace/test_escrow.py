@@ -3,11 +3,37 @@ from decimal import Decimal
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Sum
 from django.test import override_settings
+from django.utils import timezone
 from .tests import MarketplaceTests
 from .models import Contract, Dispute, Message, Notification, Profile, Project, Review, WalletEntry
 
 
 class EscrowTests(MarketplaceTests):
+    def test_conversation_preview_and_unread_are_participant_scoped(self):
+        pk = self.signed_contract()
+        Message.objects.create(contract_id=pk, sender=self.customer, text='First question')
+        Message.objects.create(contract_id=pk, sender=self.customer, text='Second question')
+        Message.objects.create(contract_id=pk, sender=self.freelancer, text='Reply')
+        Message.objects.create(contract_id=pk, system=True, text='System event')
+        Message.objects.create(contract_id=pk, sender=self.freelancer, filename='preview.png', read_at=timezone.now())
+        self.as_user(self.customer)
+        data = self.client.get('/api/contracts/?conversation=1&conversation_filter=unread').data['results'][0]
+        self.assertEqual(data['unread_count'], 1)
+        self.assertEqual(data['last_message_filename'], 'preview.png')
+        self.assertEqual(data['last_message_text'], '')
+        self.assertIsNotNone(data['last_message_at'])
+        self.assertEqual(self.post(f'contracts/{pk}/messages/read').status_code, 200)
+        self.assertEqual(self.client.get('/api/contracts/?conversation_filter=unread').data['count'], 0)
+        self.as_user(self.freelancer)
+        self.assertEqual(self.client.get(f'/api/contracts/{pk}/').data['unread_count'], 2)
+        self.assertEqual(self.client.get('/api/contracts/?conversation_filter=clients').data['count'], 1)
+        self.assertEqual(self.client.get('/api/projects/?assigned=1').data['count'], 1)
+        self.assertEqual(self.client.get('/api/projects/?assigned=1&status=completed').data['count'], 0)
+        self.as_user(self.other)
+        self.assertEqual(self.client.get('/api/contracts/?conversation=1').data['count'], 0)
+        self.assertEqual(self.client.get(f'/api/contracts/{pk}/').status_code, 404)
+        self.assertEqual(self.client.get('/api/projects/?assigned=1').data['count'], 0)
+
     def signed_contract(self):
         pk = self.contract()
         for user in [self.customer, self.freelancer]:

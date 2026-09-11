@@ -1,5 +1,7 @@
 # Интерфейс и комиссия: уточнение владельца
 
+> Историческая запись. Выбор визуальной ветки ниже отменён новым запросом и архивом исключений от 12.09.2026. Актуальный дизайн описан в [design-rebuild.md](design-rebuild.md). Условия комиссии эта замена дизайна не изменяет.
+
 Владелец подтвердил 5% с фрилансера, 0% с заказчика и выбрал тёмную ветку Figma с фиолетовыми акцентами: `Mijoz`, `Frilanser`, `Taskora - Premium Freelance Marketplace`. Источник: [Startup dizayn](https://www.figma.com/design/yNkx3NWsQEradXkliwP4jZ/Startup-dizayn?node-id=0-1).
 
 ## Комиссия

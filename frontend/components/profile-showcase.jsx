@@ -23,7 +23,7 @@ import {
 import { date, money } from '@/lib/i18n';
 
 export function ProfileShowcase({ profile }) {
-  const { t, language, session, theme } = useApp();
+  const { t, language, session } = useApp();
   const own = session?.user?.profile?.id === profile.id;
   const freelancer = profile.role === 'freelancer';
   const [page, setPage] = useState(1);
@@ -32,6 +32,7 @@ export function ProfileShowcase({ profile }) {
     { query: { page } },
   );
   const [selectedWork, setSelectedWork] = useState(null);
+  const [allWorks, setAllWorks] = useState(false);
   const [contactNotice, setContactNotice] = useState(false);
   const contracts = useRemote(!own && session?.token ? 'contracts' : null, {
     token: session?.token,
@@ -55,9 +56,7 @@ export function ProfileShowcase({ profile }) {
     else dialog.current?.close();
   }, [selectedWork]);
   return (
-    <div
-      className={`profile-showcase ${theme === 'dark' ? 'elite-profile' : ''}`}
-    >
+    <div className="profile-showcase">
       <section className="showcase-header">
         <div className="showcase-identity">
           <div className="showcase-avatar">
@@ -85,6 +84,17 @@ export function ProfileShowcase({ profile }) {
                 t(profile.role)}
             </strong>
             <p className="showcase-about">{profile.about || t('noAbout')}</p>
+            {freelancer && Number(profile.rate) > 0 && (
+              <p className="showcase-rate">
+                {money(profile.rate, language)} / {t(profile.rate_unit)}
+              </p>
+            )}
+            {profile.spoken_languages?.length > 0 && (
+              <p className="showcase-languages">
+                <strong>{t('spokenLanguages')}:</strong>{' '}
+                {profile.spoken_languages.join(' · ')}
+              </p>
+            )}
           </div>
         </div>
         <div className="showcase-actions">
@@ -110,74 +120,6 @@ export function ProfileShowcase({ profile }) {
         </div>
       </section>
       <Notice>{contactNotice && t('chatAfterContract')}</Notice>
-      {theme === 'dark' && (
-        <div className="elite-profile-columns">
-          <div>
-            <section className="elite-profile-about">
-              <h2>{t('about')}</h2>
-              <p className="preserve-lines">{profile.about || t('noAbout')}</p>
-              {profile.professional_experience && (
-                <p className="preserve-lines">
-                  {profile.professional_experience}
-                </p>
-              )}
-            </section>
-            {freelancer && (
-              <section className="elite-profile-skills">
-                <h2>{t('skills')}</h2>
-                <div className="skill-tags">
-                  {profile.skill_details?.length ? (
-                    profile.skill_details.map((s) => (
-                      <span key={s.id}>{s.label}</span>
-                    ))
-                  ) : (
-                    <p>{t('empty')}</p>
-                  )}
-                </div>
-              </section>
-            )}
-          </div>
-          {freelancer && (
-            <aside>
-              <section className="elite-profile-metrics">
-                <div>
-                  <span>{t('completedOrders')}</span>
-                  <strong>{profile.completed_projects || 0}</strong>
-                </div>
-                <div>
-                  <span>{t('onTimeProjects')}</span>
-                  <strong>
-                    {profile.on_time_percent == null
-                      ? '—'
-                      : `${profile.on_time_percent}%`}
-                  </strong>
-                </div>
-                {profile.rating != null && (
-                  <div>
-                    <span>{t('rating')}</span>
-                    <strong>★ {profile.rating.toFixed(1)}</strong>
-                  </div>
-                )}
-              </section>
-              <section className="elite-profile-rate">
-                <span>{t('rate')}</span>
-                <strong>{money(profile.rate, language)}</strong>
-                <small>/ {t(profile.rate_unit)}</small>
-              </section>
-              <section className="elite-profile-languages">
-                <h2>{t('spokenLanguages')}</h2>
-                {profile.spoken_languages?.length ? (
-                  profile.spoken_languages.map((value) => (
-                    <p key={value}>{value}</p>
-                  ))
-                ) : (
-                  <p>{t('empty')}</p>
-                )}
-              </section>
-            </aside>
-          )}
-        </div>
-      )}
       {freelancer && (
         <>
           <div className="showcase-stats">
@@ -220,13 +162,12 @@ export function ProfileShowcase({ profile }) {
               )}
             </div>
           </section>
-          <section
-            className="showcase-portfolio"
-            hidden={theme === 'dark' && !profile.portfolio?.length}
-          >
+          <section className="showcase-portfolio">
             <h2>{t('portfolio')}</h2>
             {profile.portfolio?.length ? (
-              <div className="showcase-portfolio-grid">
+              <div
+                className={`showcase-portfolio-grid${allWorks ? ' show-all' : ''}`}
+              >
                 {profile.portfolio.map((item, index) => (
                   <article key={`${item.title}-${index}`}>
                     <button
@@ -253,6 +194,12 @@ export function ProfileShowcase({ profile }) {
                       </button>
                     </h3>
                     {item.description && <p>{item.description}</p>}
+                    <button
+                      className="portfolio-view-link"
+                      onClick={() => setSelectedWork(item)}
+                    >
+                      {t('details')} →
+                    </button>
                   </article>
                 ))}
               </div>
@@ -269,11 +216,16 @@ export function ProfileShowcase({ profile }) {
                 )}
               </div>
             )}
+            {profile.portfolio?.length > 4 && !allWorks && (
+              <button
+                className="t-button secondary portfolio-show-all"
+                onClick={() => setAllWorks(true)}
+              >
+                {t('viewAll')} →
+              </button>
+            )}
           </section>
-          <section
-            className="showcase-services"
-            hidden={theme === 'dark' && !profile.services?.length}
-          >
+          <section className="showcase-services">
             <h2>{t('services')}</h2>
             {profile.services?.length ? (
               <div className="showcase-services-grid">
@@ -311,10 +263,7 @@ export function ProfileShowcase({ profile }) {
               </div>
             )}
           </section>
-          <section
-            className="showcase-achievements"
-            hidden={theme === 'dark' && !profile.verified_skills?.length}
-          >
+          <section className="showcase-achievements">
             <h2>{t('achievements')}</h2>
             <div className="achievement-grid">
               {profile.verified_skills?.length ? (
@@ -332,10 +281,7 @@ export function ProfileShowcase({ profile }) {
               )}
             </div>
           </section>
-          <section
-            className="showcase-reviews"
-            hidden={theme === 'dark' && !profile.review_count}
-          >
+          <section className="showcase-reviews">
             <h2>{t('customerReviews')}</h2>
             <RemoteState remote={reviews}>
               {reviews.data?.results.length ? (
@@ -362,7 +308,7 @@ export function ProfileShowcase({ profile }) {
           </section>
         </>
       )}
-      {theme !== 'dark' && profile.professional_experience && (
+      {profile.professional_experience && (
         <section>
           <h2>{t('professionalExperience')}</h2>
           <p className="preserve-lines">{profile.professional_experience}</p>

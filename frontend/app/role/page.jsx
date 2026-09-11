@@ -23,7 +23,7 @@ export default function RolePage() {
     }
   }
   return (
-    <AuthShell wide>
+    <AuthShell wide variant="role">
       <h1>{t('chooseRole')}</h1>
       <p className="auth-subtitle">{t('roleHint')}</p>
       <div className="role-grid">

@@ -10,6 +10,7 @@ import { useApp } from '@/components/app-providers';
 import { login } from '@/lib/api';
 export default function LoginPage() {
   const { t, setSession, ready } = useApp();
+  const [remember, setRemember] = useState(true);
   const [identifier, setIdentifier] = useState(''),
     [password, setPassword] = useState(''),
     [error, setError] = useState(''),
@@ -20,7 +21,7 @@ export default function LoginPage() {
     setError('');
     try {
       const data = await login({ identifier, password });
-      setSession(data);
+      setSession(data, { remember });
       window.location.assign(data.user.role ? '/dashboard' : '/role');
     } catch (err) {
       setError(err.message);
@@ -29,7 +30,7 @@ export default function LoginPage() {
     }
   }
   return (
-    <AuthShell>
+    <AuthShell variant="login">
       <h1>{t('welcome')}</h1>
       <p className="auth-subtitle">{t('login')}</p>
       <form onSubmit={submit} className="auth-form">
@@ -49,9 +50,19 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </label>
-        <Link className="text-link" href="/reset-password">
-          {t('forgot')}
-        </Link>
+        <div className="login-options">
+          <label className="remember-me">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(event) => setRemember(event.target.checked)}
+            />
+            {t('rememberMe')}
+          </label>
+          <Link className="text-link" href="/reset-password">
+            {t('forgot')}
+          </Link>
+        </div>
         {error && (
           <p className="auth-error" role="alert">
             {error}

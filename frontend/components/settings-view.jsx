@@ -1,14 +1,23 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useApp } from '@/components/app-providers';
-import { apiRequest, setRole } from '@/lib/api';
+import { apiRequest, logout, setRole } from '@/lib/api';
 import { Avatar, Field, Notice, readImage } from '@/components/taskora-ui';
 import { SkillPicker } from '@/components/project-editor';
 import { PasswordChange } from '@/components/password-change';
 import { languages } from '@/lib/i18n';
 export function SettingsView() {
-  const { t, session, updateUser, language, setLanguage, theme, setTheme } =
-    useApp();
+  const {
+    t,
+    session,
+    clearSession,
+    updateUser,
+    language,
+    setLanguage,
+    theme,
+    setTheme,
+  } = useApp();
   const profile = session.user.profile;
   const [form, setForm] = useState({
     about: profile.about,
@@ -76,6 +85,12 @@ export function SettingsView() {
   return (
     <>
       <h1>{t('settings')}</h1>
+      <Link
+        className="text-link verification-settings-link"
+        href="/verification"
+      >
+        {t('verification')} · ONEID / MYID →
+      </Link>
       <Notice error>{error}</Notice>
       <Notice>{notice}</Notice>
       <div className="two-columns">
@@ -478,6 +493,23 @@ export function SettingsView() {
               </select>
             </Field>
           </section>
+          <button
+            className="t-button secondary"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await logout(session.token);
+                clearSession();
+                window.location.assign('/login');
+              } catch (err) {
+                setError(err.message);
+                setBusy(false);
+              }
+            }}
+          >
+            {t('logout')}
+          </button>
         </div>
       </div>
     </>

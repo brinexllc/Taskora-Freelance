@@ -13,7 +13,7 @@ const validLanguage = (value) => languages.some(([key]) => key === value);
 
 export function AppProviders({ children }) {
   const [language, setLanguageState] = useState('ru');
-  const [theme, setThemeState] = useState('dark');
+  const [theme, setThemeState] = useState('light');
   const [session, setSessionState] = useState(null);
   const [ready, setReady] = useState(false);
   const [connectionError, setConnectionError] = useState('');
@@ -24,11 +24,14 @@ export function AppProviders({ children }) {
   }, []);
   const clearSession = useCallback(() => {
     localStorage.removeItem('taskora-token');
+    sessionStorage.removeItem('taskora-token');
     localStorage.removeItem('taskora-user');
     setSessionState(null);
   }, []);
   const refreshSession = useCallback(async () => {
-    const token = localStorage.getItem('taskora-token');
+    const token =
+      localStorage.getItem('taskora-token') ||
+      sessionStorage.getItem('taskora-token');
     if (!token) {
       setReady(true);
       return;
@@ -38,7 +41,7 @@ export function AppProviders({ children }) {
       const user = await getCurrentUser(token);
       setSessionState({ token, user });
       if (validLanguage(user.language)) setLanguageState(user.language);
-      setThemeState(user.theme || 'dark');
+      setThemeState(user.theme || 'light');
     } catch (error) {
       if (error.status === 401) clearSession();
       else setConnectionError(error.message);
@@ -124,8 +127,12 @@ export function AppProviders({ children }) {
     document.addEventListener('click', navigate, true);
     return () => document.removeEventListener('click', navigate, true);
   }, []);
-  const setSession = useCallback(({ token, user }) => {
-    localStorage.setItem('taskora-token', token);
+  const setSession = useCallback(({ token, user }, options = {}) => {
+    const remember =
+      options.remember ?? !sessionStorage.getItem('taskora-token');
+    localStorage.removeItem('taskora-token');
+    sessionStorage.removeItem('taskora-token');
+    (remember ? localStorage : sessionStorage).setItem('taskora-token', token);
     localStorage.removeItem('taskora-user');
     setSessionState({ token, user });
     if (validLanguage(user.language)) setLanguageState(user.language);

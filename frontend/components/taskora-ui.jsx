@@ -3,7 +3,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   ArrowRight,
+  ArrowLeft,
   FileText,
+  Clock3,
   Menu,
   Moon,
   Sun,
@@ -17,8 +19,6 @@ import {
   Settings,
   Plus,
   LogOut,
-  Search,
-  CircleHelp,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/components/app-providers';
@@ -63,37 +63,38 @@ export function useRemote(path, { token, query } = {}) {
   const reload = useCallback(() => setVersion((v) => v + 1), []);
   return { data, error, loading, reload };
 }
-export function Logo({ stacked = false }) {
+export function Logo({ stacked = false, symbol = false }) {
   return (
     <Link
       href="/"
-      className={`t-logo${stacked ? ' t-logo-stacked' : ''}`}
+      className={`t-logo${stacked ? ' t-logo-stacked' : ''}${symbol ? ' t-logo-symbol' : ''}`}
       aria-label="Taskora"
     >
-      <svg className="taskora-mark" viewBox="0 0 100 104" aria-hidden="true">
-        <g fill="currentColor">
-          <circle cx="50" cy="35" r="13" />
-          <circle cx="20" cy="35" r="10.5" />
-          <circle cx="80" cy="35" r="10.5" />
-          <circle cx="50" cy="64" r="13" />
-          <circle cx="50" cy="94" r="10.5" />
-        </g>
-        <g fill="#3faaa5">
-          <circle cx="34" cy="15" r="6" />
-          <circle cx="50" cy="8" r="3.5" />
-          <circle cx="66" cy="15" r="6" />
-          <circle cx="9" cy="58" r="6" />
-          <circle cx="27" cy="64" r="6" />
-          <circle cx="12" cy="75" r="3.5" />
-          <circle cx="25" cy="87" r="6" />
-          <circle cx="75" cy="87" r="6" />
-          <circle cx="88" cy="75" r="3.5" />
-          <circle cx="73" cy="64" r="6" />
-          <circle cx="91" cy="58" r="6" />
-        </g>
-      </svg>
-      <strong>Taskora</strong>
-      {stacked && <small>Work with Confidence</small>}
+      {stacked ? (
+        <span className="brand-lockup" aria-hidden="true">
+          <Image
+            unoptimized
+            className="brand-color"
+            src="/brand/taskora-color.png"
+            alt=""
+            width={4096}
+            height={2320}
+          />
+          <Image
+            unoptimized
+            className="brand-white"
+            src="/brand/taskora-white.png"
+            alt=""
+            width={4096}
+            height={2320}
+          />
+        </span>
+      ) : (
+        <>
+          <span className="brand-symbol" aria-hidden="true" />
+          {!symbol && <strong>Taskora</strong>}
+        </>
+      )}
     </Link>
   );
 }
@@ -171,10 +172,24 @@ export function Header({ landing = false }) {
     </header>
   );
 }
-export function PageShell({ children, publicView = false }) {
+export function PageShell({
+  children,
+  publicView = false,
+  mobileTitle,
+  mobileStatus,
+  backHref,
+}) {
   const { session, t } = useApp();
   if (session?.user?.role && !publicView)
-    return <WorkspaceFrame>{children}</WorkspaceFrame>;
+    return (
+      <WorkspaceFrame
+        mobileTitle={mobileTitle}
+        mobileStatus={mobileStatus}
+        backHref={backHref}
+      >
+        {children}
+      </WorkspaceFrame>
+    );
   return (
     <div className="taskora-app">
       <Header />
@@ -199,7 +214,13 @@ export function PageShell({ children, publicView = false }) {
     </div>
   );
 }
-export function WorkspaceFrame({ children, activeView }) {
+export function WorkspaceFrame({
+  children,
+  activeView,
+  mobileTitle,
+  mobileStatus,
+  backHref,
+}) {
   const { t, session, clearSession, theme, setTheme } = useApp();
   const pathname = usePathname();
   const search = useSearchParams();
@@ -215,27 +236,15 @@ export function WorkspaceFrame({ children, activeView }) {
         ? 'profile'
         : 'orders');
   const orderView = ['orders', 'contracts', 'proposals'].includes(view);
-  const selected = orderView
-    ? theme === 'dark' && session?.user?.role === 'client'
-      ? 'home'
-      : 'orders'
-    : view;
-  const nav =
-    theme === 'dark' && session?.user?.role === 'client'
-      ? [
-          [BriefcaseBusiness, 'home'],
-          [MessageSquare, 'messages'],
-          [Wallet, 'wallet'],
-          [Settings, 'settings'],
-        ]
-      : [
-          [LayoutDashboard, 'home'],
-          [UserRound, 'profile'],
-          [BriefcaseBusiness, 'orders'],
-          [MessageSquare, 'messages'],
-          [Wallet, 'wallet'],
-          [Settings, 'settings'],
-        ];
+  const selected = orderView ? 'orders' : view;
+  const nav = [
+    [LayoutDashboard, 'home'],
+    [UserRound, 'profile'],
+    [BriefcaseBusiness, 'orders'],
+    [MessageSquare, 'messages'],
+    [Wallet, 'wallet'],
+    [Settings, 'settings'],
+  ];
   const createUrl =
     session?.user?.role === 'client' ? '/projects/new' : '/projects';
   async function signOut() {
@@ -248,13 +257,10 @@ export function WorkspaceFrame({ children, activeView }) {
     }
   }
   return (
-    <div
-      className={`taskora-app workspace figma-workspace ${theme === 'dark' ? 'elite-workspace' : ''}`}
-    >
+    <div className="taskora-app workspace figma-workspace">
       <aside className="workspace-sidebar">
         <div className="workspace-wordmark">
           <Logo />
-          <small>ELITE MARKETPLACE</small>
         </div>
         <nav aria-label={t('dashboard')}>
           {nav.map(([Icon, key]) => (
@@ -264,16 +270,7 @@ export function WorkspaceFrame({ children, activeView }) {
               className={selected === key ? 'active' : ''}
               aria-current={selected === key ? 'page' : undefined}
             >
-              <Icon size={20} />{' '}
-              <span>
-                {t(
-                  theme === 'dark' &&
-                    session?.user?.role === 'client' &&
-                    key === 'home'
-                    ? 'orders'
-                    : key,
-                )}
-              </span>
+              <Icon size={20} /> <span>{t(key)}</span>
               {key === 'messages' && stats.data?.unread_messages > 0 && (
                 <b className="nav-count">{stats.data.unread_messages}</b>
               )}
@@ -306,66 +303,42 @@ export function WorkspaceFrame({ children, activeView }) {
             </button>
           </div>
         </details>
-        <Link className="t-button sidebar-create" href={createUrl}>
-          {t(session?.user?.role === 'client' ? 'createOrder' : 'browseOrders')}
-        </Link>
       </aside>
       <div className="workspace-body">
-        <header className="elite-topbar">
-          <form action="/projects">
-            <Search size={17} />
-            <input
-              name="search"
-              type="search"
-              aria-label={t('search')}
-              placeholder={t('searchProjects')}
-            />
-          </form>
-          <div>
-            <Link
-              href="/dashboard?view=notifications"
-              aria-label={t('notifications')}
-            >
-              <Bell size={19} />
-            </Link>
-            <Link href="/terms" aria-label={t('termsLink')}>
-              <CircleHelp size={19} />
-            </Link>
-            <Link href="/dashboard?view=profile" aria-label={t('profile')}>
-              <Avatar profile={session?.user?.profile || {}} />
-            </Link>
-          </div>
-        </header>
         <header className="workspace-mobile-header">
-          <Logo />
-          <div className="actions">
-            <Link
-              href="/dashboard?view=notifications"
-              aria-label={t('notifications')}
-            >
-              <Bell size={20} />
-              {stats.data?.unread_notifications > 0 && (
-                <span className="notification-dot" />
-              )}
-            </Link>
-            <Link href="/dashboard?view=settings" aria-label={t('settings')}>
-              <Avatar profile={session?.user?.profile || {}} />
-            </Link>
-          </div>
+          {mobileTitle || view === 'profile' ? (
+            <div className="mobile-page-title">
+              <Link href={backHref || '/dashboard'} aria-label={t('back')}>
+                <ArrowLeft size={22} />
+              </Link>
+              <strong>{mobileTitle || t('profile')}</strong>
+            </div>
+          ) : (
+            <Logo symbol />
+          )}
+          {mobileStatus ? (
+            <Status value={mobileStatus} />
+          ) : (
+            <div className="actions">
+              <Link
+                href="/dashboard?view=notifications"
+                aria-label={t('notifications')}
+              >
+                <Bell size={20} />
+                {stats.data?.unread_notifications > 0 && (
+                  <span className="notification-dot" />
+                )}
+              </Link>
+              <Link href="/dashboard?view=settings" aria-label={t('settings')}>
+                <Avatar profile={session?.user?.profile || {}} />
+              </Link>
+            </div>
+          )}
         </header>
         <main className={`workspace-main workspace-view-${view}`}>
           <Notice error>{error}</Notice>
           {children}
         </main>
-        <footer className="elite-workspace-footer">
-          <span>
-            © {new Date().getFullYear()} TASKORA. {t('rights')}
-          </span>
-          <div>
-            <Link href="/terms">{t('termsLink')}</Link>
-            <Link href="/privacy">{t('privacyLink')}</Link>
-          </div>
-        </footer>
       </div>
       <nav className="workspace-bottom-nav" aria-label={t('dashboard')}>
         {[
@@ -449,6 +422,38 @@ export function Status({ value, label }) {
     </span>
   );
 }
+export function ProjectProgress({ status }) {
+  const { t } = useApp();
+  const stages = ['contracting', 'in_progress', 'review', 'completed'];
+  const index = stages.indexOf(
+    status === 'active'
+      ? 'in_progress'
+      : status === 'submitted'
+        ? 'review'
+        : status,
+  );
+  if (index < 0) return null;
+  return (
+    <div className="project-progress">
+      <div>
+        <span>{t('projectStages')}</span>
+        <Status value={status} />
+      </div>
+      <ol aria-label={t('projectStages')}>
+        {stages.map((stage, i) => (
+          <li
+            key={stage}
+            className={i <= index ? 'done' : ''}
+            title={t(stage)}
+            aria-current={i === index ? 'step' : undefined}
+          >
+            <span className="sr-only">{t(stage)}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
 export function Avatar({ profile, large = false }) {
   const name = profile?.full_name || '';
   return profile?.avatar ? (
@@ -456,12 +461,15 @@ export function Avatar({ profile, large = false }) {
       width={large ? 94 : 48}
       height={large ? 94 : 48}
       unoptimized
-      className={`t-avatar ${large ? 'large' : ''}`}
+      className={`t-avatar avatar ${large ? 'large avatar-large' : ''}`}
       src={profile.avatar}
       alt={name}
     />
   ) : (
-    <span className={`t-avatar ${large ? 'large' : ''}`} aria-label={name}>
+    <span
+      className={`t-avatar avatar ${large ? 'large avatar-large' : ''}`}
+      aria-label={name}
+    >
       {name
         .split(' ')
         .filter(Boolean)
@@ -516,6 +524,7 @@ export function ProjectCard({ project, compact = false }) {
         <span className="eyebrow">{project.category_label}</span>
         {compact && project.deadline ? (
           <span className="compact-deadline">
+            <Clock3 size={14} />
             {date(project.deadline, language)}
           </span>
         ) : (
@@ -538,8 +547,9 @@ export function ProjectCard({ project, compact = false }) {
         <div>
           {compact && <span className="budget-label">{t('budget')}</span>}
           <strong>
-            {money(project.budget_min, language)} –{' '}
-            {money(project.budget_max, language)}
+            {money(project.budget_min, language)}
+            {project.budget_min !== project.budget_max &&
+              ` – ${money(project.budget_max, language)}`}
           </strong>
           <small>
             {project.client_name} · {t('proposals')}: {project.proposal_count}

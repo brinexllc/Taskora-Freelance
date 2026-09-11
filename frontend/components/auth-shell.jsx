@@ -1,18 +1,14 @@
 'use client';
 import Link from 'next/link';
-import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
-import { Logo } from '@/components/taskora-ui';
 import { languages } from '@/lib/i18n';
 
-export function AuthShell({ children, wide = false }) {
+export function AuthShell({ children, wide = false, variant = '' }) {
   const { language, setLanguage } = useApp();
   return (
-    <main className="auth-page">
-      <div className="auth-brand">
-        <Logo />
-      </div>
+    <main className={`auth-page auth-page-${variant}`}>
       <div className="auth-language" aria-label="Language">
         {languages.map(([key, label]) => (
           <button
@@ -63,9 +59,18 @@ export function PasswordInput({
 export function OneIdDisabled() {
   const { t } = useApp();
   return (
-    <button type="button" className="oneid-disabled" disabled>
-      <ShieldCheck size={18} />
-      {t('oneid')}
+    <button
+      type="button"
+      className="oneid-disabled"
+      disabled
+      title={t('oneid')}
+    >
+      <span className="oneid-brand" aria-hidden="true">
+        ONE
+        <br />
+        ID
+      </span>
+      {t('oneIdSignIn')}
     </button>
   );
 }

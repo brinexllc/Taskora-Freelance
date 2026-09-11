@@ -1,7 +1,7 @@
 import { Inter, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import './figma.css';
-import './elite.css';
+import './design-system.css';
 import { AppProviders } from '@/components/app-providers';
 
 const geistSans = Inter({

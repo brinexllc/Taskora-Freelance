@@ -128,7 +128,7 @@ class Profile(models.Model):
     rate = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     rate_unit = models.CharField(max_length=8, choices=[("hour", "За час"), ("day", "За день")], default="hour")
     language = models.CharField(max_length=8, choices=[("ru", "Русский"), ("uz", "O‘zbekcha"), ("uz-cyrl", "Ўзбекча"), ("en", "English")], default="ru")
-    theme = models.CharField(max_length=8, choices=[("light", "Светлая"), ("dark", "Тёмная")], default="dark")
+    theme = models.CharField(max_length=8, choices=[("light", "Светлая"), ("dark", "Тёмная")], default="light")
     balance = models.DecimalField(max_digits=16, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 

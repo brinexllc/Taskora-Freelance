@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   MessageSquare,
@@ -10,11 +10,16 @@ import {
   Star,
   ArrowLeft,
   Search,
+  Smile,
+  Phone,
+  Video,
+  MoreVertical,
 } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
 import { apiRequest, downloadFile } from '@/lib/api';
 import {
   Empty,
+  Avatar,
   Field,
   Notice,
   Pager,
@@ -22,7 +27,7 @@ import {
   Status,
   useRemote,
 } from '@/components/taskora-ui';
-import { date, dateTime, money } from '@/lib/i18n';
+import { conversationTime, date, dateTime, money } from '@/lib/i18n';
 
 export function ContractWorkspace({ contract, act, busy }) {
   const { t, language, session } = useApp();
@@ -259,11 +264,13 @@ export function ContractWorkspace({ contract, act, busy }) {
   );
 }
 
-export function Chat({ contract, onBack }) {
+export function Chat({ contract, onBack, onMessagesChanged }) {
   const { t, session, language } = useApp();
   const [page, setPage] = useState(1);
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [unreadStart, setUnreadStart] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const remote = useRemote(`contracts/${contract.id}/messages`, {
@@ -282,12 +289,29 @@ export function Chat({ contract, onBack }) {
       remote.data?.results.some(
         (m) => !m.read_at && !m.system && m.sender !== session.user.id,
       )
-    )
+    ) {
+      const firstUnread = remote.data.results.find(
+        (m) => !m.read_at && !m.system && m.sender !== session.user.id,
+      )?.id;
       apiRequest(`contracts/${contract.id}/messages/read`, {
         method: 'POST',
         token: session.token,
-      }).catch((e) => setError(e.message));
-  }, [remote.data, contract.id, session.token, session.user.id]);
+      })
+        .then(() => {
+          setUnreadStart((current) => current ?? firstUnread);
+          reloadMessages();
+          onMessagesChanged?.();
+        })
+        .catch((e) => setError(e.message));
+    }
+  }, [
+    remote.data,
+    contract.id,
+    session.token,
+    session.user.id,
+    reloadMessages,
+    onMessagesChanged,
+  ]);
   async function send(e) {
     e.preventDefault();
     setBusy(true);
@@ -305,6 +329,7 @@ export function Chat({ contract, onBack }) {
       setFile(null);
       e.target.reset();
       remote.reload();
+      onMessagesChanged?.();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -324,12 +349,18 @@ export function Chat({ contract, onBack }) {
               <ArrowLeft size={20} />
             </button>
           )}
-          <span className="conversation-avatar">
-            {(contract.customer === session.user.id
-              ? contract.freelancer_name
-              : contract.customer_name
-            )?.slice(0, 1)}
-          </span>
+          <Avatar
+            profile={{
+              full_name:
+                contract.customer === session.user.id
+                  ? contract.freelancer_name
+                  : contract.customer_name,
+              avatar:
+                contract.customer === session.user.id
+                  ? contract.freelancer_avatar
+                  : contract.customer_avatar,
+            }}
+          />
           <div>
             <h2>
               {contract.customer === session.user.id
@@ -341,39 +372,64 @@ export function Chat({ contract, onBack }) {
             </Link>
           </div>
         </div>
-        <Link className="muted" href={`/contracts/${contract.id}`}>
-          #{contract.id}
-        </Link>
+        <div className="chat-header-actions">
+          <button
+            type="button"
+            disabled
+            title={t('callsUnavailable')}
+            aria-label={t('voiceCall')}
+          >
+            <Phone size={18} />
+          </button>
+          <button
+            type="button"
+            disabled
+            title={t('callsUnavailable')}
+            aria-label={t('videoCall')}
+          >
+            <Video size={18} />
+          </button>
+          <details className="chat-menu">
+            <summary aria-label={t('details')}>
+              <MoreVertical size={20} />
+            </summary>
+            <Link href={`/contracts/${contract.id}`}>{t('viewContract')}</Link>
+          </details>
+        </div>
       </div>
       <Notice error>{error || remote.error}</Notice>
       <div className="chat-messages" aria-live="polite">
         {!remote.data && remote.loading && <p>{t('loading')}</p>}
         {remote.data?.results.map((m) => (
-          <article
-            key={m.id}
-            className={`chat-message ${m.system ? 'system' : m.sender === session.user.id ? 'mine' : ''}`}
-          >
-            <strong>{m.sender_name || 'Taskora'}</strong>
-            <p>{m.text}</p>
-            {m.filename && (
-              <button
-                className="chat-file"
-                onClick={() =>
-                  downloadFile(
-                    `contracts/${contract.id}/messages/${m.id}/download`,
-                    session.token,
-                    m.filename,
-                  ).catch((e) => setError(e.message))
-                }
-              >
-                <Paperclip size={14} /> {m.filename}
-              </button>
+          <Fragment key={m.id}>
+            {m.id === unreadStart && (
+              <div className="unread-divider">{t('unread')}</div>
             )}
-            <time>
-              {dateTime(m.created_at, language)}{' '}
-              {m.sender === session.user.id && m.read_at ? '✓✓' : ''}
-            </time>
-          </article>
+            <article
+              className={`chat-message ${m.system ? 'system' : m.sender === session.user.id ? 'mine' : ''}`}
+            >
+              <span className="sr-only">{m.sender_name || 'Taskora'}</span>
+              <p>{m.text}</p>
+              {m.filename && (
+                <button
+                  className="chat-file"
+                  onClick={() =>
+                    downloadFile(
+                      `contracts/${contract.id}/messages/${m.id}/download`,
+                      session.token,
+                      m.filename,
+                    ).catch((e) => setError(e.message))
+                  }
+                >
+                  <Paperclip size={14} /> {m.filename}
+                </button>
+              )}
+              <time>
+                {dateTime(m.created_at, language)}{' '}
+                {m.sender === session.user.id && m.read_at ? '✓✓' : ''}
+              </time>
+            </article>
+          </Fragment>
         ))}
       </div>
       <Pager data={remote.data} page={page} onChange={setPage} />
@@ -396,8 +452,39 @@ export function Chat({ contract, onBack }) {
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
               />
             </label>
+            <div className="emoji-control">
+              <button
+                type="button"
+                aria-label={t('emoji')}
+                aria-expanded={emojiOpen}
+                onClick={() => setEmojiOpen(!emojiOpen)}
+              >
+                <Smile size={20} />
+              </button>
+              {emojiOpen && (
+                <div className="emoji-picker">
+                  {['👍', '😊', '👋', '✅', '🙏', '🎉', '💡', '❤️'].map(
+                    (value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setText((current) =>
+                            (current + value).slice(0, 5000),
+                          );
+                          setEmojiOpen(false);
+                        }}
+                      >
+                        {value}
+                      </button>
+                    ),
+                  )}
+                </div>
+              )}
+            </div>
             <button
               className="t-button"
+              aria-label={t('send')}
               disabled={busy || (!text.trim() && !file)}
             >
               <Send size={16} />
@@ -475,21 +562,29 @@ export function NotificationsView() {
 }
 
 export function MessagesView() {
-  const { t, session } = useApp();
+  const { t, session, language } = useApp();
   const router = useRouter();
   const search = useSearchParams();
   const [term, setTerm] = useState('');
+  const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState(null);
   const [page, setPage] = useState(1);
   const remote = useRemote('contracts', {
     token: session.token,
-    query: { page, search: term },
+    query: { page, search: term, conversation: 1, conversation_filter: filter },
   });
   const selectedId = search.get('contract');
   const direct = useRemote(selectedId ? `contracts/${selectedId}` : null, {
     token: session.token,
   });
   const current = selected || (selectedId ? direct.data : null);
+  const reloadConversations = remote.reload;
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!document.hidden) reloadConversations();
+    }, 7000);
+    return () => clearInterval(timer);
+  }, [reloadConversations]);
   return (
     <>
       <div className="page-heading">
@@ -513,7 +608,20 @@ export function MessagesView() {
               aria-label={t('search')}
             />
           </label>
-          <p className="conversation-caption">{t('recentMessages')}</p>
+          <nav className="conversation-filters" aria-label={t('filter')}>
+            {['all', 'unread', 'clients'].map((key) => (
+              <button
+                key={key}
+                className={filter === key ? 'active' : ''}
+                onClick={() => {
+                  setFilter(key);
+                  setPage(1);
+                }}
+              >
+                {t(key)}
+              </button>
+            ))}
+          </nav>
           <RemoteState remote={remote}>
             {remote.data?.results.length ? (
               remote.data.results.map((c) => (
@@ -522,24 +630,42 @@ export function MessagesView() {
                   key={c.id}
                   onClick={() => setSelected(c)}
                 >
-                  <span className="conversation-avatar">
-                    {(c.customer === session.user.id
-                      ? c.freelancer_name
-                      : c.customer_name
-                    )?.slice(0, 1)}
-                  </span>
+                  <Avatar
+                    profile={{
+                      full_name:
+                        c.customer === session.user.id
+                          ? c.freelancer_name
+                          : c.customer_name,
+                      avatar:
+                        c.customer === session.user.id
+                          ? c.freelancer_avatar
+                          : c.customer_avatar,
+                    }}
+                  />
                   <span className="conversation-copy">
                     <strong>
                       {c.customer === session.user.id
                         ? c.freelancer_name
                         : c.customer_name}
                     </strong>
-                    <span>{c.project_title}</span>
+                    <span>
+                      {c.last_message_text ||
+                        c.last_message_filename ||
+                        c.project_title}
+                    </span>
+                  </span>
+                  <span className="conversation-meta">
+                    <time>{conversationTime(c.last_message_at, language)}</time>
+                    {c.unread_count > 0 && <b>{c.unread_count}</b>}
                   </span>
                 </button>
               ))
             ) : (
-              <Empty text={t('noContracts')} />
+              <Empty
+                text={t(
+                  filter === 'unread' ? 'noUnreadMessages' : 'noContracts',
+                )}
+              />
             )}
             <Pager data={remote.data} page={page} onChange={setPage} />
           </RemoteState>
@@ -548,6 +674,7 @@ export function MessagesView() {
           <Chat
             key={current.id}
             contract={current}
+            onMessagesChanged={reloadConversations}
             onBack={() => {
               setSelected(null);
               if (selectedId) router.replace('/dashboard?view=messages');

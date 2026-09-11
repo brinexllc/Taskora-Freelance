@@ -1,14 +1,15 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, SlidersHorizontal } from 'lucide-react';
+import { Search, SlidersHorizontal, FolderOpen } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
 import { SkillPicker } from '@/components/project-editor';
 import {
-  Empty,
+  Avatar,
   Field,
   PageShell,
   Pager,
+  ProjectProgress,
   Status,
   RemoteState,
   useRemote,
@@ -33,7 +34,7 @@ export default function ProjectsPage() {
     </PageShell>
   );
 }
-export function OrdersList({ mine = false }) {
+export function OrdersList({ mine = false, assigned = false }) {
   const { t, language, session } = useApp();
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -66,14 +67,20 @@ export function OrdersList({ mine = false }) {
   }, []);
   const remote = useRemote('projects', {
     token: session?.token,
-    query: { ...query, mine: mine ? 1 : undefined, ordering: sort, page },
+    query: {
+      ...query,
+      mine: mine ? 1 : undefined,
+      assigned: assigned ? 1 : undefined,
+      ordering: sort,
+      page,
+    },
   });
   const change = (key) => (e) =>
     setFilters((f) => ({ ...f, [key]: e.target.value }));
   return (
     <div className="orders-catalog">
       <div className="orders-toolbar">
-        {mine && (
+        {(mine || assigned) && (
           <nav className="order-status-tabs" aria-label={t('status')}>
             {[
               ['', 'all'],
@@ -296,7 +303,12 @@ export function OrdersList({ mine = false }) {
                   <Status value={project.status} />
                 </div>
                 <p className="managed-order-customer">
-                  <span>{project.client_name?.slice(0, 1)}</span>
+                  <Avatar
+                    profile={{
+                      full_name: project.client_name,
+                      avatar: project.client_avatar,
+                    }}
+                  />
                   {project.client_name} ({t('client')})
                 </p>
                 <p className="managed-order-description">
@@ -310,16 +322,7 @@ export function OrdersList({ mine = false }) {
                     <span>{t('technologiesDiscussed')}</span>
                   )}
                 </div>
-                {project.status === 'completed' && (
-                  <div className="order-complete-progress">
-                    <span>{t('completed')} · 100%</span>
-                    <progress
-                      value="100"
-                      max="100"
-                      aria-label={t('completed')}
-                    />
-                  </div>
-                )}
+                <ProjectProgress status={project.status} />
                 <footer>
                   <div>
                     <small>{t('budget')}</small>
@@ -344,8 +347,24 @@ export function OrdersList({ mine = false }) {
             ))
           ) : (
             <div className="orders-empty">
-              <SlidersHorizontal size={44} />
-              <Empty text={t('noOrders')} />
+              <span className="orders-empty-icon">
+                <FolderOpen size={44} />
+              </span>
+              <h2>{t('noOrders')}</h2>
+              <p>
+                {t(
+                  mine
+                    ? 'emptyOrdersHint'
+                    : assigned
+                      ? 'emptyAssignedHint'
+                      : 'emptySearchHint',
+                )}
+              </p>
+              {assigned && (
+                <Link href="/projects" className="t-button">
+                  {t('findWork')}
+                </Link>
+              )}
               {mine && (
                 <Link href="/projects/new" className="t-button">
                   + {t('createOrder')}

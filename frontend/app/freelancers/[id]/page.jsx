@@ -6,10 +6,14 @@ import { PageShell, RemoteState, useRemote } from '@/components/taskora-ui';
 import { ProfileShowcase } from '@/components/profile-showcase';
 export default function FreelancerPage() {
   const { id } = useParams();
-  const { t } = useApp();
+  const { t, session } = useApp();
   const remote = useRemote(id ? `profiles/${id}` : null);
   return (
-    <PageShell publicView>
+    <PageShell
+      publicView={!session?.user?.role}
+      mobileTitle={t('profile')}
+      backHref="/freelancers"
+    >
       <Link className="back-link" href="/freelancers">
         ← {t('freelancers')}
       </Link>

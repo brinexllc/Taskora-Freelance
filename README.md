@@ -1,5 +1,7 @@
 # Taskora — MVP v1.0
 
+Интерфейс пересоздан по исходной ветке Startup dizayn с учётом архивов от 12.09.2026. [Экраны, ресурсы, исключения и проверки](docs/design-rebuild.md).
+
 Добавлено ТЗ «Комиссия, категории и навыки» от 09.09.2026: снимки тарифов, фактические расчёты и PlatformFee, 8 категорий, 89 базовых навыков, алиасы, рекомендации и выбор технологий исполнителем. [Изменения, API, миграции и порядок выпуска](docs/commission-catalog-release.md).
 
 Проект обновлён по `TASKORA_MVP_v1.0_TZ_RUS_FINAL.docx`, редакция 1.1. Извлечённые требования: [docs/specification-ru.txt](docs/specification-ru.txt). Источник оформления: [Startup dizayn](https://www.figma.com/design/yNkx3NWsQEradXkliwP4jZ/Startup-dizayn?node-id=0-1).

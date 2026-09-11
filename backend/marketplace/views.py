@@ -3,7 +3,8 @@ from decimal import Decimal
 from pathlib import Path
 
 from django.db import connection, transaction
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Q, Sum, OuterRef, Subquery, IntegerField, Value
+from django.db.models.functions import Coalesce, Substr
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import filters, permissions, viewsets, serializers
@@ -34,7 +35,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     ordering = ["-featured", "-created_at"]
 
     def get_queryset(self):
-        qs = Project.objects.select_related("contract", "category").prefetch_related("attachments", "skills__categories").annotate(proposal_count=Count("proposals", distinct=True))
+        qs = Project.objects.select_related("contract", "category", "owner__profile").prefetch_related("attachments", "skills__categories").annotate(proposal_count=Count("proposals", distinct=True))
         user = self.request.user
         public = Q(status=Project.Status.ACTIVE)
         if user.is_authenticated:
@@ -43,6 +44,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             if self.request.query_params.get("mine") == "1":
                 qs = qs.filter(owner=user) if user.is_authenticated else qs.none()
+            elif self.request.query_params.get('assigned') == '1':
+                qs = qs.filter(contract__freelancer=user) if user.is_authenticated else qs.none()
             else:
                 qs = qs.filter(status=Project.Status.ACTIVE)
             if self.request.query_params.get("category"):
@@ -59,7 +62,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(budget_type=params["budget_type"])
             if params.get("deadline"):
                 qs = qs.filter(deadline__lte=serializers.DateField().run_validation(params["deadline"]))
-            if params.get("status") and params.get("mine") == "1":
+            if params.get("status") and (params.get("mine") == "1" or params.get("assigned") == "1"):
                 qs = qs.filter(status=params["status"])
         return qs.distinct()
 
@@ -234,7 +237,22 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = Contract.objects.filter(Q(customer=self.request.user) | Q(freelancer=self.request.user)).select_related("project", "customer__profile", "freelancer__profile").prefetch_related("deliverables", "events", "reviews__author__profile").select_related("dispute")
+        latest = Message.objects.filter(contract_id=OuterRef('pk')).order_by('-created_at', '-pk')
+        unread = (Message.objects.filter(contract_id=OuterRef('pk'), system=False, read_at__isnull=True)
+                  .exclude(sender=self.request.user).order_by().values('contract_id').annotate(total=Count('pk')).values('total'))
+        qs = qs.annotate(
+            last_message_text=Subquery(latest.annotate(preview=Substr('text', 1, 240)).values('preview')[:1]),
+            last_message_filename=Subquery(latest.values('filename')[:1]),
+            last_message_at=Subquery(latest.values('created_at')[:1]),
+            unread_count=Coalesce(Subquery(unread[:1], output_field=IntegerField()), Value(0)),
+        )
         if self.action == "list":
+            if self.request.query_params.get('conversation') == '1':
+                qs = qs.order_by(Coalesce('last_message_at', 'created_at').desc(), '-pk')
+            if self.request.query_params.get('conversation_filter') == 'unread':
+                qs = qs.filter(unread_count__gt=0)
+            elif self.request.query_params.get('conversation_filter') == 'clients':
+                qs = qs.exclude(customer=self.request.user)
             participant = self.request.query_params.get('participant_profile')
             if participant:
                 if not participant.isdigit():

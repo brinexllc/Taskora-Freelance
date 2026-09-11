@@ -14,6 +14,8 @@ class AttachmentSerializer(serializers.ModelSerializer):
 
 
 class ProjectSerializer(SkillsWriteSerializer):
+    client_avatar = serializers.CharField(source='owner.profile.avatar', read_only=True, default='')
+    client_location = serializers.CharField(source='owner.profile.location', read_only=True, default='')
     category = serializers.SlugRelatedField(slug_field='slug', queryset=Category.objects.all())
     attachments = AttachmentSerializer(many=True, read_only=True)
 
@@ -27,6 +29,7 @@ class ProjectSerializer(SkillsWriteSerializer):
     class Meta:
         model = Project
         fields = ["id", "owner", "title", "description", "category", "category_label", "budget_min", "budget_max", "skills", "skill_ids", "skill_details", "skills_unspecified", "client_name", "client_company", "status", "featured", "deadline", "proposal_count", "contract_id", "created_at", "updated_at", "budget_type", "visibility", "attachments"]
+        fields += ['client_avatar', 'client_location']
         read_only_fields = ["owner", "client_name", "status", "featured", "created_at", "updated_at"]
 
     def get_contract_id(self, obj):
@@ -128,6 +131,12 @@ class DisputeSerializer(serializers.ModelSerializer):
 
 
 class ContractSerializer(serializers.ModelSerializer):
+    last_message_text = serializers.CharField(read_only=True, allow_null=True, default=None)
+    last_message_filename = serializers.CharField(read_only=True, allow_null=True, default=None)
+    last_message_at = serializers.DateTimeField(read_only=True, allow_null=True, default=None)
+    unread_count = serializers.IntegerField(read_only=True, default=0)
+    customer_avatar = serializers.CharField(source='customer.profile.avatar', read_only=True, default='')
+    freelancer_avatar = serializers.CharField(source='freelancer.profile.avatar', read_only=True, default='')
     events = EventSerializer(many=True, read_only=True)
     dispute = DisputeSerializer(read_only=True)
     reviews = serializers.SerializerMethodField()
@@ -153,6 +162,7 @@ class ContractSerializer(serializers.ModelSerializer):
         model = Contract
         fields = ["id", "project", "project_title", "proposal", "customer", "customer_name", "freelancer", "freelancer_name", "amount", "delivery_days", "terms", "status", "customer_signed_at", "freelancer_signed_at", "created_at", "completed_at", "deliverables", "can_download", "version", "scope", "currency", "budget_type", "deadline", "funded_at", "escrow_amount", "fee_percent", "fee_amount", "net_amount", "released_amount", "refunded_amount", "events", "reviews", "dispute"]
         fields += ['actual_fee_amount', 'actual_net_amount', 'fee_policy_snapshot']
+        fields += ['last_message_text', 'last_message_filename', 'last_message_at', 'unread_count', 'customer_avatar', 'freelancer_avatar']
         read_only_fields = fields
 
     def get_can_download(self, obj):

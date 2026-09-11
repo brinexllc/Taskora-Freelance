@@ -19,6 +19,8 @@ export function LegalPage({ privacy = false }) {
             </ol>
             <h2 id="fees">{t('platformFee')}</h2>
             <p>{t('feeTerms')}</p>
+            <h2 id="support">{t('designSupport')}</h2>
+            <p>{t('supportGuidance')}</p>
           </>
         )}
         <Notice>{t('legalNotice')}</Notice>

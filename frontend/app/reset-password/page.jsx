@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { Check, KeyRound, LockKeyhole, Mail } from 'lucide-react';
 import { AuthBack, AuthShell, PasswordInput } from '@/components/auth-shell';
 import { useApp } from '@/components/app-providers';
 import {
@@ -50,14 +51,19 @@ export default function ResetPasswordPage() {
     }
   }
   return (
-    <AuthShell>
-      <AuthBack />
+    <AuthShell variant="reset">
       <div className="reset-steps">
         {[1, 2, 3].map((n) => (
           <span key={n} className={n <= step ? 'done' : ''}>
-            {n}
+            <i>{n < step ? <Check size={14} /> : n}</i>
+            <small>
+              {t(n === 1 ? 'email' : n === 2 ? 'code' : 'password')}
+            </small>
           </span>
         ))}
+      </div>
+      <div className="auth-step-icon">
+        {step === 1 ? <Mail /> : step === 2 ? <LockKeyhole /> : <KeyRound />}
       </div>
       <h1>{t(step === 1 ? 'reset' : step === 2 ? 'code' : 'newPassword')}</h1>
       <p className="auth-subtitle">
@@ -166,6 +172,7 @@ export default function ResetPasswordPage() {
               )}
         </button>
       </form>
+      <AuthBack />
     </AuthShell>
   );
 }

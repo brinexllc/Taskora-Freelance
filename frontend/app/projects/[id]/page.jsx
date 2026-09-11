@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
+import { FileText, Download, MapPin } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
 import { ProjectEditor } from '@/components/project-editor';
 import { FeeEstimate } from '@/components/fee-estimate';
@@ -10,10 +11,12 @@ import { feePreview } from '@/lib/fee-preview';
 import { apiRequest, createProposal, downloadFile } from '@/lib/api';
 import {
   Empty,
+  Avatar,
   Field,
   Notice,
   PageShell,
   Pager,
+  ProjectProgress,
   RemoteState,
   Status,
   useRemote,
@@ -114,7 +117,11 @@ export default function ProjectDetailsPage() {
     }
   }
   return (
-    <PageShell>
+    <PageShell
+      mobileTitle={t('project')}
+      mobileStatus={project?.status}
+      backHref="/dashboard?view=orders"
+    >
       <Link className="back-link" href="/projects">
         ← {t('orders')}
       </Link>
@@ -127,6 +134,24 @@ export default function ProjectDetailsPage() {
                 <Status value={project.status} />
               </div>
               <h1>{project.title}</h1>
+              <div className="project-client-card">
+                <Avatar
+                  profile={{
+                    full_name: project.client_name,
+                    avatar: project.client_avatar,
+                  }}
+                />
+                <div>
+                  <small>{t('client')}</small>
+                  <strong>{project.client_name}</strong>
+                  {project.client_location && (
+                    <span>
+                      <MapPin size={14} />
+                      {project.client_location}
+                    </span>
+                  )}
+                </div>
+              </div>
               <div className="skill-tags">
                 {project.skill_details.map((skill) => (
                   <span key={skill.id}>{skill.label}</span>
@@ -138,13 +163,24 @@ export default function ProjectDetailsPage() {
               <div className="project-description">
                 <h2>{t('description')}</h2>
                 <p className="preserve-lines">{project.description}</p>
+                {project.skill_details.length > 0 && (
+                  <>
+                    <h2>{t('skills')}</h2>
+                    <ul className="project-requirements">
+                      {project.skill_details.map((skill) => (
+                        <li key={skill.id}>{skill.label}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </div>
               <dl className="detail-list">
                 <div>
                   <dt>{t('budget')}</dt>
                   <dd>
-                    {money(project.budget_min, language)} –{' '}
-                    {money(project.budget_max, language)}
+                    {money(project.budget_min, language)}
+                    {project.budget_min !== project.budget_max &&
+                      ` – ${money(project.budget_max, language)}`}
                   </dd>
                 </div>
                 <div>
@@ -165,6 +201,9 @@ export default function ProjectDetailsPage() {
                   <dd>{project.proposal_count}</dd>
                 </div>
               </dl>
+              <div className="project-detail-progress">
+                <ProjectProgress status={project.status} />
+              </div>
               {project.contract_id && (
                 <Link
                   className="t-button"
@@ -211,7 +250,7 @@ export default function ProjectDetailsPage() {
                 {project.attachments.map((a) => (
                   <button
                     key={a.id}
-                    className="text-link"
+                    className="project-file-card"
                     onClick={() =>
                       downloadFile(
                         `projects/${id}/attachments/${a.id}/download`,
@@ -220,7 +259,9 @@ export default function ProjectDetailsPage() {
                       ).catch((e) => setError(e.message))
                     }
                   >
-                    {a.filename}
+                    <FileText size={24} />
+                    <span>{a.filename}</span>
+                    <Download size={18} />
                   </button>
                 ))}
               </section>
@@ -233,11 +274,14 @@ export default function ProjectDetailsPage() {
                     .filter((e) =>
                       [
                         'created',
-                        'funded',
+                        'signed',
+                        'escrow_hold',
                         'submitted',
-                        'revision_requested',
-                        'completed',
-                        'resolved',
+                        'revision',
+                        'settled',
+                        'dispute_resolved',
+                        'dispute_opened',
+                        'cancelled',
                         'fee_revised',
                       ].includes(e.kind),
                     )

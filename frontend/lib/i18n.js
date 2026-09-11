@@ -1,5 +1,6 @@
 import { mvpCopy } from './mvp-copy';
 import { catalogCopy } from './catalog-copy';
+import { designCopy } from './design-copy';
 export const languages = [
   ['ru', 'RUS'],
   ['uz', 'UZ'],
@@ -795,6 +796,9 @@ Object.assign(uz, mvpCopy.uz);
 Object.assign(ru, catalogCopy.ru);
 Object.assign(en, catalogCopy.en);
 Object.assign(uz, catalogCopy.uz);
+Object.assign(ru, designCopy.ru);
+Object.assign(en, designCopy.en);
+Object.assign(uz, designCopy.uz);
 
 export const dictionaries = {
   ru,
@@ -824,4 +828,24 @@ export function dateTime(value, language = 'ru') {
     language === 'uz-cyrl' ? 'uz-Cyrl' : language,
     { dateStyle: 'short', timeStyle: 'short' },
   ).format(new Date(value));
+}
+
+export function conversationTime(value, language = 'ru', now = new Date()) {
+  if (!value) return '';
+  const timestamp = new Date(value);
+  const locale = language === 'uz-cyrl' ? 'uz-Cyrl' : language;
+  if (timestamp.toDateString() === now.toDateString()) {
+    return timestamp.toLocaleTimeString(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (timestamp.toDateString() === yesterday.toDateString())
+    return translate(language, 'yesterday');
+  return timestamp.toLocaleDateString(locale, {
+    day: 'numeric',
+    month: 'short',
+  });
 }
