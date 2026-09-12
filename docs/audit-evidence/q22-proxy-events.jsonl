@@ -1,0 +1,2 @@
+{"event": "drop_after_upstream", "idempotency_key_sha256": null, "method": "POST", "path": "/api/contracts/3/fund/", "upstream_status": 200}
+{"event": "drop_after_upstream", "idempotency_key_sha256": null, "method": "POST", "path": "/api/wallet/withdraw/", "upstream_status": 201}

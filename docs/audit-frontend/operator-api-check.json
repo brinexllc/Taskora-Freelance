@@ -1,0 +1,28 @@
+{
+  "version": "mvp-operator-48h-2026-09-13-v3",
+  "approved": false,
+  "operator": {
+    "legal_name": "\"Brinex\" MCHJ",
+    "tax_id": "313183897",
+    "address": "BIY 1/23"
+  },
+  "support": {
+    "email": "brinexmchj@gmail.com",
+    "response_time": "48 часов",
+    "withdrawal_rules": "Срок вывода средств: 48 часов.",
+    "refund_rules": "Срок возврата средств: 48 часов.",
+    "dispute_rules": "Срок рассмотрения споров: 48 часов."
+  },
+  "language": "ru",
+  "hash": "e54e30d10a6c03b475fe1c2e1d00f80265a86f6623dae7e126ea8990bef2faf4",
+  "verification": "Public same-origin API response for manifest v3; browser was unavailable during this initial capture.",
+  "browser_follow_up": {
+    "performed": true,
+    "version": "mvp-operator-48h-2026-09-13-v3",
+    "all_eight_operator_support_fields_visible": true,
+    "approved_false_warning_visible": true,
+    "existing_user_consent_saved": true,
+    "consent_fault_branch": "inconclusive",
+    "evidence": ["legal-v3-browser.txt", "root-state-checks.json"]
+  }
+}

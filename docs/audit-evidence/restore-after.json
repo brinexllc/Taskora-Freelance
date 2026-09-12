@@ -1,0 +1,99 @@
+{
+  "money_sha256": "60fffe8cd21b63447dd230beaa89b95cc2c6948fe835ce3621becde98051bf95",
+  "money": {
+    "profiles": [
+      {
+        "pk": 1,
+        "balance": "0.00"
+      },
+      {
+        "pk": 2,
+        "balance": "600000.00"
+      },
+      {
+        "pk": 3,
+        "balance": "380000.00"
+      }
+    ],
+    "ledger": [
+      {
+        "pk": 1,
+        "user_id": 2,
+        "contract_id": 1,
+        "amount": "-1000000.00",
+        "kind": "escrow_hold",
+        "reference": "273d7d64-9cc1-4a3a-a24d-baa6cf72d7fd"
+      },
+      {
+        "pk": 2,
+        "user_id": 3,
+        "contract_id": 1,
+        "amount": "400000.00",
+        "kind": "escrow_release",
+        "reference": "8c4a623f-da4a-42fc-8b27-5ab425cf005a"
+      },
+      {
+        "pk": 3,
+        "user_id": 3,
+        "contract_id": 1,
+        "amount": "-20000.00",
+        "kind": "platform_fee",
+        "reference": "a3a2ce35-f658-4354-b6e6-9032e34b785e"
+      },
+      {
+        "pk": 4,
+        "user_id": 2,
+        "contract_id": 1,
+        "amount": "600000.00",
+        "kind": "refund",
+        "reference": "0138baea-14fe-4775-9c33-ef120d186db0"
+      }
+    ],
+    "fees": [
+      {
+        "pk": 1,
+        "contract_id": 1,
+        "gross_amount": "400000.00",
+        "fee_amount": "20000.00"
+      }
+    ],
+    "contracts": [
+      {
+        "pk": 1,
+        "amount": "1000000.00",
+        "released_amount": "400000.00",
+        "refunded_amount": "600000.00",
+        "escrow_amount": "0.00",
+        "fee_percent": "5.00"
+      }
+    ]
+  },
+  "files": [
+    {
+      "model": "marketplace.deliverable",
+      "id": 1,
+      "storage_name": "deliverables/1/e8fce10821cd4e49a9c9fb1a61cb5809",
+      "status": "present",
+      "bytes": 41,
+      "sha256": "8867fe45a5a3fdfd3c0fa11986902f149c59086e7a17c89a29397c38a96cd8ad"
+    }
+  ],
+  "pending_migrations": [],
+  "reconciliation": {
+    "mode": "read-only",
+    "currency": "UZS",
+    "incidents": [],
+    "counts": {
+      "profiles": 3,
+      "payments": 0,
+      "withdrawals": 0,
+      "incidents": 0
+    },
+    "provider_export": "supplied",
+    "ok": true
+  },
+  "participant_download_status": 200,
+  "participant_download_sha256": "8867fe45a5a3fdfd3c0fa11986902f149c59086e7a17c89a29397c38a96cd8ad",
+  "outsider_download_status": 404,
+  "public_file_status": 404
+}

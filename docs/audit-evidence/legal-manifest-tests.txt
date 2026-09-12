@@ -1,0 +1,13 @@
+Python 3.14.7; PostgreSQL focused consent and release gate tests
+Manifest=mvp-operator-48h-2026-09-13-v3; approved=false; REAL_MONEY_ENABLED=true with production settings still financial_operations_enabled=false: PASS
+Creating test database for alias 'default'...
+
+...
+----------------------------------------------------------------------
+Ran 3 tests in 2.461s
+
+OK
+Destroying test database for alias 'default'...
+
+Found 3 test(s).
+System check identified no issues (0 silenced).

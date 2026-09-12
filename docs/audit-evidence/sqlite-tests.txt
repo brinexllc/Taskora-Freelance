@@ -1,0 +1,32 @@
+Creating test database for alias 'default'...
+
+...................................................................................................................................................s..sss................ssssss
+----------------------------------------------------------------------
+Ran 175 tests in 207.956s
+
+OK (skipped=10)
+Destroying test database for alias 'default'...
+
+Found 175 test(s).
+System check identified no issues (0 silenced).
+PROFILE_BENCHMARK {"database": "sqlite", "runs": 6, "measurements": [{"profiles": 12, "queries": 3, "p50_ms": 6.96, "p95_ms": 7.11, "bytes": 8376}, {"profiles": 48, "queries": 3, "p50_ms": 13.77, "p95_ms": 15.17, "bytes": 34834}]}
+PROFILE_QUERY_PLAN 4 0 216 SCAN marketplace_profile
+6 0 45 SEARCH auth_user USING INTEGER PRIMARY KEY (rowid=?)
+37 0 0 CORRELATED SCALAR SUBQUERY 1
+46 37 61 SEARCH U0 USING INDEX marketplace_review_target_id_4ed29021 (target_id=?)
+81 0 0 CORRELATED SCALAR SUBQUERY 2
+90 81 61 SEARCH U0 USING INDEX marketplace_review_target_id_4ed29021 (target_id=?)
+127 0 0 CORRELATED SCALAR SUBQUERY 3
+137 127 60 SEARCH U0 USING INDEX marketplace_contract_freelancer_id_e7cb5aab (freelancer_id=?)
+145 127 44 SEARCH U2 USING COVERING INDEX sqlite_autoindex_marketplace_dispute_1 (contract_id=?) LEFT-JOIN
+185 0 0 CORRELATED SCALAR SUBQUERY 4
+195 185 60 SEARCH U0 USING INDEX marketplace_contract_freelancer_id_e7cb5aab (freelancer_id=?)
+203 185 44 SEARCH U2 USING COVERING INDEX sqlite_autoindex_marketplace_dispute_1 (contract_id=?)
+238 0 0 CORRELATED SCALAR SUBQUERY 5
+249 238 60 SEARCH U0 USING INDEX marketplace_contract_freelancer_id_e7cb5aab (freelancer_id=?)
+259 238 45 SEARCH U2 USING INTEGER PRIMARY KEY (rowid=?)
+267 238 44 SEARCH U4 USING COVERING INDEX sqlite_autoindex_marketplace_dispute_1 (contract_id=?) LEFT-JOIN
+307 0 0 CORRELATED SCALAR SUBQUERY 6
+318 307 60 SEARCH U0 USING INDEX marketplace_contract_freelancer_id_e7cb5aab (freelancer_id=?)
+328 307 45 SEARCH U2 USING INTEGER PRIMARY KEY (rowid=?)
+339 307 44 SEARCH U4 USING COVERING INDEX sqlite_autoindex_marketplace_dispute_1 (contract_id=?) LEFT-JOIN

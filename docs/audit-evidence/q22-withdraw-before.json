@@ -1,0 +1,21 @@
+{
+  "fixture": "Q22 synthetic UUID withdrawal only",
+  "user_id": 5,
+  "recipient_id": 1,
+  "recipient_provider": "synthetic-qa",
+  "amount": "1000.00",
+  "balance_before": "750000.00",
+  "expected_balance_after": "749000.00",
+  "opening_balance": "1000000.00",
+  "withdrawal_ids_before": [],
+  "ledger_ids_before": [
+    1
+  ],
+  "browser_path": "/dashboard?view=wallet",
+  "api_path": "/api/wallet/withdraw/",
+  "confirmed_channels": [
+    "email",
+    "phone"
+  ],
+  "no_real_provider_or_transfer": true
+}

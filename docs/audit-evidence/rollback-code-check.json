@@ -1,0 +1,221 @@
+{
+  "checked_at": "2026-09-12T22:41:31.719717+00:00",
+  "old_backend_sha": "556ed75f5146d29b2a71e10dfa3cfe4a86ce41aa",
+  "current_checkout_sha": "57c6648dc2c85acac5ae1e9faa9fd50ed8344b8d",
+  "scope": "synthetic PostgreSQL copy on loopback:55442; old code executed with SELECT-only role and read-only transactions",
+  "old_code_export_contains_dotenv": false,
+  "external_network_used": false,
+  "reverse_migrations_applied": false,
+  "old_code_mutation_endpoints_called": false,
+  "source_database_unchanged": true,
+  "schema_unchanged": true,
+  "money_unchanged": true,
+  "all_table_data_unchanged": true,
+  "migration_history_unchanged": true,
+  "before": {
+    "schema_sha256": "2a07c7db7ce2fa928e959a9a8df3536bb2f1c871c5bfed52bd10c37630c3985e",
+    "all_table_data_sha256": "2dee207daebdbebd3ddd246675165efb6f494194352c6e0b43e20e2a28b7b77c",
+    "money_sha256": "113211564a73d4b1754459b62295980481a7a271bd838b2ffa7376366854dd34",
+    "migration_state_sha256": "f20072524958f05e856dc629349fccb60e4e931b0fa6df9d89788215839ba0a4",
+    "tables": 48,
+    "applied_migrations": [
+      "admin.0001_initial",
+      "admin.0002_logentry_remove_auto_add",
+      "admin.0003_logentry_add_action_flag_choices",
+      "auth.0001_initial",
+      "auth.0002_alter_permission_name_max_length",
+      "auth.0003_alter_user_email_max_length",
+      "auth.0004_alter_user_username_opts",
+      "auth.0005_alter_user_last_login_null",
+      "auth.0006_require_contenttypes_0002",
+      "auth.0007_alter_validators_add_error_messages",
+      "auth.0008_alter_user_username_max_length",
+      "auth.0009_alter_user_last_name_max_length",
+      "auth.0010_alter_group_name_max_length",
+      "auth.0011_update_proxy_permissions",
+      "auth.0012_alter_user_first_name_max_length",
+      "authtoken.0001_initial",
+      "authtoken.0002_auto_20160226_1747",
+      "authtoken.0003_tokenproxy",
+      "authtoken.0004_alter_tokenproxy_options",
+      "contenttypes.0001_initial",
+      "contenttypes.0002_remove_content_type_name",
+      "marketplace.0001_initial",
+      "marketplace.0002_passwordresetcode_profile",
+      "marketplace.0003_contract_deliverable_payment_walletentry_withdrawal_and_more",
+      "marketplace.0004_unique_login_identifiers",
+      "marketplace.0005_auditlog_category_contractevent_dispute_message_and_more",
+      "marketplace.0006_payment_payme_trans_id_payment_provider_data",
+      "marketplace.0007_relational_skills",
+      "marketplace.0008_clickfiscalreceipt",
+      "marketplace.0009_categoryskill_platformfee_skillalias_and_more",
+      "marketplace.0010_preserve_catalog_identity",
+      "marketplace.0011_catalog_constraints",
+      "marketplace.0012_profile_showcase",
+      "marketplace.0013_profile_languages_dark_default",
+      "marketplace.0014_original_design_theme",
+      "marketplace.0015_audit_stabilization",
+      "marketplace.0016_inventory_legacy_withdrawals",
+      "marketplace.0017_verified_contact_snapshots",
+      "marketplace.0018_scoped_tokens_and_opening_evidence",
+      "sessions.0001_initial"
+    ]
+  },
+  "after": {
+    "schema_sha256": "2a07c7db7ce2fa928e959a9a8df3536bb2f1c871c5bfed52bd10c37630c3985e",
+    "all_table_data_sha256": "2dee207daebdbebd3ddd246675165efb6f494194352c6e0b43e20e2a28b7b77c",
+    "money_sha256": "113211564a73d4b1754459b62295980481a7a271bd838b2ffa7376366854dd34",
+    "migration_state_sha256": "f20072524958f05e856dc629349fccb60e4e931b0fa6df9d89788215839ba0a4",
+    "tables": 48,
+    "applied_migrations": [
+      "admin.0001_initial",
+      "admin.0002_logentry_remove_auto_add",
+      "admin.0003_logentry_add_action_flag_choices",
+      "auth.0001_initial",
+      "auth.0002_alter_permission_name_max_length",
+      "auth.0003_alter_user_email_max_length",
+      "auth.0004_alter_user_username_opts",
+      "auth.0005_alter_user_last_login_null",
+      "auth.0006_require_contenttypes_0002",
+      "auth.0007_alter_validators_add_error_messages",
+      "auth.0008_alter_user_username_max_length",
+      "auth.0009_alter_user_last_name_max_length",
+      "auth.0010_alter_group_name_max_length",
+      "auth.0011_update_proxy_permissions",
+      "auth.0012_alter_user_first_name_max_length",
+      "authtoken.0001_initial",
+      "authtoken.0002_auto_20160226_1747",
+      "authtoken.0003_tokenproxy",
+      "authtoken.0004_alter_tokenproxy_options",
+      "contenttypes.0001_initial",
+      "contenttypes.0002_remove_content_type_name",
+      "marketplace.0001_initial",
+      "marketplace.0002_passwordresetcode_profile",
+      "marketplace.0003_contract_deliverable_payment_walletentry_withdrawal_and_more",
+      "marketplace.0004_unique_login_identifiers",
+      "marketplace.0005_auditlog_category_contractevent_dispute_message_and_more",
+      "marketplace.0006_payment_payme_trans_id_payment_provider_data",
+      "marketplace.0007_relational_skills",
+      "marketplace.0008_clickfiscalreceipt",
+      "marketplace.0009_categoryskill_platformfee_skillalias_and_more",
+      "marketplace.0010_preserve_catalog_identity",
+      "marketplace.0011_catalog_constraints",
+      "marketplace.0012_profile_showcase",
+      "marketplace.0013_profile_languages_dark_default",
+      "marketplace.0014_original_design_theme",
+      "marketplace.0015_audit_stabilization",
+      "marketplace.0016_inventory_legacy_withdrawals",
+      "marketplace.0017_verified_contact_snapshots",
+      "marketplace.0018_scoped_tokens_and_opening_evidence",
+      "sessions.0001_initial"
+    ]
+  },
+  "old_code_probe": {
+    "transaction_read_only": true,
+    "insert_update_delete_create_privileges": [
+      false,
+      false,
+      false,
+      false
+    ],
+    "get_checks": [
+      {
+        "path": "/api/health/",
+        "actor": "anonymous",
+        "status": 200,
+        "authentication": "none"
+      },
+      {
+        "path": "/api/projects/",
+        "actor": "anonymous",
+        "status": 200,
+        "authentication": "none"
+      },
+      {
+        "path": "/api/integrations/",
+        "actor": "anonymous",
+        "status": 200,
+        "authentication": "none"
+      },
+      {
+        "path": "/api/dashboard/",
+        "actor": "restore_customer",
+        "status": 200,
+        "authentication": "synthetic_in_process_identity"
+      },
+      {
+        "path": "/api/contracts/",
+        "actor": "restore_customer",
+        "status": 200,
+        "authentication": "synthetic_in_process_identity"
+      },
+      {
+        "path": "/api/contracts/1/",
+        "actor": "restore_customer",
+        "status": 200,
+        "authentication": "synthetic_in_process_identity"
+      },
+      {
+        "path": "/api/contracts/1/messages/",
+        "actor": "restore_customer",
+        "status": 200,
+        "authentication": "synthetic_in_process_identity"
+      },
+      {
+        "path": "/api/wallet/",
+        "actor": "restore_worker",
+        "status": 200,
+        "authentication": "synthetic_in_process_identity",
+        "withdrawal_statuses": [
+          "reconciliation_required",
+          "processing"
+        ]
+      },
+      {
+        "path": "/api/contracts/1/download/",
+        "actor": "restore_customer",
+        "status": 200,
+        "authentication": "synthetic_in_process_identity",
+        "content_sha256": "8867fe45a5a3fdfd3c0fa11986902f149c59086e7a17c89a29397c38a96cd8ad"
+      },
+      {
+        "path": "/api/contracts/1/download/",
+        "actor": "restore_owner",
+        "status": 404,
+        "authentication": "synthetic_in_process_identity"
+      }
+    ],
+    "system_check": "System check identified no issues (0 silenced).",
+    "migration_plan": "Planned operations:\n  No planned migration operations.",
+    "old_cookie_auth_status": 401,
+    "old_worker_pending_withdrawal": "0"
+  },
+  "probe_error": null,
+  "current_cookie_auth_status": 200,
+  "current_worker_pending_withdrawal": "22000.00",
+  "synthetic_new_withdrawal_states": [
+    {
+      "id": 2,
+      "status": "reconciliation_required"
+    },
+    {
+      "id": 1,
+      "status": "processing"
+    }
+  ],
+  "readonly_rollback_integrity": "passed",
+  "full_rollback_compatible": false,
+  "limitations": [
+    "Old authentication expects legacy Token, while the new browser uses an HttpOnly session; synthetic forced identity was used only to inspect old read APIs.",
+    "Old pending_withdrawal totals ignore processing/reconciliation_required and misreport the retained withdrawal reserve.",
+    "Old writes, login, callbacks and payouts were not executed and must remain disabled; read-only role blocks DML and DDL.",
+    "Only an isolated synthetic copy was tested. Production rollback, deployed routing and storage volume were not tested."
+  ],
+  "safe_rollback_plan": [
+    "Keep the new database schema, migration records, private media and compatible security/session layer.",
+    "Do not run reverse schema migrations or old deployment migration jobs.",
+    "If an old backend is temporarily used, restrict it to explicit GET routes with a SELECT-only database role; keep money/auth mutations, callbacks, admin writes and workers blocked.",
+    "Prefer restoring a compatible patched backend or forward-fixing; legacy audited code is not a full functional rollback target.",
+    "Inventory processing/reconciliation_required withdrawals and verify financial/private-file digests before reopening mutations."
+  ]
+}
