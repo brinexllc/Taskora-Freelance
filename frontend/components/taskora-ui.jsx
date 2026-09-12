@@ -22,12 +22,12 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/components/app-providers';
-import { logout, remoteRequest } from '@/lib/api';
+import { logout, remoteRequest, apiErrorMessage } from '@/lib/api';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { date, languages, money } from '@/lib/i18n';
 
 export function useRemote(path, { token, query } = {}) {
-  const { language } = useApp();
+  const { language, t } = useApp();
   const [data, setData] = useState(null),
     [error, setError] = useState(''),
     [loading, setLoading] = useState(true),
@@ -38,6 +38,7 @@ export function useRemote(path, { token, query } = {}) {
     void Promise.resolve().then(() => {
       if (controller.signal.aborted) return;
       if (!path) {
+        setData(null);
         setLoading(false);
         return;
       }
@@ -52,14 +53,14 @@ export function useRemote(path, { token, query } = {}) {
           if (!controller.signal.aborted) setData(value);
         })
         .catch((err) => {
-          if (!controller.signal.aborted) setError(err.message);
+          if (!controller.signal.aborted) setError(apiErrorMessage(err, t));
         })
         .finally(() => {
           if (!controller.signal.aborted) setLoading(false);
         });
     });
     return () => controller.abort();
-  }, [path, token, encoded, version]);
+  }, [path, token, encoded, version, t]);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
   return { data, error, loading, reload };
 }
@@ -225,8 +226,8 @@ export function WorkspaceFrame({
   const pathname = usePathname();
   const search = useSearchParams();
   const [error, setError] = useState('');
-  const stats = useRemote(session?.token ? 'dashboard' : null, {
-    token: session?.token,
+  const stats = useRemote(session?.authenticated ? 'dashboard' : null, {
+    token: session?.authenticated,
   });
   const view =
     activeView ||
@@ -249,7 +250,7 @@ export function WorkspaceFrame({
     session?.user?.role === 'client' ? '/projects/new' : '/projects';
   async function signOut() {
     try {
-      await logout(session.token);
+      await logout(session.authenticated);
       clearSession();
       window.location.assign('/');
     } catch (err) {

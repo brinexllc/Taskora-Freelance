@@ -1,0 +1,49 @@
+Already up to date
+Done in 583ms using pnpm v11.19.0
+$ oxlint
+Already up to date
+Done in 548ms using pnpm v11.19.0
+$ tsc --noEmit
+Already up to date
+Done in 504ms using pnpm v11.19.0
+$ node scripts/test-audit.mjs
+PASS: environment guards and reload-safe financial request intent (11 assertions).
+Already up to date
+Done in 488ms using pnpm v11.19.0
+$ node scripts/validate-env.mjs
+Taskora environment validated.
+$ vinext build
+
+  vinext build  (Vite 8.0.13)
+
+[1/5] analyze client references...
+
+transforming...✓ 241 modules transformed.
+rendering chunks...
+✓ built in 1.04s
+[2/5] analyze server references...
+
+transforming...✓ 260 modules transformed.
+rendering chunks...
+✓ built in 496ms
+[3/5] build rsc environment...
+
+transforming...✓ 238 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 781ms
+[4/5] build client environment...
+
+transforming...✓ 1999 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 2.86s
+[5/5] build ssr environment...
+
+transforming...✓ 257 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 683ms
+  Generated standalone output in dist/standalone/
+  Start it with: node dist/standalone/server.js
+

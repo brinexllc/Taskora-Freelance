@@ -1,7 +1,35 @@
-const DEFAULT_API_URL = 'http://127.0.0.1:8000/api';
-export const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL
-).replace(/\/+$/, '');
+export const API_URL = '/api';
+let csrfToken = '';
+let csrfRequest;
+
+async function ensureCsrf() {
+  if (csrfToken) return csrfToken;
+  csrfRequest ||= fetch('/api/auth/csrf/', {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+    .then(async (response) => {
+      if (!response.ok) throw new Error('CSRF initialization failed.');
+      const payload = await response.json();
+      csrfToken = payload.csrf_token;
+      return csrfToken;
+    })
+    .finally(() => {
+      csrfRequest = null;
+    });
+  return csrfRequest;
+}
+
+export class ApiError extends Error {
+  constructor(message, status, payload) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = payload?.code;
+    this.payload = payload;
+    this.uncertain = !status || status >= 500;
+  }
+}
 
 export function apiEndpoint(path, query) {
   const normalized = String(path).replace(/^\/+|\/+$/g, '');
@@ -16,19 +44,29 @@ export function apiEndpoint(path, query) {
 
 export async function apiRequest(
   path,
-  { method = 'GET', body, token, signal, query } = {},
+  { method = 'GET', body, signal, query } = {},
 ) {
   const multipart = typeof FormData !== 'undefined' && body instanceof FormData;
-  const response = await fetch(apiEndpoint(path, query), {
-    method,
-    signal,
-    headers: {
-      Accept: 'application/json',
-      ...(body && !multipart ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Token ${token}` } : {}),
-    },
-    ...(body ? { body: multipart ? body : JSON.stringify(body) } : {}),
-  });
+  const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
+  const csrf = unsafe ? await ensureCsrf() : null;
+  let response;
+  try {
+    response = await fetch(apiEndpoint(path, query), {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      method,
+      signal,
+      headers: {
+        Accept: 'application/json',
+        ...(body && !multipart ? { 'Content-Type': 'application/json' } : {}),
+        ...(csrf ? { 'X-CSRFToken': csrf } : {}),
+      },
+      ...(body ? { body: multipart ? body : JSON.stringify(body) } : {}),
+    });
+  } catch (cause) {
+    if (cause.name === 'AbortError') throw cause;
+    throw new ApiError(cause.message, 0, { code: 'NETWORK_UNCERTAIN' });
+  }
   const payload =
     response.status === 204 ? null : await response.json().catch(() => null);
   if (!response.ok) {
@@ -39,12 +77,10 @@ export async function apiRequest(
         .flat()
         .join(' ') ||
       `HTTP ${response.status}`;
-    const error = new Error(String(messages));
-    error.status = response.status;
-    error.code = payload?.code;
-    error.payload = payload;
-    throw error;
+    if (response.status === 403) csrfToken = '';
+    throw new ApiError(String(messages), response.status, payload);
   }
+  if (payload?.csrf_token) csrfToken = payload.csrf_token;
   return payload;
 }
 
@@ -95,9 +131,10 @@ export const confirmPasswordReset = (body) =>
 export const downloadWork = (id, token, filename) =>
   downloadFile(`contracts/${id}/download`, token, filename);
 
-export async function downloadFile(path, token, filename) {
+export async function downloadFile(path, _sessionMarker, filename) {
   const response = await fetch(apiEndpoint(path), {
-    headers: token ? { Authorization: `Token ${token}` } : {},
+    credentials: 'same-origin',
+    cache: 'no-store',
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
@@ -111,4 +148,21 @@ export async function downloadFile(path, token, filename) {
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function apiErrorMessage(error, t) {
+  const messageKey = {
+    contact_verification_required: 'contactPolicy',
+    financial_operations_disabled: 'financeDisabled',
+    mfa_required: 'mfaHint',
+    sensitive_confirmation_required: 'sensitiveConfirmation',
+    CSRF_ORIGIN_FAILED: 'sessionRenew',
+    NETWORK_UNCERTAIN: 'uncertainRequest',
+    API_UNAVAILABLE: 'uncertainRequest',
+  }[error.code] || ({ 401: 'sessionRenew', 403: 'accessDenied', 404: 'resourceUnavailable', 429: 'requestThrottled' }[error.status]);
+  return messageKey
+    ? t(messageKey)
+    : error.uncertain
+      ? t('uncertainRequest')
+      : `${t('requestFailed')}: ${error.message}`;
 }

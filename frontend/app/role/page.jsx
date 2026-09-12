@@ -10,11 +10,11 @@ export default function RolePage() {
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
   async function submit() {
-    if (!session?.token || !role) return;
+    if (!session?.authenticated || !role) return;
     setBusy(true);
     setError('');
     try {
-      updateUser(await setRole(role, session.token));
+      updateUser(await setRole(role, session.authenticated));
       window.location.assign('/dashboard');
     } catch (err) {
       setError(err.message);

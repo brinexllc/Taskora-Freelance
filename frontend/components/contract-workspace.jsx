@@ -16,6 +16,7 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
+import { ProposalConversations } from '@/components/proposal-discussion';
 import { apiRequest, downloadFile } from '@/lib/api';
 import {
   Empty,
@@ -105,7 +106,7 @@ export function ContractWorkspace({ contract, act, busy }) {
               disabled={busy}
               onClick={() => confirmAction('fund')}
             >
-              {t('fundContract')}
+              {t('fundContract')} · {money(contract.amount, language)}
             </button>
             <Link className="text-link" href="/dashboard?view=wallet">
               {t('topup')}
@@ -118,7 +119,7 @@ export function ContractWorkspace({ contract, act, busy }) {
             disabled={busy}
             onClick={() => confirmAction('accept')}
           >
-            {t('acceptWork')}
+            {t('acceptAndPay')} · {money(contract.amount, language)}
           </button>
         )}
         {[
@@ -168,11 +169,21 @@ export function ContractWorkspace({ contract, act, busy }) {
                 className="t-button"
                 disabled={busy}
                 onClick={async () => {
-                  await act(confirm, { confirmed: true, reason }, 'saved');
-                  setConfirm('');
+                  const success = await act(
+                    confirm,
+                    {
+                      confirmed: true,
+                      reason,
+                      ...(confirm === 'accept'
+                        ? { deliverable_id: contract.deliverables?.[0]?.id }
+                        : {}),
+                    },
+                    'saved',
+                  );
+                  if (success) setConfirm('');
                 }}
               >
-                {t('confirm')}
+                {t('confirm')} · {money(contract.amount, language)}
               </button>
               <button
                 className="t-button secondary"
@@ -274,7 +285,7 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const remote = useRemote(`contracts/${contract.id}/messages`, {
-    token: session.token,
+    token: session.authenticated,
     query: { page, page_size: 50 },
   });
   const reloadMessages = remote.reload;
@@ -295,7 +306,7 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
       )?.id;
       apiRequest(`contracts/${contract.id}/messages/read`, {
         method: 'POST',
-        token: session.token,
+        token: session.authenticated,
       })
         .then(() => {
           setUnreadStart((current) => current ?? firstUnread);
@@ -307,7 +318,7 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
   }, [
     remote.data,
     contract.id,
-    session.token,
+    session.authenticated,
     session.user.id,
     reloadMessages,
     onMessagesChanged,
@@ -322,7 +333,7 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
       if (file) body.append('file', file);
       await apiRequest(`contracts/${contract.id}/messages`, {
         method: 'POST',
-        token: session.token,
+        token: session.authenticated,
         body,
       });
       setText('');
@@ -416,7 +427,7 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
                   onClick={() =>
                     downloadFile(
                       `contracts/${contract.id}/messages/${m.id}/download`,
-                      session.token,
+                      session.authenticated,
                       m.filename,
                     ).catch((e) => setError(e.message))
                   }
@@ -502,12 +513,12 @@ export function NotificationsView() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const remote = useRemote('notifications', {
-    token: session.token,
+    token: session.authenticated,
     query: { page },
   });
   async function read(path) {
     try {
-      await apiRequest(path, { method: 'POST', token: session.token });
+      await apiRequest(path, { method: 'POST', token: session.authenticated });
       remote.reload();
     } catch (e) {
       setError(e.message);
@@ -570,12 +581,12 @@ export function MessagesView() {
   const [selected, setSelected] = useState(null);
   const [page, setPage] = useState(1);
   const remote = useRemote('contracts', {
-    token: session.token,
+    token: session.authenticated,
     query: { page, search: term, conversation: 1, conversation_filter: filter },
   });
   const selectedId = search.get('contract');
   const direct = useRemote(selectedId ? `contracts/${selectedId}` : null, {
-    token: session.token,
+    token: session.authenticated,
   });
   const current = selected || (selectedId ? direct.data : null);
   const reloadConversations = remote.reload;
@@ -593,6 +604,7 @@ export function MessagesView() {
           <p className="dashboard-subtitle">{t('messagesSubtitle')}</p>
         </div>
       </div>
+      <ProposalConversations />
       <div className={`messenger-layout${current ? ' has-conversation' : ''}`}>
         <section className="conversation-list">
           <label className="conversation-search">

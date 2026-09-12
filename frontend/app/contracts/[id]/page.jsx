@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { AcceptanceTerms } from '@/components/acceptance-terms';
 import { ContractWorkspace } from '@/components/contract-workspace';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
@@ -20,11 +21,13 @@ export default function ContractPage() {
   const { id } = useParams();
   const { t, language, session, ready } = useApp();
   const remote = useRemote(
-    ready && session?.token && id ? `contracts/${id}` : null,
-    { token: session?.token },
+    ready && session?.authenticated && id ? `contracts/${id}` : null,
+    { token: session?.authenticated },
   );
   const [agree, setAgree] = useState(false),
     [file, setFile] = useState(null),
+    [demoUrl, setDemoUrl] = useState(''),
+    [verificationSteps, setVerificationSteps] = useState(''),
     [preview, setPreview] = useState(''),
     [image, setImage] = useState(''),
     [note, setNote] = useState(''),
@@ -44,13 +47,15 @@ export default function ContractPage() {
     try {
       await apiRequest(`contracts/${id}/${action}`, {
         method: 'POST',
-        token: session.token,
+        token: session.authenticated,
         body,
       });
       setNotice(t(success));
       remote.reload();
+      return true;
     } catch (err) {
       setError(err.message);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -69,6 +74,8 @@ export default function ContractPage() {
     data.append('file', file);
     data.append('preview_text', preview);
     data.append('preview_image', image);
+    data.append('demo_url', demoUrl);
+    data.append('verification_steps', verificationSteps);
     await act('submit', data, 'workSent');
   }
   return (
@@ -142,7 +149,14 @@ export default function ContractPage() {
                       className="t-button"
                       disabled={!agree || busy}
                       onClick={() =>
-                        act('sign', { accepted: true, expected_version: contract.version }, 'contractSigned')
+                        act(
+                          'sign',
+                          {
+                            accepted: true,
+                            expected_version: contract.version,
+                          },
+                          'contractSigned',
+                        )
                       }
                     >
                       {t('sign')}
@@ -150,6 +164,12 @@ export default function ContractPage() {
                   </div>
                 )}
             </section>
+            <AcceptanceTerms
+              key={contract.version}
+              contract={contract}
+              act={act}
+              busy={busy}
+            />
             {work && (
               <section className="t-card">
                 <div className="row-between">
@@ -159,6 +179,28 @@ export default function ContractPage() {
                   </span>
                 </div>
                 <p className="preserve-lines">{work.preview_text}</p>
+                {work.demo_url && /^https:\/\//i.test(work.demo_url) && (
+                  <a
+                    className="t-button secondary"
+                    href={work.demo_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t('inspectDemo')}
+                  </a>
+                )}
+                {work.verification_steps && (
+                  <>
+                    <h3>{t('verification_steps')}</h3>
+                    <p className="preserve-lines">{work.verification_steps}</p>
+                  </>
+                )}
+                {work.review_due_at && (
+                  <p>
+                    {t('reviewDue')}: {date(work.review_due_at, language)}
+                  </p>
+                )}
+                <p className="muted">{t('noAutomaticPayment')}</p>
                 {work.preview_image && (
                   <>
                     <Image
@@ -194,7 +236,7 @@ export default function ContractPage() {
                     try {
                       await downloadWork(
                         contract.id,
-                        session.token,
+                        session.authenticated,
                         work.filename,
                       );
                     } catch (err) {
@@ -226,6 +268,22 @@ export default function ContractPage() {
                       onChange={(e) => setPreview(e.target.value)}
                       maxLength={15000}
                       required
+                    />
+                  </Field>
+                  <Field label={t('demo_url')}>
+                    <input
+                      type="url"
+                      pattern="https://.*"
+                      value={demoUrl}
+                      onChange={(e) => setDemoUrl(e.target.value)}
+                    />
+                  </Field>
+                  <Field label={t('verification_steps')}>
+                    <textarea
+                      value={verificationSteps}
+                      onChange={(e) => setVerificationSteps(e.target.value)}
+                      maxLength={5000}
+                      required={contract.acceptance_workflow_version === 1}
                     />
                   </Field>
                   <Field label={t('previewImage')}>

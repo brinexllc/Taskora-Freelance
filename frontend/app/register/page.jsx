@@ -1,16 +1,19 @@
 'use client';
 /* oxlint-disable jsx-a11y/autocomplete-valid -- given-name and family-name are standard HTML autocomplete tokens. */
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AuthShell,
   OneIdDisabled,
   PasswordInput,
 } from '@/components/auth-shell';
 import { useApp } from '@/components/app-providers';
-import { register } from '@/lib/api';
+import { useRemote } from '@/components/taskora-ui';
+import { LegalText } from '@/components/legal-page';
+import { register, apiErrorMessage } from '@/lib/api';
 export default function RegisterPage() {
   const { t, language, setSession, ready } = useApp();
+  const legal = useRemote('legal/current', { query: { lang: language } });
   const [step, setStep] = useState(0);
   const [fullName, setFullName] = useState('');
   const [form, setForm] = useState({
@@ -26,6 +29,11 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void Promise.resolve().then(() =>
+      setForm((current) => ({ ...current, accept_terms: false })),
+    );
+  }, [language, legal.data?.hash]);
   const change = (key) => (event) => {
     const value = event.target.value;
     setForm((current) => ({ ...current, [key]: value }));
@@ -48,11 +56,19 @@ export default function RegisterPage() {
     setBusy(true);
     setError('');
     try {
-      const data = await register({ ...form, ...submitted, language });
+      if (!legal.data || !form.accept_terms)
+        throw new Error(t('legalUnavailable'));
+      const data = await register({
+        ...form,
+        ...submitted,
+        language,
+        terms_version: legal.data.version,
+        terms_hash: legal.data.hash,
+      });
       setSession(data);
       window.location.assign('/role');
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -180,6 +196,25 @@ export default function RegisterPage() {
                 autoComplete="new-password"
               />
             </label>
+            <details className="registration-terms">
+              <summary>
+                {t('legalVersion')}: {legal.data?.version || t('loading')}
+              </summary>
+              <LegalText content={legal.data?.content} />
+            </details>
+            {!legal.data?.approved && <output>{t('legalUnapproved')}</output>}
+            {legal.error && (
+              <p role="alert">
+                {t('legalUnavailable')}{' '}
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={legal.reload}
+                >
+                  {t('retry')}
+                </button>
+              </p>
+            )}
             <label className="check-label">
               <input
                 type="checkbox"
@@ -210,7 +245,12 @@ export default function RegisterPage() {
             {error}
           </p>
         )}
-        <button className="auth-primary" disabled={!ready || busy}>
+        <button
+          className="auth-primary"
+          disabled={
+            !ready || busy || legal.loading || !!legal.error || !legal.data
+          }
+        >
           {busy
             ? t('loading')
             : t(step === 0 ? 'register' : 'finishRegistration')}

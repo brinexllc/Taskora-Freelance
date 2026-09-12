@@ -22,7 +22,7 @@ export function PasswordChange() {
       setSession(
         await apiRequest('auth/change-password', {
           method: 'POST',
-          token: session.token,
+          token: session.authenticated,
           body: form,
         }),
       );

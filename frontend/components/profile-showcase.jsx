@@ -34,14 +34,17 @@ export function ProfileShowcase({ profile }) {
   const [selectedWork, setSelectedWork] = useState(null);
   const [allWorks, setAllWorks] = useState(false);
   const [contactNotice, setContactNotice] = useState(false);
-  const contracts = useRemote(!own && session?.token ? 'contracts' : null, {
-    token: session?.token,
-    query: { participant_profile: profile.id, page_size: 1 },
-  });
+  const contracts = useRemote(
+    !own && session?.authenticated ? 'contracts' : null,
+    {
+      token: session?.authenticated,
+      query: { participant_profile: profile.id, page_size: 1 },
+    },
+  );
   const conversation = contracts.data?.results[0];
   const contact = own
     ? '/dashboard?view=settings'
-    : !session?.token
+    : !session?.authenticated
       ? '/login'
       : conversation
         ? `/dashboard?view=messages&contract=${conversation.id}`

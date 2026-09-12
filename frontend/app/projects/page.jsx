@@ -66,7 +66,7 @@ export function OrdersList({ mine = false, assigned = false }) {
     });
   }, []);
   const remote = useRemote('projects', {
-    token: session?.token,
+    token: session?.authenticated,
     query: {
       ...query,
       mine: mine ? 1 : undefined,

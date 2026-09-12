@@ -1,0 +1,12 @@
+{
+  "environment": "isolated localhost:3015 ->127.0.0.1:8015",
+  "checks": [
+    "missing_csrf:403",
+    "session_login_no_bearer:200",
+    "session_cookie_http_only_samesite_lax:pass",
+    "cookie_session_me:200",
+    "cross_origin_blocked:403",
+    "logout:204",
+    "revoked_session_denied:401"
+  ]
+}

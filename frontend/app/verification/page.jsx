@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   UsersRound,
 } from 'lucide-react';
+import { AccountSecurity } from '@/components/account-security';
 import { AuthShell } from '@/components/auth-shell';
 import { useApp } from '@/components/app-providers';
 import { date } from '@/lib/i18n';
@@ -27,6 +28,7 @@ export default function VerificationPage() {
       : '/role';
   return (
     <AuthShell variant="verification">
+      {session?.user && <AccountSecurity />}
       <ol className="verification-steps">
         {['connect', 'confirm', 'result'].map((step) => (
           <li key={step} className={view === step ? 'current' : ''}>

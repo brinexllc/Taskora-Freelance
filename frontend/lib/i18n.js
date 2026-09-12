@@ -1,3 +1,4 @@
+import { auditCopy } from './audit-copy';
 import { mvpCopy } from './mvp-copy';
 import { catalogCopy } from './catalog-copy';
 import { designCopy } from './design-copy';
@@ -799,6 +800,10 @@ Object.assign(uz, catalogCopy.uz);
 Object.assign(ru, designCopy.ru);
 Object.assign(en, designCopy.en);
 Object.assign(uz, designCopy.uz);
+
+Object.assign(ru, auditCopy.ru);
+Object.assign(en, auditCopy.en);
+Object.assign(uz, auditCopy.uz);
 
 export const dictionaries = {
   ru,

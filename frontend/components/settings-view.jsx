@@ -1,8 +1,10 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { ApiTokenSettings } from '@/components/api-token-settings';
+import { AccountSecurity } from '@/components/account-security';
 import { useApp } from '@/components/app-providers';
-import { apiRequest, logout, setRole } from '@/lib/api';
+import { apiRequest, apiErrorMessage, logout, setRole } from '@/lib/api';
 import { Avatar, Field, Notice, readImage } from '@/components/taskora-ui';
 import { SkillPicker } from '@/components/project-editor';
 import { PasswordChange } from '@/components/password-change';
@@ -49,7 +51,7 @@ export function SettingsView() {
     try {
       const user = await apiRequest('auth/me', {
         method: 'PATCH',
-        token: session.token,
+        token: session.authenticated,
         body: {
           ...form,
           spoken_languages: form.spoken_languages
@@ -63,7 +65,7 @@ export function SettingsView() {
       updateUser(user);
       setNotice(t('profileSaved'));
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -74,10 +76,10 @@ export function SettingsView() {
     setError('');
     setNotice('');
     try {
-      updateUser(await setRole(role, session.token));
+      updateUser(await setRole(role, session.authenticated));
       setNotice(t('roleSaved'));
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -85,11 +87,12 @@ export function SettingsView() {
   return (
     <>
       <h1>{t('settings')}</h1>
+      {session.user.is_staff && <Link className="t-button secondary" href="/admin/">{t('operatorConsole')}</Link>}
       <Link
         className="text-link verification-settings-link"
         href="/verification"
       >
-        {t('verification')} · ONEID / MYID →
+        {t('contactVerification')} →
       </Link>
       <Notice error>{error}</Notice>
       <Notice>{notice}</Notice>
@@ -453,6 +456,8 @@ export function SettingsView() {
         </section>
         <div className="list-stack">
           <PasswordChange />
+          <AccountSecurity />
+          <ApiTokenSettings />
           <section className="t-card">
             <h2>{t('role')}</h2>
             <form className="t-form" onSubmit={changeRole}>
@@ -499,7 +504,7 @@ export function SettingsView() {
             onClick={async () => {
               setBusy(true);
               try {
-                await logout(session.token);
+                await logout(session.authenticated);
                 clearSession();
                 window.location.assign('/login');
               } catch (err) {
