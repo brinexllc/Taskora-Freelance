@@ -508,7 +508,7 @@ export function SettingsView() {
                 clearSession();
                 window.location.assign('/login');
               } catch (err) {
-                setError(err.message);
+                setError(apiErrorMessage(err, t));
                 setBusy(false);
               }
             }}

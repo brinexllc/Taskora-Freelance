@@ -15,6 +15,7 @@ import {
   LanguageSelect,
   Logo,
   RemoteState,
+  RemoteFeedback,
   useRemote,
 } from '@/components/taskora-ui';
 export default function LandingPage() {
@@ -61,6 +62,7 @@ export default function LandingPage() {
                 </span>
               ))}
             </div>
+            <RemoteFeedback remote={overview} />
           </div>
         </section>
         <section className="startup-trust" id="about">

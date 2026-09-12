@@ -84,7 +84,7 @@ export function WalletView() {
         else setCheckingPayment(false);
       } catch (err) {
         if (!controller.signal.aborted) {
-          setError(err.message);
+          setError(apiErrorMessage(err, t));
           setCheckingPayment(false);
         }
       }
@@ -94,7 +94,7 @@ export function WalletView() {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [session.authenticated, reloadWallet]);
+  }, [session.authenticated, reloadWallet, t]);
   async function action(path, body) {
     setBusy(true);
     setError('');

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/components/app-providers';
-import { apiRequest, downloadFile } from '@/lib/api';
+import { apiRequest, apiErrorMessage, downloadFile } from '@/lib/api';
 import { dateTime } from '@/lib/i18n';
 import {
   Field,
@@ -36,7 +36,7 @@ export function ProposalDiscussion({ proposal }) {
               }),
             );
           } catch (e) {
-            setError(e.message);
+            setError(apiErrorMessage(e, t));
           } finally {
             setBusy(false);
           }
@@ -83,8 +83,8 @@ export function ProposalChat({ conversation }) {
       },
     })
       .then(reload)
-      .catch((e) => setError(e.message));
-  }, [remote.data, path, session.user.id, reload]);
+      .catch((e) => setError(apiErrorMessage(e, t)));
+  }, [remote.data, path, session.user.id, reload, t]);
   return (
     <section className="proposal-chat">
       <h3>
@@ -118,7 +118,7 @@ export function ProposalChat({ conversation }) {
                       `${path}/messages/${item.id}/download`,
                       undefined,
                       item.filename,
-                    ).catch((e) => setError(e.message))
+                    ).catch((e) => setError(apiErrorMessage(e, t)))
                   }
                 >
                   {item.filename}
@@ -151,7 +151,7 @@ export function ProposalChat({ conversation }) {
             form.reset();
             reload();
           } catch (e) {
-            setError(e.message);
+            setError(apiErrorMessage(e, t));
           } finally {
             setBusy(false);
           }
@@ -191,7 +191,7 @@ export function ProposalChat({ conversation }) {
               setReason('');
               setNotice(t('reportSubmitted'));
             } catch (e) {
-              setError(e.message);
+              setError(apiErrorMessage(e, t));
             } finally {
               setBusy(false);
             }

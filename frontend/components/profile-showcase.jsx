@@ -18,6 +18,7 @@ import {
   Notice,
   Pager,
   RemoteState,
+  RemoteFeedback,
   useRemote,
 } from '@/components/taskora-ui';
 import { date, money } from '@/lib/i18n';
@@ -108,7 +109,7 @@ export function ProfileShowcase({ profile }) {
           ) : (
             <button
               className="t-button secondary"
-              disabled={contracts.loading}
+              disabled={contracts.loading || !!contracts.error}
               onClick={() => setContactNotice(true)}
             >
               {t('writeMessage')}
@@ -122,6 +123,7 @@ export function ProfileShowcase({ profile }) {
           </Link>
         </div>
       </section>
+      {!own && session?.authenticated && <RemoteFeedback remote={contracts} />}
       <Notice>{contactNotice && t('chatAfterContract')}</Notice>
       {freelancer && (
         <>

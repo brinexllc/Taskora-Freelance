@@ -9,10 +9,17 @@ async function ensureCsrf() {
     cache: 'no-store',
   })
     .then(async (response) => {
-      if (!response.ok) throw new Error('CSRF initialization failed.');
-      const payload = await response.json();
+      const payload = await response.json().catch(() => null);
+      if (!response.ok)
+        throw new ApiError(payload?.detail || `HTTP ${response.status}`, response.status, payload);
+      if (!payload?.csrf_token)
+        throw new ApiError('CSRF initialization response was invalid.', 502, { code: 'API_UNAVAILABLE' });
       csrfToken = payload.csrf_token;
       return csrfToken;
+    })
+    .catch((error) => {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(error.message, 0, { code: 'NETWORK_UNCERTAIN' });
     })
     .finally(() => {
       csrfRequest = null;
@@ -132,15 +139,23 @@ export const downloadWork = (id, token, filename) =>
   downloadFile(`contracts/${id}/download`, token, filename);
 
 export async function downloadFile(path, _sessionMarker, filename) {
-  const response = await fetch(apiEndpoint(path), {
-    credentials: 'same-origin',
-    cache: 'no-store',
-  });
+  let response;
+  try {
+    response = await fetch(apiEndpoint(path), {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    });
+  } catch (error) {
+    throw new ApiError(error.message, 0, { code: 'NETWORK_UNCERTAIN' });
+  }
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(data.detail || `HTTP ${response.status}`);
+    throw new ApiError(data.detail || `HTTP ${response.status}`, response.status, data);
   }
-  const url = URL.createObjectURL(await response.blob());
+  let blob;
+  try { blob = await response.blob(); }
+  catch (error) { throw new ApiError(error.message, 0, { code: 'NETWORK_UNCERTAIN' }); }
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = filename || 'taskora-project';

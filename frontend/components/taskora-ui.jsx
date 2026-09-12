@@ -254,7 +254,7 @@ export function WorkspaceFrame({
       clearSession();
       window.location.assign('/');
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
     }
   }
   return (
@@ -338,6 +338,7 @@ export function WorkspaceFrame({
         </header>
         <main className={`workspace-main workspace-view-${view}`}>
           <Notice error>{error}</Notice>
+          <RemoteFeedback remote={stats} />
           {children}
         </main>
       </div>
@@ -406,6 +407,13 @@ export function RemoteState({ remote, empty, children }) {
     );
   if (!remote.data) return <Empty text={empty || t('empty')} />;
   return children;
+}
+export function RemoteFeedback({ remote, showLoading = true }) {
+  const { t } = useApp();
+  if (remote.loading && showLoading)
+    return <output className="empty-state">{t('loading')}</output>;
+  if (!remote.error) return null;
+  return <Notice error>{remote.error} <button className="text-link" type="button" onClick={remote.reload}>{t('retry')}</button></Notice>;
 }
 export function Empty({ text }) {
   return (

@@ -23,7 +23,7 @@ import { WalletView } from '@/components/wallet-view';
 import { SettingsView } from '@/components/settings-view';
 import { ProfileShowcase } from '@/components/profile-showcase';
 import { OrdersList } from '@/app/projects/page';
-import { apiRequest } from '@/lib/api';
+import { apiRequest, apiErrorMessage } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
 import { conversationTime, date, money } from '@/lib/i18n';
 
@@ -379,7 +379,7 @@ function ProposalList() {
                       });
                       remote.reload();
                     } catch (e) {
-                      setError(e.message);
+                      setError(apiErrorMessage(e, t));
                     }
                   }}
                 >

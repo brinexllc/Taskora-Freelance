@@ -12,6 +12,7 @@ import {
   ProjectProgress,
   Status,
   RemoteState,
+  RemoteFeedback,
   useRemote,
 } from '@/components/taskora-ui';
 import { date, money } from '@/lib/i18n';
@@ -177,6 +178,7 @@ export function OrdersList({ mine = false, assigned = false }) {
             ))}
           </select>
         </Field>
+        <RemoteFeedback remote={directory} />
         <SkillPicker
           key={filters.category}
           value={selectedSkills}

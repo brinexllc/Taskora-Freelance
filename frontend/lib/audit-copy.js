@@ -1,4 +1,6 @@
 const entries = {
+  noResults: ['Ничего не найдено', 'No results found', 'Hech narsa topilmadi'],
+  noMessages: ['Сообщений пока нет', 'No messages yet', 'Hozircha xabarlar yo‘q'],
   requestThrottled: ['Слишком много запросов. Подождите несколько минут и повторите.', 'Too many requests. Wait a few minutes and try again.', 'So‘rovlar juda ko‘p. Bir necha daqiqa kuting va qayta urinib ko‘ring.'],
   accessDenied: ['Доступ к этому действию ограничен.', 'Access to this action is restricted.', 'Ushbu amalga kirish cheklangan.'],
   resourceUnavailable: ['Запись не найдена или недоступна этому аккаунту.', 'This record was not found or is unavailable to this account.', 'Yozuv topilmadi yoki ushbu akkaunt uchun mavjud emas.'],
@@ -138,9 +140,9 @@ const entries = {
     'O‘tkazma qayta ishlanmoqda. Mablag‘ band; natija tasdiqlanmaguncha bekor qilish yoki takroriy o‘tkazma mumkin emas.',
   ],
   uncertainRequest: [
-    'Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата.',
-    'The response is unconfirmed. Retry the same request with the saved key. Do not create another operation until its result is resolved.',
-    'Javob tasdiqlanmadi. Saqlangan kalit bilan ayni so‘rovni takrorlang. Natija aniqlanmaguncha yangi amal yaratmang.',
+    'Ответ сервера не получен. Проверьте соединение и повторите действие.',
+    'No server response was received. Check your connection and try again.',
+    'Server javobi olinmadi. Ulanishni tekshiring va amalni takrorlang.',
   ],
   requestKey: ['Ключ запроса', 'Request key', 'So‘rov kaliti'],
   retrySameRequest: [

@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
-import { apiRequest, downloadWork } from '@/lib/api';
+import { apiRequest, apiErrorMessage, downloadWork } from '@/lib/api';
 import {
   Field,
   Notice,
@@ -54,7 +54,7 @@ export default function ContractPage() {
       remote.reload();
       return true;
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
       return false;
     } finally {
       setBusy(false);
@@ -240,7 +240,7 @@ export default function ContractPage() {
                         work.filename,
                       );
                     } catch (err) {
-                      setError(err.message);
+                      setError(apiErrorMessage(err, t));
                     } finally {
                       setBusy(false);
                     }
@@ -294,7 +294,7 @@ export default function ContractPage() {
                         try {
                           setImage(await readImage(e.target.files?.[0]));
                         } catch (err) {
-                          setError(err.message);
+                          setError(apiErrorMessage(err, t));
                           e.target.value = '';
                         }
                       }}

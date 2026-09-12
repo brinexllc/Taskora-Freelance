@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
 import { ProposalConversations } from '@/components/proposal-discussion';
-import { apiRequest, downloadFile } from '@/lib/api';
+import { apiRequest, apiErrorMessage, downloadFile } from '@/lib/api';
 import {
   Empty,
   Avatar,
@@ -25,6 +25,7 @@ import {
   Notice,
   Pager,
   RemoteState,
+  RemoteFeedback,
   Status,
   useRemote,
 } from '@/components/taskora-ui';
@@ -313,7 +314,7 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
           reloadMessages();
           onMessagesChanged?.();
         })
-        .catch((e) => setError(e.message));
+        .catch((e) => setError(apiErrorMessage(e, t)));
     }
   }, [
     remote.data,
@@ -322,6 +323,7 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
     session.user.id,
     reloadMessages,
     onMessagesChanged,
+    t,
   ]);
   async function send(e) {
     e.preventDefault();
@@ -342,7 +344,7 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
       remote.reload();
       onMessagesChanged?.();
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -408,9 +410,10 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
           </details>
         </div>
       </div>
-      <Notice error>{error || remote.error}</Notice>
+      <Notice error>{error}</Notice>
+      <RemoteFeedback remote={remote} showLoading={!remote.data} />
       <div className="chat-messages" aria-live="polite">
-        {!remote.data && remote.loading && <p>{t('loading')}</p>}
+        {!remote.loading && !remote.error && remote.data?.results.length === 0 && <Empty text={t('noMessages')} />}
         {remote.data?.results.map((m) => (
           <Fragment key={m.id}>
             {m.id === unreadStart && (
@@ -429,7 +432,7 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
                       `contracts/${contract.id}/messages/${m.id}/download`,
                       session.authenticated,
                       m.filename,
-                    ).catch((e) => setError(e.message))
+                    ).catch((e) => setError(apiErrorMessage(e, t)))
                   }
                 >
                   <Paperclip size={14} /> {m.filename}
@@ -521,7 +524,7 @@ export function NotificationsView() {
       await apiRequest(path, { method: 'POST', token: session.authenticated });
       remote.reload();
     } catch (e) {
-      setError(e.message);
+      setError(apiErrorMessage(e, t));
     }
   }
   return (
@@ -605,6 +608,7 @@ export function MessagesView() {
         </div>
       </div>
       <ProposalConversations />
+      {selectedId && <RemoteFeedback remote={direct} />}
       <div className={`messenger-layout${current ? ' has-conversation' : ''}`}>
         <section className="conversation-list">
           <label className="conversation-search">
@@ -692,7 +696,7 @@ export function MessagesView() {
               if (selectedId) router.replace('/dashboard?view=messages');
             }}
           />
-        ) : (
+        ) : selectedId && (direct.loading || direct.error) ? null : (
           <div className="conversation-empty">
             <MessageSquare size={40} />
             <Empty text={t('selectConversation')} />

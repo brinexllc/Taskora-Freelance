@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
 import { AcceptanceFields } from '@/components/acceptance-terms';
-import { apiRequest } from '@/lib/api';
+import { apiRequest, apiErrorMessage } from '@/lib/api';
 import {
   Field,
   Notice,
@@ -172,7 +172,7 @@ export function ProjectEditor({ project, onSaved }) {
       if (onSaved) onSaved();
       else window.location.assign(`/projects/${item.id}`);
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -215,7 +215,8 @@ export function ProjectEditor({ project, onSaved }) {
           </select>
         </Field>
       </div>
-      <Notice error>{remote.error}</Notice>
+      {remote.loading && <output className="empty-state">{t('loading')}</output>}
+      <Notice error>{remote.error && <>{remote.error} <button className="text-link" type="button" onClick={remote.reload}>{t('retry')}</button></>}</Notice>
       <label className="t-check">
         <input
           type="checkbox"

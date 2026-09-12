@@ -6,7 +6,7 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { apiRequest, getCurrentUser } from '@/lib/api';
+import { apiRequest, apiErrorMessage, getCurrentUser } from '@/lib/api';
 import { languages, translate } from '@/lib/i18n';
 const AppContext = createContext(null);
 const validLanguage = (value) => languages.some(([key]) => key === value);
@@ -38,7 +38,7 @@ export function AppProviders({ children }) {
       setThemeState(user.theme || 'light');
     } catch (error) {
       if ([401, 403].includes(error.status)) clearSession();
-      else setConnectionError(error.message);
+      else setConnectionError(error);
     } finally {
       setReady(true);
     }
@@ -162,7 +162,7 @@ export function AppProviders({ children }) {
         body: { [key]: value },
       })
         .then(updateUser)
-        .catch((error) => setConnectionError(error.message))
+        .catch((error) => setConnectionError(error))
         .finally(() => setPreferenceSaving(false));
     }
   }
@@ -184,7 +184,7 @@ export function AppProviders({ children }) {
     <AppContext.Provider value={value}>
       {connectionError && (
         <div className="connection-error" role="alert">
-          {translate(language, 'error')}: {connectionError}{' '}
+          {apiErrorMessage(connectionError, (key) => translate(language, key))}{' '}
           <button onClick={refreshSession}>
             {translate(language, 'retry')}
           </button>

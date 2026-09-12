@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
-import { apiRequest } from '@/lib/api';
+import { apiRequest, apiErrorMessage } from '@/lib/api';
 import { Field, Notice } from '@/components/taskora-ui';
 export function PasswordChange() {
   const { t, session, setSession } = useApp();
@@ -29,7 +29,7 @@ export function PasswordChange() {
       setForm({ current_password: '', password: '', password_confirm: '' });
       setSaved(true);
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }

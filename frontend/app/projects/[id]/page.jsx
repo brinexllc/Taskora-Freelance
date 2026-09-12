@@ -10,7 +10,7 @@ import { ProjectEditor } from '@/components/project-editor';
 import { FeeEstimate } from '@/components/fee-estimate';
 import { Chat } from '@/components/contract-workspace';
 import { feePreview } from '@/lib/fee-preview';
-import { apiRequest, createProposal, downloadFile } from '@/lib/api';
+import { apiRequest, apiErrorMessage, createProposal, downloadFile } from '@/lib/api';
 import {
   Empty,
   Avatar,
@@ -20,6 +20,7 @@ import {
   Pager,
   ProjectProgress,
   RemoteState,
+  RemoteFeedback,
   Status,
   useRemote,
 } from '@/components/taskora-ui';
@@ -78,7 +79,7 @@ export default function ProjectDetailsPage() {
       remote.reload();
     } catch (err) {
       setError(
-        err.code === 'FEE_POLICY_CHANGED' ? t('feePolicyChanged') : err.message,
+        err.code === 'FEE_POLICY_CHANGED' ? t('feePolicyChanged') : apiErrorMessage(err, t),
       );
       if (err.code === 'FEE_POLICY_CHANGED') fees.reload();
     } finally {
@@ -114,7 +115,7 @@ export default function ProjectDetailsPage() {
       else proposals.reload();
     } catch (err) {
       setError(
-        err.code === 'FEE_POLICY_CHANGED' ? t('feePolicyChanged') : err.message,
+        err.code === 'FEE_POLICY_CHANGED' ? t('feePolicyChanged') : apiErrorMessage(err, t),
       );
       if (err.code === 'FEE_POLICY_CHANGED') fees.reload();
     } finally {
@@ -218,9 +219,10 @@ export default function ProjectDetailsPage() {
                 </Link>
               )}
             </section>
+            {!!project.contract_id && session?.authenticated && <RemoteFeedback remote={contract} />}
             {owner &&
               project.status === 'cancelled' &&
-              (!contract.data || !Number(contract.data.escrow_amount)) && (
+              (!project.contract_id || (!contract.loading && !contract.error && contract.data && !Number(contract.data.escrow_amount))) && (
                 <ProjectClone project={project} />
               )}
             {project.source_project && (
@@ -252,7 +254,7 @@ export default function ProjectDetailsPage() {
                         });
                         remote.reload();
                       } catch (e) {
-                        setError(e.message);
+                        setError(apiErrorMessage(e, t));
                       } finally {
                         setBusy(false);
                       }
@@ -274,7 +276,7 @@ export default function ProjectDetailsPage() {
                         `projects/${id}/attachments/${a.id}/download`,
                         session?.authenticated,
                         a.filename,
-                      ).catch((e) => setError(e.message))
+                      ).catch((e) => setError(apiErrorMessage(e, t)))
                     }
                   >
                     <FileText size={24} />
