@@ -9,9 +9,12 @@ from .auth_views import (
 from .views import admin_file_download, ContractViewSet, ProjectViewSet, ProposalViewSet, api_root, dashboard, health, overview, NotificationViewSet, DisputeViewSet, directory, profile_reviews
 from .payment_views import cancel_payment, cancel_withdrawal, checkout, click_callback, integrations, payment_status, wallet, withdraw
 from .catalog_api import catalog, platform_fees, SkillListView
+from .product_api import ProposalConversationViewSet
+from .views import readiness
 
 
 router = DefaultRouter()
+router.register('proposal-conversations', ProposalConversationViewSet, basename='proposal-conversation')
 router.register("projects", ProjectViewSet, basename="project")
 router.register("proposals", ProposalViewSet, basename="proposal")
 router.register("contracts", ContractViewSet, basename="contract")
@@ -19,6 +22,8 @@ router.register("notifications", NotificationViewSet, basename="notification")
 router.register("disputes", DisputeViewSet, basename="dispute")
 
 urlpatterns = [
+    path('', include('marketplace.payment_urls')),
+    path('', include('marketplace.security_urls')),
     path('catalog/', catalog),
     path('skills/', SkillListView.as_view()),
     path('platform-fees/', platform_fees),
@@ -49,6 +54,7 @@ urlpatterns = [
     path("auth/password-reset/confirm/", PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
     path("", api_root, name="api-root"),
     path("health/", health, name="health"),
+    path("health/ready/", readiness, name="readiness"),
     path("overview/", overview, name="overview"),
     path("", include(router.urls)),
 ]

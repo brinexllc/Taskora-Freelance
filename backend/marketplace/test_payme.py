@@ -3,8 +3,9 @@ import uuid
 from urllib.parse import unquote
 
 from django.test import override_settings
+from django.utils import timezone
 from .tests import BaseTests
-from .models import Payment, Profile, WalletEntry, Withdrawal
+from .models import Payment, Profile, WalletEntry, Withdrawal, PayoutRecipient
 from .payme_views import milliseconds, TIMEOUT_MS
 
 
@@ -13,6 +14,10 @@ class PaymeTests(BaseTests):
     def setUp(self):
         super().setUp()
         self.user = self.account('customer', 'client')
+        Profile.objects.filter(user=self.user).update(phone='+998901234567', verified_phone='+998901234567', phone_verified_at=timezone.now())
+        self.recipient = PayoutRecipient.objects.create(user=self.user, provider='testbank', account='account-test',
+            provider_recipient_id='recipient-test', destination='Bank •••• 1234', verification_evidence='secure-evidence-test',
+            verified_by=self.user, verified_at=timezone.now())
         self.payment = Payment.objects.create(user=self.user, provider='payme', amount=50000)
         self.params = {'id': 'payme-transaction', 'time': milliseconds(), 'amount': 5000000,
                        'account': {'order_id': str(self.payment.reference)}}
@@ -70,7 +75,8 @@ class PaymeTests(BaseTests):
         self.rpc('CreateTransaction', self.params)
         self.rpc('PerformTransaction')
         self.as_user(self.user)
-        self.assertEqual(self.post('wallet/withdraw', {'amount': 50000, 'destination': 'Bank •••• 1234', 'confirmed': True}).status_code, 201)
+        self.assertEqual(self.post('wallet/withdraw', {'amount': 50000, 'recipient': self.recipient.pk,
+            'idempotency_key':str(uuid.uuid4()), 'confirmed': True}).status_code, 201)
         self.assertEqual(self.rpc('CancelTransaction', {'id':self.params['id'], 'reason': 5})['error']['code'], -31007)
         self.payment.refresh_from_db()
         self.assertEqual(self.payment.status, 'paid')
@@ -100,7 +106,7 @@ class PaymeTests(BaseTests):
         self.assertEqual(Payment.objects.filter(reference=key).count(), 1)
         self.assertEqual(self.post('payments/checkout', {**body, 'amount':2000}).status_code, 400)
         Profile.objects.filter(user=self.user).update(balance=5000)
-        body = {'amount':1000, 'destination':'Bank •••• 1234', 'confirmed':True, 'idempotency_key':str(uuid.uuid4())}
+        body = {'amount':1000, 'recipient':self.recipient.pk, 'confirmed':True, 'idempotency_key':str(uuid.uuid4())}
         self.assertEqual(self.post('wallet/withdraw', body).status_code, 201)
         self.assertEqual(self.post('wallet/withdraw', body).status_code, 200)
         self.assertEqual(Withdrawal.objects.count(), 1)

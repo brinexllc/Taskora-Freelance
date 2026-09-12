@@ -1,8 +1,12 @@
 param([ValidateSet('backend', 'frontend', 'click-receipts')][string]$Service = 'backend')
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
+$env:TASKORA_ENV = 'local'
+$env:TASKORA_LOAD_DOTENV = 'false'
+$env:REAL_MONEY_ENABLED = 'false'
 if ($Service -eq 'frontend') {
     $env:NEXT_PUBLIC_API_URL = 'http://127.0.0.1:8000/api'
+    $env:API_URL = 'http://127.0.0.1:8000/api'
     Set-Location -LiteralPath (Join-Path $PSScriptRoot 'frontend')
     if (-not (Test-Path -LiteralPath 'node_modules')) {
         pnpm install --frozen-lockfile

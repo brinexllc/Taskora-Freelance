@@ -1,0 +1,57 @@
+{
+  "version": "mvp-published-copy-2026-09-13",
+  "approved": false,
+  "provenance": "Snapshot of the existing legal-page.jsx copy; no legal/operator approval supplied.",
+  "operator": {},
+  "support": {},
+  "languages": {
+    "ru": {
+      "terms": "Taskora связывает заказчика и исполнителя. Согласованные объём, цена и срок фиксируются в договоре. Работа начинается после резервирования средств. Заказчик принимает результат, запрашивает доработку или открывает спор. Приёмка освобождает резерв, при споре распределение определяет администратор. До начала работ договор можно отменить. История договоров и финансовых операций сохраняется. ONEID и сертифицированная электронная подпись пока не подключены.",
+      "privacy": "Профиль хранит имя, username, дату рождения, телефон, email и настройки. Публичный каталог показывает только данные профессионального профиля, без телефона, email и даты рождения. Договор, чат и файлы доступны участникам и уполномоченным администраторам. Пароли хранятся в виде хешей. Финансовая история и материалы споров сохраняются для аудита. Полные номера банковских карт не собираются.",
+      "how_it_works": [
+        "Создайте аккаунт и выберите роль",
+        "Договоритесь об условиях и подпишите договор",
+        "Проверьте работу, оплатите и скачайте результат"
+      ],
+      "fees": "Комиссию TASKORA оплачивает исполнитель: она удерживается из фактической выплаты при окончательной приёмке или решении спора. Заказчик резервирует согласованную сумму без надбавки TASKORA. Ставка фиксируется при создании договора и сохраняется при последующих изменениях тарифа. При полном возврате комиссия равна нулю; при частичном — рассчитывается только с суммы, присуждённой исполнителю. Пополнение, резервирование и вывод не создают повторного удержания комиссии TASKORA. Публикация и отклики бесплатны. Новый тариф объявляется отдельно и применяется только к новым договорам. Возможные сборы банков и платёжных провайдеров определяются их условиями.",
+      "support_guidance": "Обсуждайте вопросы по заказу в рабочем чате. Если возник спор по результату, откройте спор на странице договора.",
+      "notice": "Юридические реквизиты оператора, контакты поддержки и окончательные сроки хранения должны быть заполнены владельцем платформы до коммерческого запуска."
+    },
+    "en": {
+      "terms": "Taskora connects customers and freelancers. Scope, price and delivery time are recorded in the contract. Work starts after funds are reserved. Customers accept results, request revisions or open disputes. Acceptance releases the reserve; administrators resolve disputed funds. Contracts can be cancelled before funding. Contract and payment history is retained. ONEID and certified electronic signatures are not connected yet.",
+      "privacy": "Accounts store names, usernames, birth dates, phone numbers, email addresses and preferences. Public profiles exclude phone, email and birth date. Contracts, chat and private files are available to participants and authorised administrators. Passwords are hashed. Financial and dispute records are retained for audit. Full card numbers are not collected.",
+      "how_it_works": [
+        "Create an account and choose a role",
+        "Agree on the terms and sign a contract",
+        "Review, pay and download your project"
+      ],
+      "fees": "The freelancer pays the TASKORA fee, deducted from the actual award at final acceptance or dispute resolution. The customer reserves the agreed amount without a TASKORA surcharge. The rate is fixed at contract creation and survives later rate changes. A full refund has zero commission; a partial refund charges commission only on the freelancer’s award. Top-ups, funding and withdrawals do not charge the TASKORA fee again. Posting and proposals are free. New rates are announced separately and apply only to new contracts. Banks and payment providers may charge fees under their own terms.",
+      "support_guidance": "Discuss project questions in the work chat. If there is a disagreement about the result, open a dispute on the contract page.",
+      "notice": "The platform owner must provide operator details, support contacts and final retention periods before commercial launch."
+    },
+    "uz": {
+      "terms": "Taskora buyurtmachi va ijrochini bog‘laydi. Ish hajmi, narx va muddat shartnomada belgilanadi. Mablag‘ band qilingach ish boshlanadi. Buyurtmachi natijani qabul qiladi, tuzatish so‘raydi yoki nizo ochadi. Qabul qilish band mablag‘ni bo‘shatadi; nizoda administrator qaror qiladi. Mablag‘ band qilinishidan oldin shartnoma bekor qilinishi mumkin. Shartnoma va to‘lov tarixi saqlanadi. ONEID va sertifikatlangan elektron imzo hali ulanmagan.",
+      "privacy": "Profil ism, username, tug‘ilgan sana, telefon, email va sozlamalarni saqlaydi. Ochiq profilda telefon, email va tug‘ilgan sana ko‘rsatilmaydi. Shartnoma, chat va fayllar qatnashchilar hamda vakolatli administratorlarga ochiq. Parollar xesh shaklida saqlanadi. Moliyaviy tarix va nizo materiallari audit uchun saqlanadi. Bank kartasining to‘liq raqami yig‘ilmaydi.",
+      "how_it_works": [
+        "Hisob yarating va rol tanlang",
+        "Shartlarni kelishib, shartnoma imzolang",
+        "Ishni tekshiring, to‘lang va natijani yuklab oling"
+      ],
+      "fees": "TASKORA komissiyasini ijrochi to‘laydi: yakuniy qabul yoki nizo qarorida unga ajratilgan to‘lovdan ushlab qolinadi. Buyurtmachi kelishilgan summani TASKORA ustamasiz zaxiraga qo‘yadi. Stavka shartnoma yaratilganda belgilanadi va keyingi tarif o‘zgarishlarida saqlanadi. To‘liq qaytarishda komissiya nol; qisman qaytarishda faqat ijrochiga ajratilgan summadan hisoblanadi. Hisobni to‘ldirish, zaxiralash va pul yechishda TASKORA komissiyasi takroran olinmaydi. E’lon va takliflar bepul. Yangi tarif alohida e’lon qilinadi va faqat yangi shartnomalarga qo‘llanadi. Bank va to‘lov provayderlari yig‘imlari ularning shartlariga bog‘liq.",
+      "support_guidance": "Buyurtma savollarini ish chatida muhokama qiling. Natija bo‘yicha kelishmovchilik bo‘lsa, shartnoma sahifasida nizoni oching.",
+      "notice": "Tijorat ishga tushirilishidan oldin platforma egasi operator rekvizitlari, yordam kontaktlari va ma’lumot saqlash muddatlarini belgilashi kerak."
+    },
+    "uz-cyrl": {
+      "terms": "Taskora буюртмачи ва ижрочини боғлайди. Иш ҳажми, нарх ва муддат шартномада белгиланади. Маблағ банд қилингач иш бошланади. Буюртмачи натижани қабул қилади, тузатиш сўрайди ёки низо очади. Қабул қилиш банд маблағни бўшатади; низода администратор қарор қилади. Маблағ банд қилинишидан олдин шартнома бекор қилиниши мумкин. Шартнома ва тўлов тарихи сақланади. ONEID ва сертификатланган електрон имзо ҳали уланмаган.",
+      "privacy": "Профил исм, username, туғилган сана, телефон, email ва созламаларни сақлайди. Очиқ профилда телефон, email ва туғилган сана кўрсатилмайди. Шартнома, чат ва файллар қатнашчилар ҳамда ваколатли администраторларга очиқ. Пароллар хеш шаклида сақланади. Молиявий тарих ва низо материаллари аудит учун сақланади. Банк картасининг тўлиқ рақами йиғилмайди.",
+      "how_it_works": [
+        "Ҳисоб яратинг ва рол танланг",
+        "Шартларни келишиб, шартнома имзоланг",
+        "Ишни текширинг, тўланг ва натижани юклаб олинг"
+      ],
+      "fees": "ТАСКОРА комиссиясини ижрочи тўлайди: якуний қабул ёки низо қарорида унга ажратилган тўловдан ушлаб қолинади. Буюртмачи келишилган суммани ТАСКОРА устамасиз захирага қўяди. Ставка шартнома яратилганда белгиланади ва кейинги тариф ўзгаришларида сақланади. Тўлиқ қайтаришда комиссия нол; қисман қайтаришда фақат ижрочига ажратилган суммадан ҳисобланади. Ҳисобни тўлдириш, захиралаш ва пул йечишда ТАСКОРА комиссияси такроран олинмайди. ЕЪлон ва таклифлар бепул. Янги тариф алоҳида еЪлон қилинади ва фақат янги шартномаларга қўлланади. Банк ва тўлов провайдерлари йиғимлари уларнинг шартларига боғлиқ.",
+      "support_guidance": "Буюртма саволларини иш чатида муҳокама қилинг. Натижа бўйича келишмовчилик бўлса, шартнома саҳифасида низони очинг.",
+      "notice": "Тижорат ишга туширилишидан олдин платформа егаси оператор реквизитлари, ёрдам контактлари ва маЪлумот сақлаш муддатларини белгилаши керак."
+    }
+  }
+}

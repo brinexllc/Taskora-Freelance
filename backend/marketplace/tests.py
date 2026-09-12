@@ -3,6 +3,7 @@ import hashlib
 import re
 import shutil
 import tempfile
+import uuid
 from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
@@ -27,18 +28,33 @@ class BaseTests(APITestCase):
         cache.clear()
     def account(self, username, role):
         user = User.objects.create_user(username=username, email=f'{username}@example.com', password='Secure-2026-pass', first_name=username, last_name='Tester')
-        Profile.objects.create(user=user, full_name=f'{username} Tester', role=role, birth_date=date(2000,1,1), has_passport=True)
+        phone = f'+99890{user.pk:07d}'
+        Profile.objects.create(user=user, full_name=f'{username} Tester', role=role, birth_date=date(2000,1,1), has_passport=True,
+                               phone=phone, verified_phone=phone, verified_email=user.email,
+                               phone_verified_at=timezone.now(), email_verified_at=timezone.now())
         return user
     def as_user(self, user=None):
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.get_or_create(user=user)[0].key}' if user else '')
+        from .security_test_helpers import authenticate_client
+        authenticate_client(self.client, user, operator_confirmed=bool(user and (user.is_staff or user.is_superuser)))
     def post(self, path, data=None):
         return self.client.post('/api/' + path + '/', data or {}, format='json')
+
+    def as_operator(self, user):
+        from .security_test_helpers import authenticate_client
+        authenticate_client(self.client, user, operator_confirmed=True)
+
+    def operator_request(self, user):
+        from .security_test_helpers import operator_request
+        return operator_request(user)
 
 
 class AuthenticationTests(BaseTests):
     def setUp(self):
         super().setUp()
         self.form = dict(first_name='Aziz', last_name='Rahimov', username='aziz_01', birth_date='2000-06-01', phone='+998901234567', accept_terms=True, email='aziz@example.com', password='Secure-2026-pass', password_confirm='Secure-2026-pass')
+        from .security import current_legal_content
+        document = current_legal_content('ru')
+        self.form.update(terms_version=document['version'], terms_hash=document['hash'])
     def test_registration_requires_all_spec_fields(self):
         for field in ['first_name','last_name','username','birth_date','phone','email','accept_terms','password','password_confirm']:
             with self.subTest(field=field):
@@ -77,7 +93,7 @@ class AuthenticationTests(BaseTests):
     def test_reset_single_use_and_revokes_old_token(self):
         self.post('auth/register',self.form)
         user = User.objects.get(username=self.form['username'])
-        old_token = Token.objects.get(user=user).key
+        old_token = Token.objects.create(user=user).key
         response = self.post('auth/password-reset/request', {'identifier':self.form['email']})
         self.assertEqual(response.status_code,200,response.data)
         code = re.search(r'\b(\d{6})\b',mail.outbox[0].body).group(1)
@@ -107,7 +123,7 @@ class MarketplaceTests(BaseTests):
         self.customer=self.account('customer','client')
         self.freelancer=self.account('freelancer','freelancer')
         self.other=self.account('other','freelancer')
-        self.project=Project.objects.create(category=Category.objects.get(slug='other'),owner=self.customer,title='IT project',description='Build a dashboard',budget_min=10000,budget_max=50000,client_name='Customer')
+        self.project=Project.objects.create(category=Category.objects.get(slug='other'),owner=self.customer,title='IT project',description='Build a dashboard',budget_min=10000,budget_max=50000,client_name='Customer', acceptance_criteria='Dashboard displays agreed metrics', demonstration_method='Private staging demonstration', test_scenario='Check dashboard data and filters')
         from .models import Skill
         self.project.skills.set(Skill.objects.filter(name='React'))
         self.media=tempfile.mkdtemp()
@@ -133,7 +149,7 @@ class MarketplaceTests(BaseTests):
         Profile.objects.filter(user=self.customer).update(balance=50000)
         self.assertEqual(self.post(f'contracts/{contract}/fund', {'confirmed':True}).status_code,200)
         self.as_user(self.freelancer)
-        response=self.client.post(f'/api/contracts/{contract}/submit/',{'file':SimpleUploadedFile('project.zip',b'PK\x03\x04private original bytes'),'preview_text':'Dashboard implemented'},format='multipart')
+        response=self.client.post(f'/api/contracts/{contract}/submit/',{'file':SimpleUploadedFile('project.zip',b'PK\x03\x04private original bytes'),'preview_text':'Dashboard implemented', 'verification_steps':'Check data and filters using the agreed demo'},format='multipart')
         self.assertEqual(response.status_code,200,response.data)
         return contract
     def test_public_directory_and_ownership(self):
@@ -176,11 +192,11 @@ class MarketplaceTests(BaseTests):
         self.assertEqual(self.post(f'contracts/{contract}/revision',{'note':'Please add tests'}).data['status'],'active')
         self.assertEqual(self.post('payments/checkout',{'contract':contract,'provider':'wallet'}).status_code,400)
         self.as_user(self.freelancer)
-        response=self.client.post(f'/api/contracts/{contract}/submit/',{'file':SimpleUploadedFile('final.zip',b'PK\x03\x04final bytes'),'preview_text':'Tests added'},format='multipart')
+        response=self.client.post(f'/api/contracts/{contract}/submit/',{'file':SimpleUploadedFile('final.zip',b'PK\x03\x04final bytes'),'preview_text':'Tests added', 'verification_steps':'Run the added acceptance tests'},format='multipart')
         self.assertEqual(response.status_code,200)
         self.as_user(self.customer)
         self.assertEqual(self.post('payments/checkout',{'contract':contract,'provider':'wallet'}).status_code,400)
-        response=self.post(f'contracts/{contract}/accept',{'confirmed':True})
+        response=self.post(f'contracts/{contract}/accept',{'confirmed':True, 'deliverable_id':Contract.objects.get(pk=contract).deliverables.first().pk})
         self.assertEqual(response.status_code,200,response.data)
         self.assertEqual(Profile.objects.get(user=self.customer).balance,25000)
         self.assertEqual(Profile.objects.get(user=self.freelancer).balance,23750)
@@ -222,19 +238,23 @@ class MarketplaceTests(BaseTests):
         self.assertEqual(self.client.patch('/api/auth/me/',{'avatar':corrupt},format='json').status_code,400)
     def test_withdrawal_reservation_cancel_and_processing(self):
         self.as_user(self.freelancer)
-        Profile.objects.filter(user=self.freelancer).update(balance=10000)
-        response=self.post('wallet/withdraw',{'amount':'4000','destination':'Bank •••• 1234','confirmed':True})
+        from .models import PayoutRecipient
+        Profile.objects.filter(user=self.freelancer).update(balance=10000, phone='+998901234567', verified_phone='+998901234567', phone_verified_at=timezone.now())
+        recipient=PayoutRecipient.objects.create(user=self.freelancer, provider='testbank', account='test-account',
+            provider_recipient_id='recipient-test', destination='Bank •••• 1234', verification_evidence='secure-evidence-test',
+            verified_by=self.customer, verified_at=timezone.now())
+        response=self.post('wallet/withdraw',{'amount':'4000','recipient':recipient.pk,'confirmed':True,'idempotency_key':str(uuid.uuid4())})
         self.assertEqual(response.status_code,201,response.data)
         self.assertEqual(Profile.objects.get(user=self.freelancer).balance,6000)
         self.assertEqual(self.post('wallet/withdraw',{'amount':'7000','destination':'Bank 1234'}).status_code,400)
         pk=response.data['id']
         self.assertEqual(self.post(f'wallet/withdrawals/{pk}/cancel').status_code,200)
-        self.assertEqual(self.post(f'wallet/withdrawals/{pk}/cancel').status_code,400)
+        self.assertEqual(self.post(f'wallet/withdrawals/{pk}/cancel').status_code,200)
         self.assertEqual(Profile.objects.get(user=self.freelancer).balance,10000)
         self.assertEqual(self.post('wallet/withdraw',{'amount':'100','destination':'8600 1234 5678 9012'}).status_code,400)
         withdrawal=Withdrawal.objects.create(user=self.freelancer,amount=100,destination='Bank 1234')
-        from rest_framework.exceptions import ValidationError
-        with self.assertRaises(ValidationError): process_withdrawal(withdrawal.pk,'paid')
+        from rest_framework.exceptions import PermissionDenied
+        with self.assertRaises(PermissionDenied): process_withdrawal(withdrawal.pk,'paid')
 
 
 @override_settings(CLICK_SERVICE_ID='123',CLICK_MERCHANT_ID='456',CLICK_SECRET_KEY='test-only-key',CLICK_FISCALIZATION_ENABLED=False)
@@ -279,8 +299,11 @@ class ClickTests(MarketplaceTests):
         self.assertEqual(Profile.objects.get(user=self.customer).balance,5000)
 
 class ProductionCorsTests(APITestCase):
-    @override_settings(CORS_ALLOW_ALL_ORIGINS=True)
+    @override_settings(CORS_ALLOW_ALL_ORIGINS=False, CORS_ALLOW_CREDENTIALS=True, CORS_ALLOWED_ORIGINS=['https://taskora-frontend-production.up.railway.app'])
     def test_preflight(self):
         response=self.client.options('/api/auth/login/',HTTP_ORIGIN='https://taskora-frontend-production.up.railway.app',HTTP_ACCESS_CONTROL_REQUEST_METHOD='POST',HTTP_ACCESS_CONTROL_REQUEST_HEADERS='content-type,authorization')
         self.assertEqual(response.status_code,200)
-        self.assertEqual(response.headers['Access-Control-Allow-Origin'],'*')
+        self.assertEqual(response.headers['Access-Control-Allow-Origin'],'https://taskora-frontend-production.up.railway.app')
+        self.assertEqual(response.headers['Access-Control-Allow-Credentials'],'true')
+        foreign=self.client.options('/api/auth/login/',HTTP_ORIGIN='https://untrusted.example',HTTP_ACCESS_CONTROL_REQUEST_METHOD='POST',HTTP_ACCESS_CONTROL_REQUEST_HEADERS='content-type,x-csrftoken')
+        self.assertNotIn('Access-Control-Allow-Origin',foreign.headers)

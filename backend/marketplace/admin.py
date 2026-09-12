@@ -1,18 +1,21 @@
 from django.contrib import admin, messages
 from rest_framework.exceptions import APIException, ValidationError
 from .models import Contract, Deliverable, PasswordResetCode, Payment, Profile, Project, Proposal, WalletEntry, Withdrawal
-from .services import process_withdrawal
+from .services import process_withdrawal, require_payout_operator, verify_payout_recipient
 from .models import Category, Skill, SkillAlias, CategorySkill, PlatformFee, ContractEvent, Message, Dispute, Review, Notification, AuditLog, ProjectAttachment, ClickFiscalReceipt
 from .escrow import resolve_dispute
 from django import forms
 from decimal import Decimal
 import uuid
+from django.db import IntegrityError
 from django.urls import path, reverse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.core.exceptions import PermissionDenied
 from django.utils.html import format_html, format_html_join
 from .admin_operations import adjust_balance
+from .models import PayoutRecipient, WithdrawalOperation, WalletOpeningBalance
+from django.utils import timezone
 
 
 class BalanceAdjustmentForm(forms.Form):
@@ -66,7 +69,7 @@ class ProfileAdmin(admin.ModelAdmin):
         form = BalanceAdjustmentForm(request.POST or None, initial={'reference':uuid.uuid4()})
         if request.method == 'POST' and form.is_valid():
             try:
-                adjust_balance(profile.user_id, form.cleaned_data['amount'], form.cleaned_data['reason'], form.cleaned_data['reference'], request.user)
+                adjust_balance(profile.user_id, form.cleaned_data['amount'], form.cleaned_data['reason'], form.cleaned_data['reference'], request.user, request=request)
             except ValidationError as error:
                 form.add_error(None, str(error.detail))
             else:
@@ -153,7 +156,7 @@ class ContractAdmin(AuditAdmin):
             try:
                 revise_unfunded_fee(pk, request.user, reason=form.cleaned_data['reason'],
                                    expected_version=form.cleaned_data['version'],
-                                   expected_policy=form.cleaned_data['policy'])
+                                   expected_policy=form.cleaned_data['policy'], request=request)
             except APIException as error:
                 form.add_error(None, str(error.detail))
             else:
@@ -196,29 +199,54 @@ class PasswordResetCodeAdmin(AuditAdmin):
 
 @admin.register(Withdrawal)
 class WithdrawalAdmin(AuditAdmin):
-    list_display = ('id', 'user', 'amount', 'destination', 'status', 'provider_reference')
-    actions = ('mark_paid', 'reject')
-    def save_model(self, request, obj, form, change):
-        if change:
-            Withdrawal.objects.filter(pk=obj.pk, status='pending').update(provider_reference=obj.provider_reference)
-    def get_readonly_fields(self, request, obj=None):
-        fields = super().get_readonly_fields(request, obj)
-        return tuple(f for f in fields if f != 'provider_reference') if obj and obj.status == 'pending' else fields
-    @admin.action(description='Подтвердить фактическую выплату (нужен номер перевода)')
-    def mark_paid(self, request, queryset):
-        for item in queryset:
-            try:
-                process_withdrawal(item.pk, 'paid', item.provider_reference, actor=request.user)
-            except ValidationError as error:
-                self.message_user(request, str(error.detail), messages.ERROR)
+    list_display = ('id', 'user', 'amount', 'destination', 'status', 'claimed_by', 'provider_reference', 'operation_link')
+    list_filter = ('status',)
+    actions = ()
 
-    @admin.action(description='Отклонить заявку и вернуть средства в кошелёк')
-    def reject(self, request, queryset):
-        for item in queryset:
+    def get_readonly_fields(self, request, obj=None):
+        return super().get_readonly_fields(request, obj) + ('operation_link',)
+
+    def get_urls(self):
+        return [path('<int:pk>/operate/', self.admin_site.admin_view(self.operate), name='marketplace_withdrawal_operate')] + super().get_urls()
+
+    @admin.display(description='Действие оператора')
+    def operation_link(self, obj):
+        return format_html('<a href="{}">Проверить и обработать заявку</a>', reverse('admin:marketplace_withdrawal_operate', args=[obj.pk]))
+
+    def operate(self, request, pk):
+        try:
+            require_payout_operator(request)
+        except APIException as exc:
+            raise PermissionDenied(str(exc.detail))
+        withdrawal = get_object_or_404(Withdrawal, pk=pk)
+        form = WithdrawalOperationForm(request.POST or None, initial={'idempotency_key': uuid.uuid4()})
+        if request.method == 'POST' and form.is_valid():
             try:
-                process_withdrawal(item.pk, 'rejected', actor=request.user)
-            except ValidationError as error:
-                self.message_user(request, str(error.detail), messages.ERROR)
+                data = form.cleaned_data
+                process_withdrawal(pk, data['action'], data['provider_reference'], request=request,
+                    idempotency_key=data['idempotency_key'], evidence=data['evidence'], reason=data['reason'],
+                    external_not_sent=data['external_not_sent'], recipient_id=data['recipient'])
+            except (APIException, IntegrityError) as exc:
+                form.add_error(None, str(getattr(exc, 'detail', 'Внешний перевод или ключ уже использован.')))
+            else:
+                self.message_user(request, 'Состояние записано. Система не инициирует банковский перевод.', messages.SUCCESS)
+                return redirect('admin:marketplace_withdrawal_change', pk)
+        return TemplateResponse(request, 'admin/marketplace/withdrawal_operation.html', {
+            **self.admin_site.each_context(request), 'title': f'Вывод №{pk}: {withdrawal.get_status_display()}',
+            'opts': self.model._meta, 'withdrawal': withdrawal, 'form': form})
+
+
+class WithdrawalOperationForm(forms.Form):
+    action = forms.ChoiceField(label='Действие', choices=[('claim', 'Принять до внешнего перевода'), ('paid', 'Подтвердить выполненный перевод'),
+        ('reconciliation_required', 'Неизвестный исход — отправить на сверку'), ('rejected', 'Отклонить с возвратом'),
+        ('inventory', 'Инвентаризация исторической заявки; повторный перевод запрещён')])
+    idempotency_key = forms.UUIDField(widget=forms.HiddenInput)
+    provider_reference = forms.CharField(label='Номер внешней операции', max_length=160, required=False)
+    evidence = forms.CharField(label='Идентификатор подтверждения в защищённой системе', max_length=240, required=False)
+    reason = forms.CharField(label='Основание / результат сверки', max_length=2000, required=False, widget=forms.Textarea)
+    external_not_sent = forms.BooleanField(label='Подтверждаю по результату сверки: внешний перевод не выполнен', required=False)
+    confirmed = forms.BooleanField(label='Проверил сумму, получателя, состояние и основание действия')
+    recipient = forms.IntegerField(label='ID подтверждённого получателя (только для инвентаризации)', min_value=1, required=False)
 
 
 class DisputeForm(forms.ModelForm):
@@ -267,7 +295,7 @@ class DisputeAdmin(AuditAdmin):
 
     def save_model(self, request, obj, form, change):
         if obj.status == 'resolved':
-            resolve_dispute(obj.pk, request.user, obj.freelancer_amount, obj.resolution)
+            resolve_dispute(obj.pk, request.user, obj.freelancer_amount, obj.resolution, request=request)
         else:
             from django.db import transaction
             with transaction.atomic():
@@ -397,3 +425,54 @@ admin.site.register(Message, AuditAdmin)
 admin.site.register(Notification, AuditAdmin)
 admin.site.register(AuditLog, AuditAdmin)
 admin.site.register(ProjectAttachment, AuditAdmin)
+
+
+@admin.register(PayoutRecipient)
+class PayoutRecipientAdmin(AuditAdmin):
+    list_display = ('id', 'user', 'provider', 'destination', 'verified_by', 'verified_at', 'active')
+
+    def has_add_permission(self, request):
+        return request.user.has_perm('marketplace.operate_withdrawal')
+
+    def get_readonly_fields(self, request, obj=None):
+        return super().get_readonly_fields(request, obj) if obj else ('verified_by', 'verified_at', 'active')
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            return
+        try:
+            recipient = verify_payout_recipient(request, user_id=obj.user_id, provider=obj.provider, account=obj.account,
+                provider_recipient_id=obj.provider_recipient_id, destination=obj.destination, evidence=obj.verification_evidence)
+        except APIException as exc:
+            raise PermissionDenied(str(exc.detail))
+        obj.pk = recipient.pk
+        obj._state = recipient._state
+
+
+@admin.register(WalletOpeningBalance)
+class WalletOpeningBalanceAdmin(AuditAdmin):
+    list_display = ('user', 'amount', 'source', 'evidence', 'confirmed_by', 'confirmed_at')
+
+    def has_add_permission(self, request):
+        return request.user.has_perm('marketplace.override_withdrawal')
+
+    def get_readonly_fields(self, request, obj=None):
+        return super().get_readonly_fields(request, obj) if obj else ('source', 'confirmed_by', 'confirmed_at')
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            return
+        try:
+            require_payout_operator(request, override=True)
+        except APIException as exc:
+            raise PermissionDenied(str(exc.detail))
+        if len(obj.evidence.strip()) < 10:
+            raise PermissionDenied('Требуется независимое подтверждение начального остатка.')
+        obj.confirmed_by, obj.confirmed_at = request.user, timezone.now()
+        obj.source = 'operator'
+        obj.save()
+        AuditLog.objects.create(actor=request.user, action='opening_balance_confirmed', object_type='profile', object_id=str(obj.user_id),
+            detail={'amount': str(obj.amount), 'evidence': obj.evidence})
+
+
+admin.site.register(WithdrawalOperation, AuditAdmin)
