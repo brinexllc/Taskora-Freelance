@@ -17,9 +17,13 @@ def boolean(environ, name, default=False):
 
 
 def validate_environment(environ, *, testing=False):
-    name = environ.get("TASKORA_ENV", "test" if testing else "local").strip()
+    name = environ.get("TASKORA_ENV", "test" if testing else "").strip()
     if name not in {"local", "test", "staging", "production"}:
-        raise ImproperlyConfigured("TASKORA_ENV must be local, test, staging or production.")
+        raise ImproperlyConfigured("TASKORA_ENV must explicitly be local, test, staging or production.")
+    # A test command must never select the inherited deployment DATABASE_URL.
+    # settings.py will use TEST_DATABASE_URL or isolated SQLite for this mode.
+    if testing:
+        return "test"
     if environ.get("RAILWAY_ENVIRONMENT_ID") and name == "local":
         raise ImproperlyConfigured("Set TASKORA_ENV explicitly on Railway.")
     if name in {"production", "staging"} and not testing:

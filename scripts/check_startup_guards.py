@@ -1,6 +1,6 @@
 """Run production startup rejection checks with synthetic, isolated subprocess ENV.
 
-Usage from the repository root: .venv/Scripts/python.exe scripts/check_startup_guards.py
+Usage from the repository root: .venv-mvp/Scripts/python.exe scripts/check_startup_guards.py
 Never loads .env or a real database URL. Evidence contains no raw subprocess output.
 """
 import base64
@@ -38,10 +38,31 @@ sys.meta_path.insert(0, NoDatabase())
 sys.addaudithook(audit)
 atexit.register(lambda: print("STARTUP_SMOKE_COUNTS=" + json.dumps(counts, sort_keys=True)))
 manage = sys.argv[1]
+isolation = len(sys.argv) > 2 and sys.argv[2] == "settings-isolation"
 sys.path.insert(0, os.path.dirname(manage))
-sys.argv = [manage, "check"]
-runpy.run_path(manage, run_name="__main__")
+sys.argv = [manage, "test" if isolation else "check"]
+if isolation:
+    from config import settings
+    assert settings.TASKORA_ENV == "test"
+    assert settings.DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3"
+    print("STARTUP_SMOKE_ISOLATION=PASS; environment=test; engine=sqlite3; inherited_database_url_ignored=True")
+else:
+    runpy.run_path(manage, run_name="__main__")
 '''
+
+
+def run_child(environment, *extra):
+    result = subprocess.run(
+        [sys.executable, "-I", "-c", BOOTSTRAP, str(ROOT / "backend" / "manage.py"), *extra],
+        cwd=ROOT, env=environment, capture_output=True, text=True,
+        encoding="utf-8", errors="replace", timeout=30,
+        **({"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}),
+    )
+    observed = [line.removeprefix("STARTUP_SMOKE_COUNTS=") for line in result.stdout.splitlines()
+                if line.startswith("STARTUP_SMOKE_COUNTS=")]
+    counts = json.loads(observed[-1]) if observed else None
+    clean = counts == {"database_imports": 0, "network_attempts": 0, "dotenv_reads": 0}
+    return result, counts, clean
 
 
 def main():
@@ -74,12 +95,16 @@ def main():
         ("debug_true", "DJANGO_DEBUG", "true", "DJANGO_DEBUG must be false in staging/production."),
         ("invalid_boolean", "DJANGO_DEBUG", "flase", "DJANGO_DEBUG must be an explicit boolean."),
         ("missing_public_api", "PUBLIC_API_URL", None, "PUBLIC_API_URL is required."),
+        ("missing_mode", "TASKORA_ENV", None, "TASKORA_ENV must explicitly be local, test, staging or production."),
     ]
+    executable = Path(sys.executable)
+    display_python = executable.relative_to(ROOT).as_posix() if executable.is_relative_to(ROOT) else executable.name
     lines = [
         "Backend startup guard subprocess smoke",
-        "Command: .venv/Scripts/python.exe scripts/check_startup_guards.py",
+        "Command: " + display_python + " scripts/check_startup_guards.py",
         "Python: " + platform.python_version(),
-        "Entry point: backend/manage.py check, one isolated Python subprocess per case",
+        "Entry point: backend/manage.py check, six isolated rejection subprocesses",
+        "Isolation case: separate config.settings import with test argv and synthetic production ENV",
         "ENV: Windows process basics + explicit synthetic production settings; dotenv disabled",
         "Observation: database-driver imports, network attempts and .env reads are blocked and counted",
         "Raw subprocess output and environment values are omitted.",
@@ -91,26 +116,26 @@ def main():
             child_environment.pop(key)
         else:
             child_environment[key] = value
-        result = subprocess.run(
-            [sys.executable, "-I", "-c", BOOTSTRAP, str(ROOT / "backend" / "manage.py")],
-            cwd=ROOT, env=child_environment, capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=30,
-            **({"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}),
-        )
-        observed = [line.removeprefix("STARTUP_SMOKE_COUNTS=") for line in result.stdout.splitlines()
-                    if line.startswith("STARTUP_SMOKE_COUNTS=")]
-        counts = json.loads(observed[-1]) if observed else None
+        result, counts, clean = run_child(child_environment)
         matched = "ImproperlyConfigured: " + expected in result.stderr
-        clean = counts == {"database_imports": 0, "network_attempts": 0, "dotenv_reads": 0}
         ok = result.returncode == 1 and matched and clean
         passed += ok
         lines.append(f"{name}: {'PASS' if ok else 'FAIL'}; exit={result.returncode}; expected_guard_match={matched}; "
                      f"database/network/dotenv={counts}; expected_guard={expected}")
-    lines.append(f"Result: {passed}/{len(cases)} PASS")
+    # TEST_DATABASE_URL is absent from this explicit ENV. A test startup must
+    # select SQLite even though TASKORA_ENV=production and DATABASE_URL is set.
+    result, counts, clean = run_child(environment, "settings-isolation")
+    isolated = "STARTUP_SMOKE_ISOLATION=PASS;" in result.stdout
+    ok = result.returncode == 0 and isolated and clean
+    passed += ok
+    lines.append(f"test_ignores_production_database: {'PASS' if ok else 'FAIL'}; exit={result.returncode}; "
+                 f"environment_test_and_engine_sqlite3={isolated}; database/network/dotenv={counts}")
+    total = len(cases) + 1
+    lines.append(f"Result: {passed}/{total} PASS")
     EVIDENCE.parent.mkdir(parents=True, exist_ok=True)
     EVIDENCE.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))
-    return 0 if passed == len(cases) else 1
+    return 0 if passed == total else 1
 
 
 if __name__ == "__main__":

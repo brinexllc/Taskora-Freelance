@@ -19,8 +19,6 @@ class EnvironmentAuditTests(SimpleTestCase):
                  'CSRF_TRUSTED_ORIGINS': 'https://app.example.test', 'PRIVATE_MEDIA_ROOT': '/private/volume'}
         self.assertEqual(validate_environment(valid), 'production')
         for key in valid:
-            if key == 'TASKORA_ENV':
-                continue
             with self.subTest(key=key), self.assertRaises(ImproperlyConfigured):
                 validate_environment({k: v for k,v in valid.items() if k != key})
         for key,value in [('DJANGO_DEBUG','true'), ('DATABASE_URL','sqlite:///tmp/file'), ('DJANGO_ALLOWED_HOSTS','*'),
@@ -29,3 +27,8 @@ class EnvironmentAuditTests(SimpleTestCase):
                 validate_environment({**valid, key:value})
         with self.assertRaises(ImproperlyConfigured):
             validate_environment({**valid, 'REAL_MONEY_ENABLED':'true', 'PAYME_TEST_MODE':'true'})
+        self.assertEqual(validate_environment(valid, testing=True), 'test')
+        self.assertEqual(validate_environment({}, testing=True), 'test')
+        self.assertEqual(validate_environment({'TASKORA_ENV': 'local'}), 'local')
+        with self.assertRaises(ImproperlyConfigured):
+            validate_environment({})
