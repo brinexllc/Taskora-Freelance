@@ -1,9 +1,19 @@
 {
-  "version": "mvp-published-copy-2026-09-13",
+  "version": "mvp-operator-48h-2026-09-13-v3",
   "approved": false,
-  "provenance": "Snapshot of the existing legal-page.jsx copy; no legal/operator approval supplied.",
-  "operator": {},
-  "support": {},
+  "provenance": "Operator/contact details and a 48-hour period for support responses, disputes, refunds and withdrawals supplied by the owner on 2026-09-13. Legal/provider approval remains pending.",
+  "operator": {
+    "legal_name": "\"Brinex\" MCHJ",
+    "tax_id": "313183897",
+    "address": "BIY 1/23"
+  },
+  "support": {
+    "email": "brinexmchj@gmail.com",
+    "response_time": "48 часов",
+    "withdrawal_rules": "Срок вывода средств: 48 часов.",
+    "refund_rules": "Срок возврата средств: 48 часов.",
+    "dispute_rules": "Срок рассмотрения споров: 48 часов."
+  },
   "languages": {
     "ru": {
       "terms": "Taskora связывает заказчика и исполнителя. Согласованные объём, цена и срок фиксируются в договоре. Работа начинается после резервирования средств. Заказчик принимает результат, запрашивает доработку или открывает спор. Приёмка освобождает резерв, при споре распределение определяет администратор. До начала работ договор можно отменить. История договоров и финансовых операций сохраняется. ONEID и сертифицированная электронная подпись пока не подключены.",
