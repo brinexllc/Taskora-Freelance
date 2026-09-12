@@ -44,6 +44,14 @@ class ProductAuditTests(APITestCase):
         import uuid
         contract = self.contract(status='cancelled')
         self.project.status = 'cancelled'; self.project.save()
+        replacement = get_user_model().objects.create_user(username='audit_replacement', email='audit_replacement@example.com')
+        Profile.objects.create(user=replacement, full_name='Replacement freelancer', role='freelancer', balance=0)
+        old_contract = Contract.objects.values().get(pk=contract.pk)
+        old_project = Project.objects.values().get(pk=self.project.pk)
+        old_proposal = Proposal.objects.values().get(pk=self.proposal.pk)
+        old_events = list(contract.events.values())
+        old_balances = list(Profile.objects.order_by('pk').values_list('pk', 'balance'))
+        old_ledger = list(WalletEntry.objects.order_by('pk').values())
         body = {'idempotency_key': str(uuid.uuid4()), 'deadline': (timezone.localdate()+timedelta(days=20)).isoformat()}
         response = self.post(f'projects/{self.project.pk}/clone', body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -62,6 +70,39 @@ class ProductAuditTests(APITestCase):
         self.assertEqual(self.post(f'projects/{self.project.pk}/clone', body).status_code, 400)
         self.client.force_authenticate(self.stranger)
         self.assertEqual(self.post(f'projects/{self.project.pk}/clone', body).status_code, 404)
+        self.client.force_authenticate(self.customer)
+        published = self.post(f'projects/{clone.pk}/publish')
+        self.assertEqual(published.status_code, 200, published.data)
+        self.assertEqual(published.data['status'], 'published')
+        self.client.force_authenticate(replacement)
+        offered = self.post('proposals', {'project': clone.pk, 'amount': '1000000.00', 'delivery_days': 4,
+            'cover_letter': 'I will implement the copied requirements with a testable demonstration.'})
+        self.assertEqual(offered.status_code, 201, offered.data)
+        self.client.force_authenticate(self.customer)
+        acceptance = {'acceptance_criteria': 'All agreed API endpoints pass the documented checks.',
+            'demonstration_method': 'Provide an isolated HTTPS demonstration environment.',
+            'test_scenario': 'Create a record, retrieve it, and verify the expected response.', 'review_days': 3}
+        selected = self.post(f'proposals/{offered.data["id"]}/accept', acceptance)
+        self.assertEqual(selected.status_code, 201, selected.data)
+        new_contract = Contract.objects.get(pk=selected.data['id'])
+        self.assertNotEqual(new_contract.pk, contract.pk)
+        self.assertEqual(new_contract.project_id, clone.pk)
+        self.assertEqual(new_contract.proposal_id, offered.data['id'])
+        self.assertEqual(new_contract.freelancer_id, replacement.pk)
+        self.assertNotEqual(new_contract.freelancer_id, contract.freelancer_id)
+        self.assertEqual(new_contract.status, 'draft')
+        self.assertEqual(new_contract.acceptance_workflow_version, 1)
+        for field, value in acceptance.items():
+            self.assertEqual(getattr(new_contract, field), value)
+        self.assertEqual(Proposal.objects.get(pk=offered.data['id']).status, 'accepted')
+        self.assertEqual(Project.objects.get(pk=clone.pk).status, 'contracting')
+        self.assertEqual(Contract.objects.values().get(pk=contract.pk), old_contract)
+        self.assertEqual(Project.objects.values().get(pk=self.project.pk), old_project)
+        self.assertEqual(Proposal.objects.values().get(pk=self.proposal.pk), old_proposal)
+        self.assertEqual(list(contract.events.values()), old_events)
+        self.assertEqual(list(Profile.objects.order_by('pk').values_list('pk', 'balance')), old_balances)
+        self.assertEqual(list(WalletEntry.objects.order_by('pk').values()), old_ledger)
+        self.assertEqual(Contract.objects.count(), 2)
 
     def test_conversation_private_paginated_immutable_and_unread(self):
         response = self.post(f'proposals/{self.proposal.pk}/conversation')

@@ -22,13 +22,16 @@
 .\start-local.ps1 frontend
 ```
 
-Нужны Python 3.14, Node.js 22.13+ и pnpm. Скрипт использует `.venv-mvp` и локальную `backend/local-mvp.sqlite3`, заменяя production-соединение из `.env`. Коды восстановления по email выводятся в консоль Django.
+Нужны Python 3.14, Node.js 22.13+ и pnpm. Скрипт использует `.venv-mvp` и локальную `backend/local-mvp.sqlite3`, задаёт явное local-окружение и отключает загрузку общей `.env`. Коды подтверждения и восстановления по email выводятся в консоль Django.
 
-Сайт: [localhost:3000](http://localhost:3000). API: [127.0.0.1:8000/api](http://127.0.0.1:8000/api/). Админка: [127.0.0.1:8000/admin](http://127.0.0.1:8000/admin/).
+Сайт: [localhost:3000](http://localhost:3000). API: [127.0.0.1:8000/api](http://127.0.0.1:8000/api/). Админка через тот же origin: [localhost:3000/admin](http://localhost:3000/admin/). Сначала войдите в аккаунт оператора на сайте, включите TOTP в настройках и подтвердите критическое действие паролем и новым TOTP-кодом. Вход в Django Admin только по паролю не обходит MFA.
 
 Создание администратора в локальной базе:
 
 ```powershell
+$env:TASKORA_ENV = 'local'
+$env:TASKORA_LOAD_DOTENV = 'false'
+$env:REAL_MONEY_ENABLED = 'false'
 $env:DATABASE_URL = 'sqlite:///' + (Join-Path (Get-Location) 'backend/local-mvp.sqlite3').Replace('\', '/')
 $env:DJANGO_DEBUG = 'true'
 .\.venv-mvp\Scripts\python.exe backend/manage.py createsuperuser
@@ -98,18 +101,22 @@ PAYME: `PAYME_MERCHANT_ID`, `PAYME_SECRET_KEY`, `PAYME_TEST_MODE=true` для т
 
 ## Проверки
 
-После уточнения тарифа и выбора тёмного оформления: 97 тестов на PostgreSQL и отдельная проверка формы исправления комиссии прошли; TypeScript, lint, сборка и проверки миграций также прошли. Детали и порядок выпуска: [обновление интерфейса](docs/figma-commission-update.md).
-
-После дополнения о комиссии и каталоге прошли 89 тестов Django на PostgreSQL; на SQLite — 88 и один ожидаемый пропуск теста блокировок. Проверки приложения и схемы, lint, TypeScript и production-сборка прошли. Миграция очереди CLICK применена к локальной базе. Тесты покрывают подписи, реальные форматы запросов, повторы, отмену, точные суммы чеков, потерю ответа Merchant API, блокировки очереди и приватность статуса платежа. Конкурирующее окончательное распределение проверено на отдельном PostgreSQL 17.11; банковская сертификация не выполнялась.
+Актуальный результат: 175 тестов на изолированном PostgreSQL, без ошибок и пропусков. На SQLite — 165 выполненных и 10 пропусков проверок PostgreSQL. SHA, длительности, SQL-замеры, восстановление, браузерная матрица и внешние ограничения собраны в [протоколе приёмки](docs/audit-verification.md). Прежние результаты 89/97 тестов остаются в исторических документах и не являются текущим паспортом.
 
 ```powershell
-$env:DATABASE_URL = 'sqlite:///' + (Join-Path (Get-Location) 'backend/local-mvp.sqlite3').Replace('\', '/')
+$env:TASKORA_ENV = 'test'
+$env:TASKORA_LOAD_DOTENV = 'false'
 $env:DJANGO_DEBUG = 'true'
 .\.venv-mvp\Scripts\python.exe backend/manage.py check
 .\.venv-mvp\Scripts\python.exe backend/manage.py makemigrations --check --dry-run
 .\.venv-mvp\Scripts\python.exe backend/manage.py test marketplace --noinput
 cd frontend
+$env:TASKORA_ENV = 'local'
+$env:NEXT_PUBLIC_API_URL = 'http://127.0.0.1:8000/api'
+$env:API_URL = 'http://127.0.0.1:8000/api'
 pnpm lint
+pnpm typecheck
+pnpm test:audit
 pnpm build
 ```
 
@@ -125,8 +132,8 @@ After и пять начертаний Helvetica Neue находятся в пр
 
 ## Развёртывание и внешние зависимости
 
-Изменения локальные; production-сервисы и БД не обновлялись. Фронтенду нужен доступный Django с новой схемой. Публикация одного фронтенда, указывающего на localhost, не создаёт работающую облачную платформу. Существующая конфигурация Sites/Vinext сохранена.
+Изменения локальные; production-сервисы и БД не обновлялись. Фронтенду нужен доступный Django с новой схемой. Vinext собирается для Node.js; browser API, admin и admin static проходят через same-origin proxy. Актуальная конфигурация и порядок выпуска описаны в [audit-release.md](docs/audit-release.md).
 
-Backend: существующий Dockerfile/Gunicorn из корня, `python backend/manage.py migrate --noinput`. Production требует DEBUG=false, уникальный SECRET_KEY, PostgreSQL DATABASE_URL, точные ALLOWED_HOSTS/CORS/CSRF origins, CORS_ALLOW_ALL_ORIGINS=false и постоянный защищённый диск. Frontend: каталог frontend, NEXT_PUBLIC_API_URL=https://<api-domain>/api при сборке, pnpm build/start. Обновляйте обе части согласованно.
+Backend: Dockerfile/Gunicorn из корня, отдельный migration job `python backend/manage.py migrate --noinput`. Обе части требуют явный `TASKORA_ENV=production`; backend — `DJANGO_DEBUG=false`, уникальный `DJANGO_SECRET_KEY`, PostgreSQL `DATABASE_URL`, точные hosts/CORS/CSRF origins, HTTPS public URLs, отдельный MFA encryption key и постоянный приватный том. Frontend: каталог frontend, `NEXT_PUBLIC_API_URL=https://<api-domain>/api` и server `API_URL` при сборке и запуске, `pnpm build/start`. Выпускайте обе части согласованно; workers, инвентаризация старых выводов и внешняя приёмка обязательны по паспорту. Новые реальные операции по умолчанию отключены.
 
 Для реальной доставки восстановления нужны SMTP или Eskiz (токен, sender, согласованный шаблон). ONEID, сертифицированная электронная подпись и расширенный ИИ — следующий этап. Владелец заполняет реквизиты оператора, контакты поддержки и сроки хранения данных перед коммерческим запуском; вымышленные контакты не добавлены.

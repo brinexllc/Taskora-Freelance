@@ -2,6 +2,8 @@
 
 The changes are implemented locally. They do not certify production, approve legal documents, verify a payment beneficiary, or rotate any infrastructure secret.
 
+For SEC-01, `ops/runtime-role.sql` is an owner-reviewed psql template requiring explicit target database, application schema, migration owner and a new runtime role. It stops on errors, verifies the connected database, rejects system/mixed schemas or objects owned by another role, and refuses inherited PUBLIC CREATE privileges without changing shared ACLs. It grants CRUD only to the inspected Taskora/Django objects and scopes future defaults to the dedicated migration owner and selected schema. Runtime has no superuser, role/database creation, replication, BYPASSRLS or role inheritance; set its password only through interactive psql. PUBLIC CONNECT/EXECUTE/TEMP and cluster-wide access still require owner review. `scripts/verify_runtime_role_template.py` tests grants and negative cases in a disposable loopback database with the template transaction rolled back; it does not exercise production credentials.
+
 ## Browser sessions and operators
 
 Browser login, registration, password reset and password change create a database-backed Django session. The HTTP response contains a user object and a masked CSRF token, never a permanent authentication token. The cookie is `taskora_session`, HttpOnly, SameSite=Lax; Secure is mandatory in staging/production. Its default absolute lifetime is 12 hours, configurable from 5 minutes to 7 days. Cookie authentication validates a matching unrevoked `BrowserSession` record. Session secrets are not returned by the device-list API.
