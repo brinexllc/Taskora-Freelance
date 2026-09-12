@@ -1,0 +1,8 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>Пользователь: {{ withdrawal.user }}. Сумма: <strong>{{ withdrawal.amount }} UZS</strong>. Получатель: {{ withdrawal.destination }}.</p>
+<p>Оператор: {{ withdrawal.claimed_by|default:"не принят" }}. Принято: {{ withdrawal.claimed_at|default:"—" }}.</p>
+<p>Сначала примите заявку и дождитесь подтверждения сохранения. Только затем выполняйте перевод в защищённом кабинете банка. Потеря ответа и истечение сессии не разрешают повторять перевод. Неизвестный исход требует сверки.</p>
+{% if withdrawal.claim_snapshot %}<p>Неизменяемый снимок: {{ withdrawal.claim_snapshot }}</p>{% endif %}
+<form method="post">{% csrf_token %}{{ form.as_p }}<input type="submit" value="Записать действие"></form>
+{% endblock %}

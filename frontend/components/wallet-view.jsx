@@ -2,7 +2,12 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/components/app-providers';
-import { apiRequest } from '@/lib/api';
+import {
+  beginOperation,
+  readOperation,
+  completeOperation,
+} from '@/lib/pending-operation';
+import { apiRequest, apiErrorMessage } from '@/lib/api';
 import {
   Empty,
   Pager,
@@ -18,26 +23,43 @@ export function WalletView() {
   const [page, setPage] = useState(1);
   const [kind, setKind] = useState('');
   const [confirmed, setConfirmed] = useState(false);
-  const [paymentKey, setPaymentKey] = useState(null);
-  const [withdrawKey, setWithdrawKey] = useState(null);
+  const [pendingPayment, setPendingPayment] = useState(null);
+  const [pendingWithdrawal, setPendingWithdrawal] = useState(null);
   const [provider, setProvider] = useState('click');
   const [returnedPayment, setReturnedPayment] = useState(null);
   const [checkingPayment, setCheckingPayment] = useState(false);
   const remote = useRemote('wallet', {
-    token: session.token,
+    token: session.authenticated,
     query: { page, kind },
   });
   const [amount, setAmount] = useState(''),
     [withdrawAmount, setWithdrawAmount] = useState(''),
-    [destination, setDestination] = useState(''),
+    [recipient, setRecipient] = useState(''),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      const payment = readOperation(session.user.id, 'payments/checkout');
+      const withdrawal = readOperation(session.user.id, 'wallet/withdraw');
+      setPendingPayment(payment);
+      setPendingWithdrawal(withdrawal);
+      if (payment) {
+        setAmount(payment.amount);
+        setProvider(payment.provider);
+      }
+      if (withdrawal) {
+        setWithdrawAmount(withdrawal.amount);
+        setRecipient(String(withdrawal.recipient));
+        setConfirmed(withdrawal.confirmed);
+      }
+    });
+  }, [session.user.id]);
   const reloadWallet = remote.reload;
   useEffect(() => {
     const reference = new URLSearchParams(window.location.search).get(
       'payment',
     );
-    if (!reference || !session.token) return;
+    if (!reference || !session.authenticated) return;
     const controller = new AbortController();
     let timer;
     let attempts = 0;
@@ -47,7 +69,7 @@ export function WalletView() {
         const payment = await apiRequest(
           `payments/${encodeURIComponent(reference)}`,
           {
-            token: session.token,
+            token: session.authenticated,
             signal: controller.signal,
           },
         );
@@ -62,7 +84,7 @@ export function WalletView() {
         else setCheckingPayment(false);
       } catch (err) {
         if (!controller.signal.aborted) {
-          setError(err.message);
+          setError(apiErrorMessage(err, t));
           setCheckingPayment(false);
         }
       }
@@ -72,25 +94,39 @@ export function WalletView() {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [session.token, reloadWallet]);
+  }, [session.authenticated, reloadWallet, t]);
   async function action(path, body) {
     setBusy(true);
     setError('');
     try {
+      const financial = ['payments/checkout', 'wallet/withdraw'].includes(path);
+      const savedBody = financial
+        ? beginOperation(session.user.id, path, body)
+        : body;
+      if (path === 'payments/checkout') setPendingPayment(savedBody);
+      if (path === 'wallet/withdraw') setPendingWithdrawal(savedBody);
       const result = await apiRequest(path, {
         method: 'POST',
-        token: session.token,
-        body,
+        token: session.authenticated,
+        body: savedBody,
       });
+      if (financial) completeOperation(session.user.id, path);
+      if (path === 'payments/checkout') setPendingPayment(null);
+      if (path === 'wallet/withdraw') setPendingWithdrawal(null);
       if (result.checkout_url) window.location.assign(result.checkout_url);
       else {
         remote.reload();
         setWithdrawAmount('');
-        setWithdrawKey(null);
+
         setConfirmed(false);
       }
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
+      if (!err.uncertain && err.status && err.status !== 409) {
+        completeOperation(session.user.id, path);
+        if (path === 'payments/checkout') setPendingPayment(null);
+        if (path === 'wallet/withdraw') setPendingWithdrawal(null);
+      }
     } finally {
       setBusy(false);
     }
@@ -147,6 +183,18 @@ export function WalletView() {
             <div className="two-columns">
               <section className="t-card">
                 <h2>{t('topup')}</h2>
+                {data.payme_test_mode && provider === 'payme' && (
+                  <Notice>{t('testPayment')}</Notice>
+                )}
+                {pendingPayment && (
+                  <Notice>
+                    {t('uncertainRequest')}
+                    <br />
+                    {t('requestKey')}:{' '}
+                    <code>{pendingPayment.idempotency_key}</code>
+                  </Notice>
+                )}
+
                 {!data.click_available && !data.payme_available && (
                   <Notice>{t('paymentUnavailable')}</Notice>
                 )}
@@ -154,21 +202,15 @@ export function WalletView() {
                   className="t-form"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    const key = paymentKey || crypto.randomUUID();
-                    setPaymentKey(key);
-                    void action('payments/checkout', {
-                      amount,
-                      idempotency_key: key,
-                      provider,
-                    });
+                    void action('payments/checkout', { amount, provider });
                   }}
                 >
                   <Field label={t('paymentMethod')}>
                     <select
+                      disabled={busy || !!pendingPayment}
                       value={provider}
                       onChange={(e) => {
                         setProvider(e.target.value);
-                        setPaymentKey(crypto.randomUUID());
                       }}
                     >
                       <option value="click" disabled={!data.click_available}>
@@ -184,10 +226,10 @@ export function WalletView() {
                       type="number"
                       min="1000"
                       step="0.01"
+                      disabled={busy || !!pendingPayment}
                       value={amount}
                       onChange={(e) => {
                         setAmount(e.target.value);
-                        setPaymentKey(crypto.randomUUID());
                       }}
                       required
                     />
@@ -201,7 +243,13 @@ export function WalletView() {
                         : data.payme_available)
                     }
                   >
-                    {t(provider === 'click' ? 'payClick' : 'payPayme')}
+                    {t(
+                      pendingPayment
+                        ? 'retrySameRequest'
+                        : provider === 'click'
+                          ? 'payClick'
+                          : 'payPayme',
+                    )} · {money(amount, language)}
                   </button>
                   {!(provider === 'click'
                     ? data.click_available
@@ -212,6 +260,21 @@ export function WalletView() {
               </section>
               <section className="t-card">
                 <h2>{t('withdraw')}</h2>
+                {pendingWithdrawal && (
+                  <Notice>
+                    {t('uncertainRequest')}
+                    <br />
+                    {t('requestKey')}:{' '}
+                    <code>{pendingWithdrawal.idempotency_key}</code>
+                  </Notice>
+                )}
+                {!session.user.email_verified_at &&
+                  !session.user.phone_verified_at && (
+                    <Notice>
+                      <Link href="/verification">{t('contactPolicy')}</Link>
+                    </Notice>
+                  )}
+
                 <p className="muted">{t('withdrawalHint')}</p>
                 <form
                   className="t-form"
@@ -219,9 +282,8 @@ export function WalletView() {
                     e.preventDefault();
                     void action('wallet/withdraw', {
                       amount: withdrawAmount,
-                      destination,
+                      recipient: Number(recipient),
                       confirmed,
-                      idempotency_key: withdrawKey || crypto.randomUUID(),
                     });
                   }}
                 >
@@ -231,30 +293,40 @@ export function WalletView() {
                       min="0.01"
                       max={data.balance}
                       step="0.01"
+                      disabled={busy || !!pendingWithdrawal}
                       value={withdrawAmount}
                       onChange={(e) => {
                         setWithdrawAmount(e.target.value);
-                        setWithdrawKey(crypto.randomUUID());
                         setConfirmed(false);
                       }}
                       required
                     />
                   </Field>
-                  <Field label={t('destination')} hint={t('destinationHint')}>
-                    <input
-                      value={destination}
+                  <Field
+                    label={t('confirmedRecipient')}
+                    hint={t('recipientRequired')}
+                  >
+                    <select
+                      value={recipient}
+                      disabled={busy || !!pendingWithdrawal}
                       onChange={(e) => {
-                        setDestination(e.target.value);
-                        setWithdrawKey(crypto.randomUUID());
+                        setRecipient(e.target.value);
                         setConfirmed(false);
                       }}
-                      maxLength={160}
                       required
-                    />
+                    >
+                      <option value="">—</option>
+                      {(data.recipients || []).map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.destination} · {item.provider}
+                        </option>
+                      ))}
+                    </select>
                   </Field>
                   <label className="t-check">
                     <input
                       type="checkbox"
+                      disabled={busy || !!pendingWithdrawal}
                       checked={confirmed}
                       onChange={(e) => setConfirmed(e.target.checked)}
                     />
@@ -262,9 +334,18 @@ export function WalletView() {
                   </label>
                   <button
                     className="t-button secondary"
-                    disabled={busy || !confirmed || Number(data.balance) <= 0}
+                    disabled={
+                      busy ||
+                      !confirmed ||
+                      !recipient ||
+                      (!pendingWithdrawal && Number(data.balance) <= 0)
+                    }
                   >
-                    {t('requestWithdrawal')}
+                    {t(
+                      pendingWithdrawal
+                        ? 'retrySameRequest'
+                        : 'requestWithdrawal',
+                    )} · {money(withdrawAmount, language)}
                   </button>
                 </form>
               </section>
@@ -318,6 +399,9 @@ export function WalletView() {
                               style={{ display: 'block' }}
                             >
                               #{entry.id}
+                              {entry.withdrawal
+                                ? ` · ${t('withdrawal')} #${entry.withdrawal}`
+                                : ''}
                             </small>
                             {entry.contract && (
                               <Link
@@ -378,16 +462,18 @@ export function WalletView() {
                           {date(payment.created_at, language)}
                         </p>
                         <div className="actions">
-                          {payment.receipt?.url && (
-                            <a
-                              className="text-link"
-                              href={payment.receipt.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {t('fiscalReceipt')}
-                            </a>
-                          )}
+                          {payment.status === 'paid' &&
+                            payment.receipt?.status === 'ready' &&
+                            payment.receipt?.url && (
+                              <a
+                                className="text-link"
+                                href={payment.receipt.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {t('fiscalReceipt')}
+                              </a>
+                            )}
                           {payment.receipt?.status === 'pending' && (
                             <small className="muted">
                               {t('fiscalReceiptPending')}
@@ -437,7 +523,7 @@ export function WalletView() {
                           value={item.status}
                           label={t(
                             item.status === 'pending'
-                              ? 'processing'
+                              ? 'withdrawalPending'
                               : item.status === 'paid'
                                 ? 'withdrawalPaid'
                                 : item.status,
@@ -445,6 +531,12 @@ export function WalletView() {
                         />
                       </div>
                       <p>{item.destination}</p>
+                      {['processing', 'reconciliation_required'].includes(
+                        item.status,
+                      ) && <Notice>{t('withdrawalLocked')}</Notice>}
+                      {item.provider_reference && (
+                        <p>{item.provider_reference}</p>
+                      )}
                       <p className="muted">
                         {date(item.created_at, language)} · #{item.id}
                       </p>

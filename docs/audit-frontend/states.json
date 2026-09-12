@@ -1,0 +1,92 @@
+[
+  {
+    "state": "offline_before",
+    "value": "Synthetic offline retry verification"
+  },
+  {
+    "state": "offline_after",
+    "value": "Synthetic offline retry verification",
+    "alerts": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата.",
+      "Операция не выполнена: Введите правильный адрес электронной почты."
+    ]
+  },
+  {
+    "state": "offline_retry_success",
+    "value": "Synthetic offline retry verification",
+    "notice": [
+      "Профиль сохранён"
+    ]
+  },
+  {
+    "state": "existing_account_legal_consent",
+    "success": true
+  },
+  {
+    "state": "contract_accept_amount",
+    "buttons": [
+      "Принять и выплатить · 1 000 000 UZS"
+    ],
+    "previewHeadingCount": 1
+  },
+  {
+    "state": "contact_validation_400",
+    "error_visible": true,
+    "retention": "not confirmed: browser driver reported empty DOM value for invalid type=email input; textarea offline case independently passed"
+  },
+  {
+    "state": "guest_protected_wallet",
+    "redirect": "/login"
+  },
+  {
+    "state": "missing_project",
+    "alerts": [
+      "Операция не выполнена: No Project matches the given query. Повторить"
+    ]
+  },
+  {
+    "state": "keyboard_focus",
+    "focus": {
+      "outlineStyle": "solid",
+      "outlineWidth": "2.4px",
+      "tag": "INPUT",
+      "type": "password"
+    }
+  },
+  {
+    "state": "role_new_account",
+    "width": 320,
+    "horizontalOverflow": false
+  },
+  {
+    "state": "long_title_description_amount_320",
+    "h1": "Synthetic long title abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij ",
+    "horizontalOverflow": false,
+    "amountVisible": 1
+  },
+  {
+    "state": "catalog_loading_observed",
+    "text": "Загрузка…",
+    "observation": "DOM snapshot immediately after navigation"
+  },
+  {
+    "state": "empty_catalog_search",
+    "snapshot": "- banner:\n  - link \"Taskora\":\n    - /url: /\n    - strong: Taskora\n  - button \"Заказы\":\n- main:\n  - text: TASKORA\n  - heading \"Заказы\" [level=1]\n  - searchbox \"Поиск\" [active]: no-such-synthetic-result-594138\n  - button \"Фильтры\":\n    - text: Фильтры\n  - combobox \"Сортировка\":\n    - option \"Сначала новые\" [selected]\n    - option \"Сначала дороже\"\n    - option \"Сначала дешевле\"\n  - heading \"Заказов пока нет\" [level=2]\n  - paragraph: Измените запрос или сбросьте фильтры, чтобы найти заказы."
+  },
+  {
+    "state": "new_account_wallet",
+    "snapshot": "ится после подключения сервиса.\n  - generic: Способ оплаты\n  - combobox \"Способ оплаты\":\n    - option \"CLICK\" [disabled] [selected]\n    - option \"PAYME\" [disabled]\n  - generic: Сумма пополнения (от 1 000 UZS)\n  - spinbutton \"Сумма пополнения (от 1 000 UZS)\"\n  - button \"Оплатить через CLICK · 0 UZS\" [disabled]\n  - generic: CLICK ещё не подключён. Оплата появится после подключения сервиса.\n  - heading \"Вывести средства\" [level=2]\n  - status:\n    - link \"До вывода подтвердите контакт и получателя. Это не проверка личности, паспорта или навыков.\":\n      - /url: /verification\n  - paragraph: Средства резервируются до обработки заявки оператором. Выполненный перевод появится в истории.\n  - generic: Стоимость (UZS)\n  - spinbutton \"Стоимость (UZS)\"\n  - generic: Подтверждённый получатель\n  - combobox \"Подтверждённый получатель Подтвердите получателя через согласованный защищённый канал поддержки. Не вводите здесь полный номер карты. Маска карты не подтверждает адресата.\":\n    - option \"—\" [selected]\n  - generic: Подтвердите получателя через согласованный защищённый канал поддержки. Не вводите здесь полный номер карты. Маска карты не подтверждает адресата.\n  - 'checkbox \"Подтверждаю сумму и реквизиты вывода: 0 UZS\"'\n  - text: \"Подтверждаю сумму и реквизиты вывода: 0 UZS\"\n  - button \"Создать заявку на вывод · 0 UZS\" [disabled]\n  - heading \"История операций\" [level=2]\n  - combobox \"История операций\":\n    - option \"Все\" [selected]\n    - option \"Пополнение\"\n    - option \"Средства зарезервированы\"\n    - option \"Выплата по договору\"\n    - option \"Возврат\"\n    - option \"Вывод средств\"\n    - option \"Комиссия\"\n  - paragraph: Операций пока нет\n  - heading \"Платежи CLICK / PAYME\" [level=2]\n  - paragraph: Операций пока нет\n  - heading \"Заявки на вывод\" [level=2]\n  - paragraph: Операций пока нет\n- navigation \"Личный кабинет\":\n  - link \"Главная\":\n    - /url: /dashboard?view=home\n    - generic: Главная\n  - link \"Заказы\":\n    - /url: /dashboard?view=orders\n    - generic: Заказы\n  - link \"Создать заказ\":\n    - /url: /projects/new\n  - link \"Сообщения\":\n    - /url: /dashboard?view=messages\n    - generic: Сообщения\n  - link \"Профиль\":\n    - /url: /dashboard?view=profile\n    - generic: Профиль"
+  },
+  {
+    "state": "third_party_contract_denied",
+    "alerts": [
+      "Операция не выполнена: No Contract matches the given query. Повторить"
+    ]
+  },
+  {
+    "state": "missing_project_localized_recheck",
+    "alerts": [
+      "Запись не найдена или недоступна этому аккаунту. Повторить"
+    ]
+  }
+]

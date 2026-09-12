@@ -7,6 +7,7 @@ import {
   confirmPasswordReset,
   requestPasswordReset,
   verifyPasswordReset,
+  apiErrorMessage,
 } from '@/lib/api';
 export default function ResetPasswordPage() {
   const { t, setSession, ready } = useApp();
@@ -45,7 +46,7 @@ export default function ResetPasswordPage() {
         window.location.assign(data.user.role ? '/dashboard' : '/role');
       }
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -113,7 +114,7 @@ export default function ResetPasswordPage() {
                 try {
                   await send();
                 } catch (err) {
-                  setError(err.message);
+                  setError(apiErrorMessage(err, t));
                 } finally {
                   setBusy(false);
                 }

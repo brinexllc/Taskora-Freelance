@@ -8,3 +8,4 @@ class MarketplaceConfig(AppConfig):
 
     def ready(self):
         from . import fees  # noqa: F401 — register configuration checks
+        from . import security_signals  # noqa: F401 — invalidate changed contact evidence

@@ -1,0 +1,16 @@
+{
+  "date": "2026-09-12T21:48:50.342432+00:00",
+  "synthetic_isolated_restore": "passed",
+  "backup_seconds": 0.688,
+  "restore_seconds": 1.948,
+  "money_sha256": "60fffe8cd21b63447dd230beaa89b95cc2c6948fe835ce3621becde98051bf95",
+  "private_files": 1,
+  "participant_download_status": 200,
+  "outsider_download_status": 404,
+  "public_file_status": 404,
+  "reconciliation_ok": true,
+  "database_dump_sha256": "85b7ad21ca161d57534b2d4a754cf9059d407f7e97f5db33f8990f9ed6e25a19",
+  "archive_sha256": "ddd5ef8a2a55bc292a16f42ed00360fc7eb1ff34c9096c72da62a768e0f8ebe8",
+  "production_restore": "not_performed",
+  "owner_RPO_RTO_approval": "pending"
+}

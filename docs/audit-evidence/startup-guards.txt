@@ -1,0 +1,16 @@
+Backend startup guard subprocess smoke
+Command: .venv-mvp/Scripts/python.exe scripts/check_startup_guards.py
+Python: 3.14.7
+Entry point: backend/manage.py check, six isolated rejection subprocesses
+Isolation case: separate config.settings import with test argv and synthetic production ENV
+ENV: Windows process basics + explicit synthetic production settings; dotenv disabled
+Observation: database-driver imports, network attempts and .env reads are blocked and counted
+Raw subprocess output and environment values are omitted.
+missing_secret: PASS; exit=1; expected_guard_match=True; database/network/dotenv={'database_imports': 0, 'dotenv_reads': 0, 'network_attempts': 0}; expected_guard=A separate strong DJANGO_SECRET_KEY is required.
+missing_database: PASS; exit=1; expected_guard_match=True; database/network/dotenv={'database_imports': 0, 'dotenv_reads': 0, 'network_attempts': 0}; expected_guard=A PostgreSQL DATABASE_URL is required.
+debug_true: PASS; exit=1; expected_guard_match=True; database/network/dotenv={'database_imports': 0, 'dotenv_reads': 0, 'network_attempts': 0}; expected_guard=DJANGO_DEBUG must be false in staging/production.
+invalid_boolean: PASS; exit=1; expected_guard_match=True; database/network/dotenv={'database_imports': 0, 'dotenv_reads': 0, 'network_attempts': 0}; expected_guard=DJANGO_DEBUG must be an explicit boolean.
+missing_public_api: PASS; exit=1; expected_guard_match=True; database/network/dotenv={'database_imports': 0, 'dotenv_reads': 0, 'network_attempts': 0}; expected_guard=PUBLIC_API_URL is required.
+missing_mode: PASS; exit=1; expected_guard_match=True; database/network/dotenv={'database_imports': 0, 'dotenv_reads': 0, 'network_attempts': 0}; expected_guard=TASKORA_ENV must explicitly be local, test, staging or production.
+test_ignores_production_database: PASS; exit=0; environment_test_and_engine_sqlite3=True; database/network/dotenv={'database_imports': 0, 'dotenv_reads': 0, 'network_attempts': 0}
+Result: 7/7 PASS

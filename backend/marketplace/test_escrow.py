@@ -83,7 +83,7 @@ class EscrowTests(MarketplaceTests):
         pk = self.work()
         self.as_user(self.customer)
         with override_settings(PLATFORM_FEE_PERCENT='99'):
-            response = self.post(f'contracts/{pk}/accept',{'confirmed':True})
+            response = self.post(f'contracts/{pk}/accept',{'confirmed':True, 'deliverable_id':Contract.objects.get(pk=pk).deliverables.first().pk})
         self.assertEqual(response.status_code,200,response.data)
         self.assertEqual(Profile.objects.get(user=self.freelancer).balance,Decimal('23125'))
         self.assertEqual(WalletEntry.objects.filter(contract_id=pk,kind='platform_fee').get().amount,Decimal('-1875'))
@@ -103,6 +103,7 @@ class EscrowTests(MarketplaceTests):
         self.as_user(self.other)
         self.assertEqual(self.client.get(f'/api/disputes/{dispute.pk}/').status_code,404)
         self.other.is_staff=True;self.other.save(update_fields=['is_staff'])
+        self.as_operator(self.other)
         for amount in [-1,25001]: self.assertEqual(self.post(f'disputes/{dispute.pk}/resolve',{'freelancer_amount':amount,'reason':'Partial work is usable'}).status_code,400)
         result=self.post(f'disputes/{dispute.pk}/resolve',{'freelancer_amount':10000,'reason':'Partial work is usable'})
         self.assertEqual(result.status_code,200,result.data)
@@ -147,7 +148,7 @@ class EscrowTests(MarketplaceTests):
     def test_reviews_only_after_completion_and_one_per_author(self):
         pk=self.work()
         self.assertEqual(self.post(f'contracts/{pk}/review',{'rating':5,'text':'Excellent work'}).status_code,400)
-        self.as_user(self.customer);self.post(f'contracts/{pk}/accept',{'confirmed':True})
+        self.as_user(self.customer);self.post(f'contracts/{pk}/accept',{'confirmed':True, 'deliverable_id':Contract.objects.get(pk=pk).deliverables.first().pk})
         self.assertEqual(self.post(f'contracts/{pk}/review',{'rating':6,'text':'Excellent work'}).status_code,400)
         self.assertEqual(self.post(f'contracts/{pk}/review',{'rating':5,'text':'Excellent work'}).status_code,201)
         self.assertEqual(self.post(f'contracts/{pk}/review',{'rating':1,'text':'Second review'}).status_code,400)
@@ -178,9 +179,19 @@ class EscrowTests(MarketplaceTests):
 
     def test_change_password_and_uppercase_only_rejected(self):
         self.as_user(self.freelancer)
+        from rest_framework.test import APIClient
+        from rest_framework.authtoken.models import Token
+        old_session = APIClient()
+        old_session.cookies = self.client.cookies.copy()
+        old_token = Token.objects.create(user=self.freelancer)
+        legacy_client = APIClient()
+        legacy_client.credentials(HTTP_AUTHORIZATION='Token ' + old_token.key)
         data={'current_password':'Secure-2026-pass','password':'UPPERCASE123!','password_confirm':'UPPERCASE123!'}
         self.assertEqual(self.post('auth/change-password',data).status_code,400)
         data.update(password='New-Secure-2028',password_confirm='New-Secure-2028')
         result=self.post('auth/change-password',data)
         self.assertEqual(result.status_code,200,result.data)
-        self.assertEqual(self.client.get('/api/auth/me/').status_code,401)
+        self.assertEqual(self.client.get('/api/auth/me/').status_code,200)
+        self.assertEqual(old_session.get('/api/auth/me/').status_code,401)
+        self.assertEqual(legacy_client.get('/api/auth/me/').status_code,401)
+        self.assertFalse(Token.objects.filter(pk=old_token.pk).exists())

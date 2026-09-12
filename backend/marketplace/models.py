@@ -18,6 +18,13 @@ class Project(models.Model):
         DISPUTED = "disputed", "Спор"
 
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="projects")
+    source_project = models.ForeignKey('self', null=True, blank=True, on_delete=models.PROTECT, related_name='copies')
+    clone_key = models.UUIDField(null=True, blank=True, unique=True, editable=False)
+    clone_request_hash = models.CharField(max_length=64, blank=True, editable=False)
+    acceptance_criteria = models.TextField(blank=True, max_length=5000)
+    demonstration_method = models.TextField(blank=True, max_length=3000)
+    test_scenario = models.TextField(blank=True, max_length=5000)
+    review_days = models.PositiveSmallIntegerField(default=3)
     title = models.CharField("Название", max_length=180)
     description = models.TextField("Описание")
     legacy_category = models.CharField(max_length=24, default='other', editable=False)
@@ -120,6 +127,10 @@ class Profile(models.Model):
     available = models.BooleanField(default=True)
     birth_date = models.DateField(null=True, blank=True)
     phone = models.CharField(max_length=13, unique=True, null=True, blank=True)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    phone_verified_at = models.DateTimeField(null=True, blank=True)
+    verified_email = models.EmailField(blank=True)
+    verified_phone = models.CharField(max_length=13, blank=True)
     has_passport = models.BooleanField(default=False)
     about = models.TextField(blank=True, max_length=3000)
     avatar = models.TextField(blank=True)
@@ -194,6 +205,12 @@ class Contract(models.Model):
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.SIGNING)
     version = models.PositiveIntegerField(default=1)
     scope = models.TextField(blank=True)
+    acceptance_criteria = models.TextField(blank=True, max_length=5000)
+    demonstration_method = models.TextField(blank=True, max_length=3000)
+    test_scenario = models.TextField(blank=True, max_length=5000)
+    review_days = models.PositiveSmallIntegerField(default=3)
+    acceptance_workflow_version = models.PositiveSmallIntegerField(default=0)
+    accepted_deliverable = models.ForeignKey('Deliverable', null=True, blank=True, on_delete=models.PROTECT, related_name='accepted_by_contracts')
     currency = models.CharField(max_length=3, default="UZS")
     budget_type = models.CharField(max_length=8, default="fixed")
     deadline = models.DateTimeField(null=True, blank=True)
@@ -222,6 +239,12 @@ class Deliverable(models.Model):
     preview_text = models.TextField(max_length=15000)
     preview_image = models.TextField(blank=True)
     revision_note = models.TextField(blank=True, max_length=3000)
+    deadline_snapshot = models.DateTimeField(null=True, blank=True)
+    contract_version = models.PositiveIntegerField(null=True, blank=True)
+    demo_url = models.URLField(max_length=2000, blank=True)
+    verification_steps = models.TextField(max_length=5000, blank=True)
+    review_due_at = models.DateTimeField(null=True, blank=True)
+    review_escalated_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -281,11 +304,15 @@ class WalletEntry(models.Model):
     kind = models.CharField(max_length=24, choices=[("topup", "Пополнение"), ("escrow_hold", "Резервирование"), ("escrow_release", "Выплата по договору"), ("platform_fee", "Комиссия"), ("adjustment", "Корректировка"), ("income", "Оплата работы"), ("purchase", "Оплата заказа"), ("withdrawal", "Вывод средств"), ("refund", "Возврат")])
     description = models.CharField(max_length=240)
     payment = models.ForeignKey(Payment, null=True, blank=True, on_delete=models.PROTECT)
+    withdrawal = models.ForeignKey("Withdrawal", null=True, blank=True, on_delete=models.PROTECT, related_name="ledger_entries")
+    withdrawal_event = models.CharField(max_length=12, blank=True, choices=[("debit", "Резерв вывода"), ("refund", "Возврат вывода")])
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at", "-id"]
-        constraints = [models.UniqueConstraint(fields=["payment", "user", "kind"], name="unique_payment_ledger_entry"), models.UniqueConstraint(fields=["contract", "user", "kind"], name="unique_contract_ledger_entry")]
+        constraints = [models.UniqueConstraint(fields=["payment", "user", "kind"], name="unique_payment_ledger_entry"), models.UniqueConstraint(fields=["contract", "user", "kind"], name="unique_contract_ledger_entry"),
+            models.UniqueConstraint(fields=["withdrawal", "withdrawal_event"], condition=models.Q(withdrawal__isnull=False), name="unique_withdrawal_event"),
+            models.CheckConstraint(condition=models.Q(withdrawal__isnull=True, withdrawal_event="") | models.Q(withdrawal__isnull=False, withdrawal_event="debit", amount__lt=0, kind="withdrawal") | models.Q(withdrawal__isnull=False, withdrawal_event="refund", amount__gt=0, kind="refund"), name="valid_withdrawal_event")]
 
 
 class Withdrawal(models.Model):
@@ -293,14 +320,34 @@ class Withdrawal(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     # Only a masked destination is retained; card numbers are never collected.
     destination = models.CharField(max_length=160)
-    status = models.CharField(max_length=12, choices=[("pending", "В обработке"), ("paid", "Выполнен"), ("rejected", "Отклонён")], default="pending")
+    status = models.CharField(max_length=32, choices=[("pending", "Ожидает оператора"), ("processing", "Перевод обрабатывается"), ("reconciliation_required", "Требуется сверка"), ("paid", "Выполнен"), ("rejected", "Отклонён"), ("cancelled", "Отменён пользователем")], default="pending")
     reference = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     provider_reference = models.CharField(max_length=160, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     processed_at = models.DateTimeField(null=True, blank=True)
+    recipient = models.ForeignKey("PayoutRecipient", on_delete=models.PROTECT, null=True, blank=True, related_name="withdrawals")
+    claimed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="claimed_withdrawals")
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    claim_snapshot = models.JSONField(default=dict, blank=True)
+    payout_provider = models.CharField(max_length=40, blank=True)
+    payout_account = models.CharField(max_length=100, blank=True)
+    transfer_evidence = models.CharField(max_length=240, blank=True)
+    resolution_reason = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            previous = type(self).objects.filter(pk=self.pk).first()
+            if previous and previous.claim_snapshot:
+                fields = ["user_id", "amount", "recipient_id", "destination", "claim_snapshot", "claimed_by_id", "claimed_at", "payout_provider", "payout_account"]
+                if any(getattr(previous, field) != getattr(self, field) for field in fields):
+                    from django.core.exceptions import ValidationError
+                    raise ValidationError("Принятый снимок суммы, оператора и получателя неизменяем.")
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ["-created_at"]
+        permissions = [("operate_withdrawal", "Can claim and settle withdrawals"), ("override_withdrawal", "Can reconcile another operator's withdrawal")]
+        constraints = [models.UniqueConstraint(fields=["payout_provider", "payout_account", "provider_reference"], condition=~models.Q(provider_reference="") & ~models.Q(payout_provider=""), name="unique_external_withdrawal")]
 
 
 class Category(models.Model):
@@ -492,3 +539,9 @@ class ProjectAttachment(models.Model):
     file = models.FileField(upload_to=attachment_path)
     filename = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
+
+from .payment_models import PayoutRecipient, WithdrawalOperation, WalletOpeningBalance  # noqa: E402,F401
+
+from .product_models import ProposalConversation, ProposalMessage, ProposalReport, ContractAmendment  # noqa: E402,F401
+from .security_models import BrowserSession, ContactVerification, LegalConsent, MultiFactorCredential, SecurityRateBucket  # noqa: E402,F401
+from .security_models import ScopedApiToken  # noqa: E402,F401

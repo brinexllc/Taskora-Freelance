@@ -8,9 +8,13 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
-    "start": "node dist/standalone/server.js",
+    "start": "node scripts/start.mjs",
     "lint": "oxlint",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "prebuild": "node scripts/validate-env.mjs",
+    "prestart": "node scripts/validate-env.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:audit": "node scripts/test-audit.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

@@ -23,7 +23,11 @@ def validate_fee_revision(contract):
 
 
 @transaction.atomic
-def revise_unfunded_fee(contract_id, actor, *, reason, expected_version, expected_policy):
+def revise_unfunded_fee(contract_id, actor, *, reason, expected_version, expected_policy, request=None):
+    from .security import require_operator_security
+    require_operator_security(request)
+    if request.user.pk != actor.pk:
+        raise PermissionDenied('Оператор запроса не совпадает с автором изменения.')
     if not actor.is_active or not actor.is_superuser:
         raise PermissionDenied('Исправление комиссии доступно только главному администратору.')
     contract = Contract.objects.select_for_update().get(pk=contract_id)

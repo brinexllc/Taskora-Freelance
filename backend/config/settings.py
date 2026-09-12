@@ -5,28 +5,28 @@ from pathlib import Path
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
+from .environment import boolean, validate_environment
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
 
-load_dotenv(PROJECT_ROOT / ".env")
+if boolean(os.environ, "TASKORA_LOAD_DOTENV", True) and "test" not in sys.argv and os.getenv('TASKORA_ENV') != 'test':
+    load_dotenv(PROJECT_ROOT / ".env")
 
 
 def env_bool(name, default=False):
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
+    return boolean(os.environ, name, default)
 
 
 def env_list(name, default=""):
     return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
 
 
-DEBUG = env_bool("DJANGO_DEBUG", True)
+TASKORA_ENV = validate_environment(os.environ, testing="test" in sys.argv)
+DEBUG = env_bool("DJANGO_DEBUG", False)
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-taskora-local-only")
-if not DEBUG and SECRET_KEY == "django-insecure-taskora-local-only":
+if TASKORA_ENV in {"staging", "production"} and SECRET_KEY == "django-insecure-taskora-local-only":
     raise ImproperlyConfigured("DJANGO_SECRET_KEY is required when DJANGO_DEBUG=false.")
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
@@ -75,10 +75,10 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 database_url = os.getenv("DATABASE_URL", "").strip()
-if 'test' in sys.argv:
+if 'test' in sys.argv or TASKORA_ENV == 'test':
     # Never run tests against DATABASE_URL; PostgreSQL requires an explicit isolated test target.
     database_url = os.getenv('TEST_DATABASE_URL', '').strip()
-if not DEBUG and "test" not in sys.argv and not database_url:
+if TASKORA_ENV in {"staging", "production"} and "test" not in sys.argv and not database_url:
     raise ImproperlyConfigured("DATABASE_URL is required when DJANGO_DEBUG=false.")
 
 if not database_url:
@@ -120,15 +120,15 @@ STORAGES = {
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 local_origins = "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001"
-CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", local_origins if DEBUG else "")
-CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", local_origins if DEBUG else "")
+CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", local_origins if TASKORA_ENV in {"local", "test"} else "")
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", local_origins if TASKORA_ENV in {"local", "test"} else "")
 CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", False)
 CORS_ALLOW_CREDENTIALS = False
 
 REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "marketplace.exceptions.api_exception_handler",
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
-    "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.TokenAuthentication"],
+    "DEFAULT_AUTHENTICATION_CLASSES": ["marketplace.security.BrowserSessionAuthentication", "marketplace.security.ExpiringLegacyTokenAuthentication"],
     "DEFAULT_PAGINATION_CLASS": "marketplace.pagination.ProjectPagination",
     "PAGE_SIZE": 12,
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
@@ -179,4 +179,10 @@ PLATFORM_FEE_PERCENT = os.getenv("PLATFORM_FEE_PERCENT", "5")
 
 PAYME_MERCHANT_ID = os.getenv("PAYME_MERCHANT_ID", "")
 PAYME_SECRET_KEY = os.getenv("PAYME_SECRET_KEY", "")
-PAYME_TEST_MODE = env_bool("PAYME_TEST_MODE", True)
+PAYME_TEST_MODE = env_bool("PAYME_TEST_MODE", TASKORA_ENV in {"local", "test"})
+REAL_MONEY_ENABLED = env_bool("REAL_MONEY_ENABLED", False)
+RELEASE_SHA = os.getenv("RELEASE_SHA", os.getenv("RAILWAY_GIT_COMMIT_SHA", "unversioned"))
+PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8000/api")
+
+from .security_settings import apply_security_settings
+apply_security_settings(globals())

@@ -41,7 +41,7 @@ export const designCopy = {
     supportGuidance:
       'Обсуждайте вопросы по заказу в рабочем чате. Если возник спор по результату, откройте спор на странице договора.',
     designHeroText:
-      'Специалисты для вашего проекта. Подбор по навыкам.\nБезопасная оплата через эскроу.',
+      'Специалисты для вашего проекта. Подбор по навыкам.\nОплата с внутренним резервированием средств.',
     designSecureTitle: 'Безопасно и надёжно',
     designSecureText:
       'Защита платежей и подходящие специалисты для вашего проекта',
@@ -120,7 +120,7 @@ export const designCopy = {
     supportGuidance:
       'Buyurtma savollarini ish chatida muhokama qiling. Natija bo‘yicha kelishmovchilik bo‘lsa, shartnoma sahifasida nizoni oching.',
     designHeroText:
-      'Loyihangiz uchun mutaxassislar. Ko‘nikmalar bo‘yicha tavsiyalar.\nXavfsiz escrow to‘lov tizimi.',
+      'Loyihangiz uchun mutaxassislar. Ko‘nikmalar bo‘yicha tavsiyalar.\nMablag‘larni ichki band qilish tizimi.',
     designSecureTitle: 'To‘liq xavfsiz va ishonchli',
     designSecureText: 'Zamonaviy texnologiyalar bilan himoyalangan tizim',
     designEscrowText:
@@ -199,7 +199,7 @@ export const designCopy = {
     supportGuidance:
       'Discuss project questions in the work chat. If there is a disagreement about the result, open a dispute on the contract page.',
     designHeroText:
-      'Specialists for your next project. Skills-based recommendations.\nSecure escrow payments.',
+      'Specialists for your next project. Skills-based recommendations.\nPayments with an internal funds reserve.',
     designSecureTitle: 'Safe and reliable',
     designSecureText:
       'Protected payments and the right specialists for your project',

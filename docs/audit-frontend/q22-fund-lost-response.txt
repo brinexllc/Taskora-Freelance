@@ -1,0 +1,100 @@
+- banner:
+  - link "Taskora":
+    - /url: /
+  - link "Уведомления":
+    - /url: /dashboard?view=notifications
+  - link "Настройки":
+    - /url: /dashboard?view=settings
+    - generic "Audit role": AR
+- main:
+  - link "← Договоры":
+    - /url: /dashboard?view=contracts
+  - 'heading "Q22: проверка потери ответа" [level=1]'
+  - generic: Ожидает резервирования
+  - alert: Ответ сервера не получен. Проверьте соединение и повторите действие.
+  - heading "Условия договора" [level=2]
+  - strong: 250 000 UZS · 3 дней
+  - generic: Только синтетическая локальная проверка Q22.
+  - text: Заказчик
+  - paragraph:
+    - strong: Audit role
+  - generic: Подтверждено
+  - paragraph: 13.09.2026
+  - text: Фрилансер
+  - paragraph:
+    - strong: Audit freelancer
+  - generic: Подтверждено
+  - paragraph: 13.09.2026
+  - heading "Критерии приёмки" [level=2]
+  - term: Критерии приёмки
+  - definition: Повтор запроса создаёт ровно один резерв
+  - term: Способ демонстрации
+  - definition: Локальная тестовая страница
+  - term: Проверочный сценарий
+  - definition: Резервирование, потеря ответа, повтор
+  - term: Срок проверки, дней
+  - definition: "3"
+  - paragraph: Срок проверки вызывает уведомление; автоматической выплаты нет. Доступ к исходникам сохраняет условия договора.
+  - generic "Изменить условия и сбросить подтверждения"
+  - heading "Безопасная оплата" [level=2]:
+    - text: Безопасная оплата
+  - generic: Ожидает резервирования
+  - paragraph:
+    - strong: Первоначальные условия
+    - text: "· Комиссия с фрилансера: 5.00% · Комиссия с заказчика: 0.00%"
+  - term: Стоимость (UZS)
+  - definition: 250 000 UZS
+  - term: Комиссия платформы
+  - definition: 12 500 UZS
+  - term: Исполнителю
+  - definition: 237 500 UZS
+  - term: В резерве
+  - definition: 0 UZS
+  - paragraph: "Заказчик резервирует: 250 000 UZS. Фактический расчёт пока не подтверждён."
+  - paragraph: Заказчик резервирует сумму до начала работы. Комиссия удерживается из выплаты исполнителю при приёмке. При споре средства остаются в резерве.
+  - button "Зарезервировать средства · 250 000 UZS"
+  - link "Пополнить кошелёк":
+    - /url: /dashboard?view=wallet
+  - button "Отменить договор"
+  - alert:
+    - strong: Подтвердите списание доступных средств в резерв договора.
+    - paragraph: "250 000 UZS · Комиссия платформы: 5.00% (12 500 UZS) · Исполнителю: 237 500 UZS"
+    - button "Подтвердить · 250 000 UZS"
+    - button "Назад"
+  - generic "Audit freelancer": AF
+  - heading "Audit freelancer" [level=2]
+  - 'link "Q22: проверка потери ответа"':
+    - /url: /contracts/3
+  - button "Позвонить" [disabled]:
+  - button "Видеозвонок" [disabled]:
+  - generic "Подробнее":
+  - article:
+    - generic: Taskora
+    - paragraph: Средства зарезервированы. Работа началась.
+    - time: 13.09.2026, 03:43
+  - textbox "Напишите сообщение…"
+  - generic: Прикрепить файл
+  - button "Прикрепить файл"
+  - button "Эмодзи":
+  - button "Отправить" [disabled]:
+    - text: Отправить
+  - heading "История договора" [level=2]
+  - list
+  - button "Обновить"
+  - link "Заказы →":
+    - /url: /projects/6
+- navigation "Личный кабинет":
+  - link "Главная":
+    - /url: /dashboard?view=home
+    - generic: Главная
+  - link "Заказы":
+    - /url: /dashboard?view=orders
+    - generic: Заказы
+  - link "Создать заказ":
+    - /url: /projects/new
+  - link "Сообщения":
+    - /url: /dashboard?view=messages
+    - generic: Сообщения
+  - link "Профиль":
+    - /url: /dashboard?view=profile
+    - generic: Профиль

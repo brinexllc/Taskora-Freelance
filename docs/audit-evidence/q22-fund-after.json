@@ -1,0 +1,25 @@
+{
+  "fixture": "Q22 synthetic only",
+  "contract": {
+    "id": 3,
+    "status": "active",
+    "amount": 250000,
+    "escrow_amount": 250000,
+    "funded_at": "2026-09-12 22:43:33.294095"
+  },
+  "balance": "750000",
+  "opening": "1000000",
+  "ledger_total": "-250000",
+  "holds": [
+    {
+      "id": 1,
+      "kind": "escrow_hold",
+      "amount": -250000,
+      "reference": "07527863c0204490b28c272fc071e4e3"
+    }
+  ],
+  "hold_count": 1,
+  "platform_fee_count": 0,
+  "balance_reconciles": true,
+  "exactly_one_committed_hold": true
+}

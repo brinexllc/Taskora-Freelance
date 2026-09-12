@@ -18,6 +18,7 @@ import {
   Notice,
   Pager,
   RemoteState,
+  RemoteFeedback,
   useRemote,
 } from '@/components/taskora-ui';
 import { date, money } from '@/lib/i18n';
@@ -34,14 +35,17 @@ export function ProfileShowcase({ profile }) {
   const [selectedWork, setSelectedWork] = useState(null);
   const [allWorks, setAllWorks] = useState(false);
   const [contactNotice, setContactNotice] = useState(false);
-  const contracts = useRemote(!own && session?.token ? 'contracts' : null, {
-    token: session?.token,
-    query: { participant_profile: profile.id, page_size: 1 },
-  });
+  const contracts = useRemote(
+    !own && session?.authenticated ? 'contracts' : null,
+    {
+      token: session?.authenticated,
+      query: { participant_profile: profile.id, page_size: 1 },
+    },
+  );
   const conversation = contracts.data?.results[0];
   const contact = own
     ? '/dashboard?view=settings'
-    : !session?.token
+    : !session?.authenticated
       ? '/login'
       : conversation
         ? `/dashboard?view=messages&contract=${conversation.id}`
@@ -105,7 +109,7 @@ export function ProfileShowcase({ profile }) {
           ) : (
             <button
               className="t-button secondary"
-              disabled={contracts.loading}
+              disabled={contracts.loading || !!contracts.error}
               onClick={() => setContactNotice(true)}
             >
               {t('writeMessage')}
@@ -119,6 +123,7 @@ export function ProfileShowcase({ profile }) {
           </Link>
         </div>
       </section>
+      {!own && session?.authenticated && <RemoteFeedback remote={contracts} />}
       <Notice>{contactNotice && t('chatAfterContract')}</Notice>
       {freelancer && (
         <>

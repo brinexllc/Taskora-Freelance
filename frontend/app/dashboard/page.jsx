@@ -23,7 +23,7 @@ import { WalletView } from '@/components/wallet-view';
 import { SettingsView } from '@/components/settings-view';
 import { ProfileShowcase } from '@/components/profile-showcase';
 import { OrdersList } from '@/app/projects/page';
-import { apiRequest } from '@/lib/api';
+import { apiRequest, apiErrorMessage } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
 import { conversationTime, date, money } from '@/lib/i18n';
 
@@ -31,7 +31,11 @@ export default function DashboardPage() {
   const { t, session, ready } = useApp();
   const search = useSearchParams();
   const view = search.get('view') || 'home';
-  if (!ready || !session?.user || !session.user.role)
+  if (
+    !ready ||
+    !session?.user ||
+    (!session.user.role && !session.user.is_staff)
+  )
     return (
       <div className="taskora-app">
         <p className="empty-state">{t('loading')}</p>
@@ -144,7 +148,7 @@ export default function DashboardPage() {
 }
 function Stats() {
   const { t, language, session } = useApp();
-  const remote = useRemote('dashboard', { token: session.token });
+  const remote = useRemote('dashboard', { token: session.authenticated });
   const primary = [
     ['active_orders', 'activeOrders', 'orders', FileText],
     ['active_contracts', 'activeContracts', 'contracts', Activity],
@@ -196,7 +200,7 @@ function Stats() {
 function RecentMessages() {
   const { t, session, language } = useApp();
   const remote = useRemote('contracts', {
-    token: session.token,
+    token: session.authenticated,
     query: { page_size: 2, conversation: 1 },
   });
   return (
@@ -262,7 +266,7 @@ function ContractList({ compact = false }) {
     });
   }, []);
   const remote = useRemote('contracts', {
-    token: session.token,
+    token: session.authenticated,
     query: {
       page,
       status: compact ? 'active' : filter,
@@ -344,7 +348,7 @@ function ProposalList() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const remote = useRemote('proposals', {
-    token: session.token,
+    token: session.authenticated,
     query: { page, mine: 1 },
   });
   return (
@@ -371,11 +375,11 @@ function ProposalList() {
                     try {
                       await apiRequest(`proposals/${item.id}/withdraw`, {
                         method: 'POST',
-                        token: session.token,
+                        token: session.authenticated,
                       });
                       remote.reload();
                     } catch (e) {
-                      setError(e.message);
+                      setError(apiErrorMessage(e, t));
                     }
                   }}
                 >

@@ -1,0 +1,281 @@
+const entries = {
+  noResults: ['Ничего не найдено', 'No results found', 'Hech narsa topilmadi'],
+  noMessages: ['Сообщений пока нет', 'No messages yet', 'Hozircha xabarlar yo‘q'],
+  requestThrottled: ['Слишком много запросов. Подождите несколько минут и повторите.', 'Too many requests. Wait a few minutes and try again.', 'So‘rovlar juda ko‘p. Bir necha daqiqa kuting va qayta urinib ko‘ring.'],
+  accessDenied: ['Доступ к этому действию ограничен.', 'Access to this action is restricted.', 'Ushbu amalga kirish cheklangan.'],
+  resourceUnavailable: ['Запись не найдена или недоступна этому аккаунту.', 'This record was not found or is unavailable to this account.', 'Yozuv topilmadi yoki ushbu akkaunt uchun mavjud emas.'],
+  acceptCurrentTerms: ['Принимаю показанную редакцию условий', 'I accept the displayed terms version', 'Ko‘rsatilgan shartlar tahririni qabul qilaman'],
+  consentSaved: ['Согласие с этой редакцией сохранено сервером.', 'The server saved consent to this version.', 'Server ushbu tahrirga rozilikni saqladi.'],
+  tokenName: ['Название ключа', 'Key name', 'Kalit nomi'],
+  operatorConsole: ['Кабинет оператора (требуется MFA)', 'Operator console (MFA required)', 'Operator kabineti (MFA talab qilinadi)'],
+  apiTokens: ['Доступ для внешнего клиента', 'External client access', 'Tashqi mijoz uchun kirish'],
+  apiTokensHint: ['Отдельный ключ только для чтения выбранных данных, максимум на сутки. Денежные операции недоступны.', 'A separate key to read selected data for up to one day. Financial operations are unavailable.', 'Tanlangan ma’lumotlarni faqat o‘qish kaliti, ko‘pi bilan bir kun. Moliyaviy amallar mavjud emas.'],
+  tokenOnce: ['Секрет показан один раз. Сохраните его в защищённом хранилище внешнего клиента.', 'This secret is shown once. Save it in your external client’s secure storage.', 'Maxfiy kalit bir marta ko‘rsatiladi. Uni tashqi mijozning xavfsiz joyida saqlang.'],
+  tokenScope: ['Разрешённые данные для чтения', 'Data allowed for reading', 'O‘qishga ruxsat berilgan ma’lumotlar'],
+  tokenDuration: ['Срок действия, секунд (300–86400)', 'Lifetime in seconds (300–86400)', 'Amal muddati, soniya (300–86400)'],
+  issueToken: ['Создать ограниченный ключ', 'Create limited key', 'Cheklangan kalit yaratish'],
+  revokeToken: ['Отозвать ключ', 'Revoke key', 'Kalitni bekor qilish'],
+
+  legal_name: ['Юридическое наименование', 'Legal name', 'Yuridik nom'],
+  tax_id: ['Налоговый номер', 'Tax identifier', 'Soliq raqami'],
+  address: ['Адрес оператора', 'Operator address', 'Operator manzili'],
+  response_time: [
+    'Срок ответа поддержки',
+    'Support response time',
+    'Yordam javob muddati',
+  ],
+  withdrawal_rules: [
+    'Правила вывода',
+    'Withdrawal rules',
+    'Pul yechish qoidalari',
+  ],
+  refund_rules: ['Правила возврата', 'Refund rules', 'Qaytarish qoidalari'],
+  dispute_rules: ['Правила споров', 'Dispute rules', 'Nizo qoidalari'],
+  financeDisabled: [
+    'Финансовые операции сейчас недоступны. Дождитесь допуска оператора.',
+    'Financial operations are currently unavailable. Wait for operator approval.',
+    'Moliyaviy amallar hozircha mavjud emas. Operator ruxsatini kuting.',
+  ],
+  sessionRenew: [
+    'Обновите страницу и подтвердите вход повторно.',
+    'Refresh the page and sign in again.',
+    'Sahifani yangilang va qayta kiring.',
+  ],
+
+  contactVerification: [
+    'Подтверждение контактов',
+    'Contact verification',
+    'Kontaktlarni tasdiqlash',
+  ],
+  verifiedContact: [
+    'Контакт подтверждён',
+    'Contact verified',
+    'Kontakt tasdiqlangan',
+  ],
+  unverifiedContact: [
+    'Контакт не подтверждён',
+    'Contact not verified',
+    'Kontakt tasdiqlanmagan',
+  ],
+  contactPolicy: [
+    'До вывода подтвердите контакт и получателя. Это не проверка личности, паспорта или навыков.',
+    'Verify a contact and recipient before withdrawal. This does not verify identity, passport or skills.',
+    'Pul yechishdan oldin kontakt va oluvchini tasdiqlang. Bu shaxs, pasport yoki ko‘nikmalar tekshiruvi emas.',
+  ],
+  sendCode: ['Отправить код', 'Send code', 'Kod yuborish'],
+  verificationCode: ['Одноразовый код', 'One-time code', 'Bir martalik kod'],
+  codeRequested: [
+    'Запрос принят. Проверьте выбранный канал; доставка зависит от его настройки.',
+    'Request accepted. Check the selected channel; delivery depends on its configuration.',
+    'So‘rov qabul qilindi. Tanlangan kanalni tekshiring; yetkazish uning sozlamalariga bog‘liq.',
+  ],
+  activeSessions: ['Активные сессии', 'Active sessions', 'Faol seanslar'],
+  currentSession: ['Эта сессия', 'This session', 'Ushbu seans'],
+  expiresAt: ['Действует до', 'Expires at', 'Amal qilish muddati'],
+  revokeSession: ['Завершить сессию', 'Revoke session', 'Seansni tugatish'],
+  revokeOtherSessions: [
+    'Завершить остальные сессии',
+    'Revoke other sessions',
+    'Boshqa seanslarni tugatish',
+  ],
+  mfaTitle: [
+    'Двухфакторная защита',
+    'Two-factor authentication',
+    'Ikki bosqichli himoya',
+  ],
+  mfaHint: [
+    'Добавьте секрет в приложение-аутентификатор и подтвердите одноразовый код. Для операторов защита обязательна.',
+    'Add the secret to an authenticator app and confirm its one-time code. Operators must enable this protection.',
+    'Maxfiy kalitni autentifikatorga qo‘shing va bir martalik kodni tasdiqlang. Operatorlar uchun himoya majburiy.',
+  ],
+  mfaSetup: [
+    'Настроить аутентификатор',
+    'Set up authenticator',
+    'Autentifikatorni sozlash',
+  ],
+  mfaCode: ['Код аутентификатора', 'Authenticator code', 'Autentifikator kodi'],
+  mfaEnabled: [
+    'Двухфакторная защита включена',
+    'Two-factor authentication enabled',
+    'Ikki bosqichli himoya yoqilgan',
+  ],
+  sensitiveConfirmation: [
+    'Повторное подтверждение действия оператора',
+    'Confirm a sensitive operator action',
+    'Operator amalini qayta tasdiqlash',
+  ],
+  sensitiveConfirmed: [
+    'Подтверждение принято сервером на ограниченное время.',
+    'Server accepted a time-limited confirmation.',
+    'Server cheklangan muddatli tasdiqni qabul qildi.',
+  ],
+  confirmedRecipient: [
+    'Подтверждённый получатель',
+    'Verified recipient',
+    'Tasdiqlangan oluvchi',
+  ],
+  recipientRequired: [
+    'Подтвердите получателя через согласованный защищённый канал поддержки. Не вводите здесь полный номер карты. Маска карты не подтверждает адресата.',
+    'Verify the recipient through the agreed secure support channel. Do not enter a full card number here. A card mask is not proof of recipient.',
+    'Oluvchini kelishilgan xavfsiz yordam kanali orqali tasdiqlang. Bu yerga to‘liq karta raqamini kiritmang. Karta niqobi oluvchini tasdiqlamaydi.',
+  ],
+  withdrawalPending: [
+    'Ожидает оператора',
+    'Waiting for operator',
+    'Operator kutilmoqda',
+  ],
+  processing: [
+    'Принята оператором',
+    'Claimed by operator',
+    'Operator qabul qildi',
+  ],
+  reconciliation_required: [
+    'Требуется сверка',
+    'Reconciliation required',
+    'Solishtirish talab qilinadi',
+  ],
+  withdrawalLocked: [
+    'Перевод обрабатывается. Средства удерживаются; отмена и повторный перевод недоступны до подтверждения результата.',
+    'Transfer is being processed. Funds remain reserved; cancellation and another transfer are unavailable until the result is confirmed.',
+    'O‘tkazma qayta ishlanmoqda. Mablag‘ band; natija tasdiqlanmaguncha bekor qilish yoki takroriy o‘tkazma mumkin emas.',
+  ],
+  uncertainRequest: [
+    'Ответ сервера не получен. Проверьте соединение и повторите действие.',
+    'No server response was received. Check your connection and try again.',
+    'Server javobi olinmadi. Ulanishni tekshiring va amalni takrorlang.',
+  ],
+  requestKey: ['Ключ запроса', 'Request key', 'So‘rov kaliti'],
+  retrySameRequest: [
+    'Повторить сохранённый запрос',
+    'Retry saved request',
+    'Saqlangan so‘rovni takrorlash',
+  ],
+  testPayment: [
+    'Тестовая касса — не реальные деньги',
+    'Test checkout — no real money',
+    'Sinov kassasi — haqiqiy pul emas',
+  ],
+  cloneProject: [
+    'Создать похожий заказ',
+    'Create a similar project',
+    'O‘xshash buyurtma yaratish',
+  ],
+  cloneHint: [
+    'Будет создан отдельный черновик. Проверьте новый срок, бюджет, категорию и навыки перед публикацией. История старого заказа сохранится.',
+    'A separate draft will be created. Review its deadline, budget, category and skills before publishing. The original history is preserved.',
+    'Alohida qoralama yaratiladi. Nashrdan oldin muddat, byudjet, toifa va ko‘nikmalarni tekshiring. Eski tarix saqlanadi.',
+  ],
+  copyAttachments: [
+    'Перенести вложения: подтверждаю права на их повторную публикацию',
+    'Copy attachments: I confirm the right to republish them',
+    'Ilovalarni ko‘chirish: ularni qayta nashr qilish huquqimni tasdiqlayman',
+  ],
+  sourceProject: ['Исходный заказ', 'Original project', 'Asl buyurtma'],
+  acceptance_criteria: [
+    'Критерии приёмки',
+    'Acceptance criteria',
+    'Qabul qilish mezonlari',
+  ],
+  demonstration_method: [
+    'Способ демонстрации',
+    'Demonstration method',
+    'Namoyish usuli',
+  ],
+  test_scenario: [
+    'Проверочный сценарий',
+    'Test scenario',
+    'Tekshiruv ssenariysi',
+  ],
+  review_days: [
+    'Срок проверки, дней',
+    'Review period, days',
+    'Tekshiruv muddati, kun',
+  ],
+  demo_url: [
+    'Закрытая ссылка на HTTPS-демо',
+    'Private HTTPS demo URL',
+    'Yopiq HTTPS demo havolasi',
+  ],
+  verification_steps: [
+    'Шаги проверки результата',
+    'Steps to verify the result',
+    'Natijani tekshirish bosqichlari',
+  ],
+  inspectDemo: ['Проверить демо', 'Inspect demo', 'Demoni tekshirish'],
+  acceptAndPay: [
+    'Принять и выплатить',
+    'Accept and pay',
+    'Qabul qilish va to‘lash',
+  ],
+  reviewDue: ['Проверить до', 'Review by', 'Tekshirish muddati'],
+  noAutomaticPayment: [
+    'Срок проверки вызывает уведомление; автоматической выплаты нет. Доступ к исходникам сохраняет условия договора.',
+    'The review deadline triggers notification, never automatic payment. Source access follows the contract conditions.',
+    'Tekshiruv muddati xabarnoma yuboradi, avtomatik to‘lov bo‘lmaydi. Manba fayllariga kirish shartnoma shartlariga bog‘liq.',
+  ],
+  amendTerms: [
+    'Изменить условия и сбросить подтверждения',
+    'Amend terms and reset confirmations',
+    'Shartlarni o‘zgartirish va tasdiqlarni bekor qilish',
+  ],
+  privateDiscussion: [
+    'Обсудить отклик',
+    'Discuss proposal',
+    'Taklifni muhokama qilish',
+  ],
+  proposalConversations: [
+    'Переписка по откликам',
+    'Proposal conversations',
+    'Taklif yozishmalari',
+  ],
+  conversationPrivacy: [
+    'Закрытый диалог участников отклика. Обсуждение не создаёт договор и не резервирует деньги.',
+    'Private conversation between proposal participants. Discussion creates no contract and reserves no funds.',
+    'Taklif ishtirokchilarining yopiq suhbati. Muhokama shartnoma yaratmaydi va mablag‘ni band qilmaydi.',
+  ],
+  reportConversation: [
+    'Пожаловаться на диалог',
+    'Report conversation',
+    'Suhbat ustidan shikoyat',
+  ],
+  reportReason: ['Причина жалобы', 'Report reason', 'Shikoyat sababi'],
+  reportSubmitted: [
+    'Жалоба зарегистрирована',
+    'Report recorded',
+    'Shikoyat ro‘yxatga olindi',
+  ],
+  legalUnapproved: [
+    'Редакция не утверждена оператором. Коммерческий запуск недоступен до утверждения документов и контактов.',
+    'This edition is not approved by the operator. Commercial launch is unavailable until documents and contacts are approved.',
+    'Ushbu tahrir operator tomonidan tasdiqlanmagan. Hujjatlar va kontaktlar tasdiqlanmaguncha tijoriy ishga tushirish mumkin emas.',
+  ],
+  legalVersion: ['Редакция условий', 'Terms edition', 'Shartlar tahriri'],
+  legalUnavailable: [
+    'Текст условий не загружен. Согласие недоступно; повторите загрузку.',
+    'Terms could not be loaded. Consent is unavailable; retry loading.',
+    'Shartlar yuklanmadi. Rozilik berish imkonsiz; qayta yuklang.',
+  ],
+  operatorContacts: [
+    'Оператор и поддержка',
+    'Operator and support',
+    'Operator va yordam',
+  ],
+  contactNotConfigured: [
+    'Действительные контакты оператором пока не опубликованы.',
+    'The operator has not published verified contacts yet.',
+    'Operator tasdiqlangan kontaktlarni hali e’lon qilmagan.',
+  ],
+  requestFailed: [
+    'Операция не выполнена',
+    'The operation failed',
+    'Amal bajarilmadi',
+  ],
+};
+export const auditCopy = Object.fromEntries(
+  ['ru', 'en', 'uz'].map((language, index) => [
+    language,
+    Object.fromEntries(
+      Object.entries(entries).map(([key, values]) => [key, values[index]]),
+    ),
+  ]),
+);

@@ -16,7 +16,8 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
-import { apiRequest, downloadFile } from '@/lib/api';
+import { ProposalConversations } from '@/components/proposal-discussion';
+import { apiRequest, apiErrorMessage, downloadFile } from '@/lib/api';
 import {
   Empty,
   Avatar,
@@ -24,6 +25,7 @@ import {
   Notice,
   Pager,
   RemoteState,
+  RemoteFeedback,
   Status,
   useRemote,
 } from '@/components/taskora-ui';
@@ -105,7 +107,7 @@ export function ContractWorkspace({ contract, act, busy }) {
               disabled={busy}
               onClick={() => confirmAction('fund')}
             >
-              {t('fundContract')}
+              {t('fundContract')} · {money(contract.amount, language)}
             </button>
             <Link className="text-link" href="/dashboard?view=wallet">
               {t('topup')}
@@ -118,7 +120,7 @@ export function ContractWorkspace({ contract, act, busy }) {
             disabled={busy}
             onClick={() => confirmAction('accept')}
           >
-            {t('acceptWork')}
+            {t('acceptAndPay')} · {money(contract.amount, language)}
           </button>
         )}
         {[
@@ -168,11 +170,21 @@ export function ContractWorkspace({ contract, act, busy }) {
                 className="t-button"
                 disabled={busy}
                 onClick={async () => {
-                  await act(confirm, { confirmed: true, reason }, 'saved');
-                  setConfirm('');
+                  const success = await act(
+                    confirm,
+                    {
+                      confirmed: true,
+                      reason,
+                      ...(confirm === 'accept'
+                        ? { deliverable_id: contract.deliverables?.[0]?.id }
+                        : {}),
+                    },
+                    'saved',
+                  );
+                  if (success) setConfirm('');
                 }}
               >
-                {t('confirm')}
+                {t('confirm')} · {money(contract.amount, language)}
               </button>
               <button
                 className="t-button secondary"
@@ -274,7 +286,7 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const remote = useRemote(`contracts/${contract.id}/messages`, {
-    token: session.token,
+    token: session.authenticated,
     query: { page, page_size: 50 },
   });
   const reloadMessages = remote.reload;
@@ -295,22 +307,23 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
       )?.id;
       apiRequest(`contracts/${contract.id}/messages/read`, {
         method: 'POST',
-        token: session.token,
+        token: session.authenticated,
       })
         .then(() => {
           setUnreadStart((current) => current ?? firstUnread);
           reloadMessages();
           onMessagesChanged?.();
         })
-        .catch((e) => setError(e.message));
+        .catch((e) => setError(apiErrorMessage(e, t)));
     }
   }, [
     remote.data,
     contract.id,
-    session.token,
+    session.authenticated,
     session.user.id,
     reloadMessages,
     onMessagesChanged,
+    t,
   ]);
   async function send(e) {
     e.preventDefault();
@@ -322,7 +335,7 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
       if (file) body.append('file', file);
       await apiRequest(`contracts/${contract.id}/messages`, {
         method: 'POST',
-        token: session.token,
+        token: session.authenticated,
         body,
       });
       setText('');
@@ -331,7 +344,7 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
       remote.reload();
       onMessagesChanged?.();
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -397,9 +410,10 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
           </details>
         </div>
       </div>
-      <Notice error>{error || remote.error}</Notice>
+      <Notice error>{error}</Notice>
+      <RemoteFeedback remote={remote} showLoading={!remote.data} />
       <div className="chat-messages" aria-live="polite">
-        {!remote.data && remote.loading && <p>{t('loading')}</p>}
+        {!remote.loading && !remote.error && remote.data?.results.length === 0 && <Empty text={t('noMessages')} />}
         {remote.data?.results.map((m) => (
           <Fragment key={m.id}>
             {m.id === unreadStart && (
@@ -416,9 +430,9 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
                   onClick={() =>
                     downloadFile(
                       `contracts/${contract.id}/messages/${m.id}/download`,
-                      session.token,
+                      session.authenticated,
                       m.filename,
-                    ).catch((e) => setError(e.message))
+                    ).catch((e) => setError(apiErrorMessage(e, t)))
                   }
                 >
                   <Paperclip size={14} /> {m.filename}
@@ -502,15 +516,15 @@ export function NotificationsView() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const remote = useRemote('notifications', {
-    token: session.token,
+    token: session.authenticated,
     query: { page },
   });
   async function read(path) {
     try {
-      await apiRequest(path, { method: 'POST', token: session.token });
+      await apiRequest(path, { method: 'POST', token: session.authenticated });
       remote.reload();
     } catch (e) {
-      setError(e.message);
+      setError(apiErrorMessage(e, t));
     }
   }
   return (
@@ -570,12 +584,12 @@ export function MessagesView() {
   const [selected, setSelected] = useState(null);
   const [page, setPage] = useState(1);
   const remote = useRemote('contracts', {
-    token: session.token,
+    token: session.authenticated,
     query: { page, search: term, conversation: 1, conversation_filter: filter },
   });
   const selectedId = search.get('contract');
   const direct = useRemote(selectedId ? `contracts/${selectedId}` : null, {
-    token: session.token,
+    token: session.authenticated,
   });
   const current = selected || (selectedId ? direct.data : null);
   const reloadConversations = remote.reload;
@@ -593,6 +607,8 @@ export function MessagesView() {
           <p className="dashboard-subtitle">{t('messagesSubtitle')}</p>
         </div>
       </div>
+      <ProposalConversations />
+      {selectedId && <RemoteFeedback remote={direct} />}
       <div className={`messenger-layout${current ? ' has-conversation' : ''}`}>
         <section className="conversation-list">
           <label className="conversation-search">
@@ -680,7 +696,7 @@ export function MessagesView() {
               if (selectedId) router.replace('/dashboard?view=messages');
             }}
           />
-        ) : (
+        ) : selectedId && (direct.loading || direct.error) ? null : (
           <div className="conversation-empty">
             <MessageSquare size={40} />
             <Empty text={t('selectConversation')} />

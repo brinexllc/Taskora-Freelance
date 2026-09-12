@@ -11,7 +11,7 @@ def api_exception_handler(exc, context):
         response.data = {**original, 'errors': {}}
         return response
     if isinstance(original, dict) and 'detail' in original:
-        response.data = {'detail': str(original['detail']), 'errors': {}}
+        response.data = {**original, 'detail': str(original['detail']), 'errors': original.get('errors', {})}
     else:
         def messages(value):
             if isinstance(value, dict):

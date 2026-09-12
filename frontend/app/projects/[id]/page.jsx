@@ -4,11 +4,13 @@ import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { FileText, Download, MapPin } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
+import { ProposalDiscussion } from '@/components/proposal-discussion';
+import { ProjectClone } from '@/components/project-clone';
 import { ProjectEditor } from '@/components/project-editor';
 import { FeeEstimate } from '@/components/fee-estimate';
 import { Chat } from '@/components/contract-workspace';
 import { feePreview } from '@/lib/fee-preview';
-import { apiRequest, createProposal, downloadFile } from '@/lib/api';
+import { apiRequest, apiErrorMessage, createProposal, downloadFile } from '@/lib/api';
 import {
   Empty,
   Avatar,
@@ -18,6 +20,7 @@ import {
   Pager,
   ProjectProgress,
   RemoteState,
+  RemoteFeedback,
   Status,
   useRemote,
 } from '@/components/taskora-ui';
@@ -26,14 +29,17 @@ export default function ProjectDetailsPage() {
   const { id } = useParams();
   const { t, language, session, ready } = useApp();
   const remote = useRemote(ready && id ? `projects/${id}` : null, {
-    token: session?.token,
+    token: session?.authenticated,
   });
   const [page, setPage] = useState(1);
   const fees = useRemote('platform-fees');
-  const proposals = useRemote(ready && session?.token ? 'proposals' : null, {
-    token: session?.token,
-    query: { project: id, page },
-  });
+  const proposals = useRemote(
+    ready && session?.authenticated ? 'proposals' : null,
+    {
+      token: session?.authenticated,
+      query: { project: id, page },
+    },
+  );
   const [form, setForm] = useState({
       cover_letter: '',
       amount: '',
@@ -44,10 +50,10 @@ export default function ProjectDetailsPage() {
     [notice, setNotice] = useState('');
   const project = remote.data;
   const contract = useRemote(
-    project?.contract_id && session?.token
+    project?.contract_id && session?.authenticated
       ? `contracts/${project.contract_id}`
       : null,
-    { token: session?.token },
+    { token: session?.authenticated },
   );
   const owner = project?.owner === session?.user?.id;
   const alreadyApplied = proposals.data?.results.some(
@@ -66,14 +72,14 @@ export default function ProjectDetailsPage() {
           project: Number(id),
           expected_fee_policy_version: fees.data.policy_version,
         },
-        session.token,
+        session.authenticated,
       );
       setNotice(t('sent'));
       proposals.reload();
       remote.reload();
     } catch (err) {
       setError(
-        err.code === 'FEE_POLICY_CHANGED' ? t('feePolicyChanged') : err.message,
+        err.code === 'FEE_POLICY_CHANGED' ? t('feePolicyChanged') : apiErrorMessage(err, t),
       );
       if (err.code === 'FEE_POLICY_CHANGED') fees.reload();
     } finally {
@@ -99,7 +105,7 @@ export default function ProjectDetailsPage() {
     try {
       const data = await apiRequest(`proposals/${proposal}/${action}`, {
         method: 'POST',
-        token: session.token,
+        token: session.authenticated,
         body:
           action === 'accept'
             ? { expected_fee_policy_version: fees.data.policy_version }
@@ -109,7 +115,7 @@ export default function ProjectDetailsPage() {
       else proposals.reload();
     } catch (err) {
       setError(
-        err.code === 'FEE_POLICY_CHANGED' ? t('feePolicyChanged') : err.message,
+        err.code === 'FEE_POLICY_CHANGED' ? t('feePolicyChanged') : apiErrorMessage(err, t),
       );
       if (err.code === 'FEE_POLICY_CHANGED') fees.reload();
     } finally {
@@ -213,6 +219,20 @@ export default function ProjectDetailsPage() {
                 </Link>
               )}
             </section>
+            {!!project.contract_id && session?.authenticated && <RemoteFeedback remote={contract} />}
+            {owner &&
+              project.status === 'cancelled' &&
+              (!project.contract_id || (!contract.loading && !contract.error && contract.data && !Number(contract.data.escrow_amount))) && (
+                <ProjectClone project={project} />
+              )}
+            {project.source_project && (
+              <Link
+                className="text-link"
+                href={`/projects/${project.source_project}`}
+              >
+                {t('sourceProject')} #{project.source_project}
+              </Link>
+            )}
             {owner &&
               ['draft', 'published'].includes(project.status) &&
               !project.proposal_count && (
@@ -230,11 +250,11 @@ export default function ProjectDetailsPage() {
                       try {
                         await apiRequest(`projects/${id}`, {
                           method: 'DELETE',
-                          token: session.token,
+                          token: session.authenticated,
                         });
                         remote.reload();
                       } catch (e) {
-                        setError(e.message);
+                        setError(apiErrorMessage(e, t));
                       } finally {
                         setBusy(false);
                       }
@@ -254,9 +274,9 @@ export default function ProjectDetailsPage() {
                     onClick={() =>
                       downloadFile(
                         `projects/${id}/attachments/${a.id}/download`,
-                        session?.token,
+                        session?.authenticated,
                         a.filename,
-                      ).catch((e) => setError(e.message))
+                      ).catch((e) => setError(apiErrorMessage(e, t)))
                     }
                   >
                     <FileText size={24} />
@@ -306,7 +326,7 @@ export default function ProjectDetailsPage() {
               </button>
             )}
             <Notice>{notice}</Notice>
-            {session?.token && (
+            {session?.authenticated && (
               <RemoteState remote={proposals}>
                 {owner ? (
                   <section className="t-card">
@@ -317,15 +337,6 @@ export default function ProjectDetailsPage() {
                           <div className="row-between">
                             <h3>{proposal.freelancer_name}</h3>
                             <Status value={proposal.status} />
-                            {proposal.status === 'pending' && (
-                              <button
-                                className="text-link"
-                                disabled={busy}
-                                onClick={() => decide(proposal.id, 'withdraw')}
-                              >
-                                {t('withdrawProposal')}
-                              </button>
-                            )}
                           </div>
                           <p className="preserve-lines">
                             {proposal.cover_letter}
@@ -358,6 +369,7 @@ export default function ProjectDetailsPage() {
                                 </button>
                               </div>
                             )}
+                          <ProposalDiscussion proposal={proposal} />
                           {proposal.contract_id && (
                             <Link
                               className="text-link"
@@ -392,6 +404,7 @@ export default function ProjectDetailsPage() {
                         </button>
                       )}
                       <p className="preserve-lines">{proposal.cover_letter}</p>
+                      <ProposalDiscussion proposal={proposal} />
                       <p>
                         {money(proposal.amount, language)} ·{' '}
                         {proposal.delivery_days} {t('days')}

@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { useApp } from '@/components/app-providers';
-import { apiRequest } from '@/lib/api';
+import { AcceptanceFields } from '@/components/acceptance-terms';
+import { apiRequest, apiErrorMessage } from '@/lib/api';
 import {
   Field,
   Notice,
@@ -120,6 +121,10 @@ export function ProjectEditor({ project, onSaved }) {
     skills_unspecified: project?.skills_unspecified || false,
     client_company: project?.client_company || '',
     deadline: project?.deadline || '',
+    acceptance_criteria: project?.acceptance_criteria || '',
+    demonstration_method: project?.demonstration_method || '',
+    test_scenario: project?.test_scenario || '',
+    review_days: project?.review_days || 3,
   });
   const [files, setFiles] = useState([]);
   const [savedId, setSavedId] = useState(project?.id);
@@ -140,7 +145,7 @@ export function ProjectEditor({ project, onSaved }) {
         savedId ? `projects/${savedId}` : 'projects',
         {
           method: savedId ? 'PATCH' : 'POST',
-          token: session.token,
+          token: session.authenticated,
           body: {
             ...form,
             skills: undefined,
@@ -154,7 +159,7 @@ export function ProjectEditor({ project, onSaved }) {
         body.append('file', files[i]);
         await apiRequest(`projects/${item.id}/attachments`, {
           method: 'POST',
-          token: session.token,
+          token: session.authenticated,
           body,
         });
         setUploaded(i + 1);
@@ -162,12 +167,12 @@ export function ProjectEditor({ project, onSaved }) {
       if (publish && item.status === 'draft')
         await apiRequest(`projects/${item.id}/publish`, {
           method: 'POST',
-          token: session.token,
+          token: session.authenticated,
         });
       if (onSaved) onSaved();
       else window.location.assign(`/projects/${item.id}`);
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -210,7 +215,8 @@ export function ProjectEditor({ project, onSaved }) {
           </select>
         </Field>
       </div>
-      <Notice error>{remote.error}</Notice>
+      {remote.loading && <output className="empty-state">{t('loading')}</output>}
+      <Notice error>{remote.error && <>{remote.error} <button className="text-link" type="button" onClick={remote.reload}>{t('retry')}</button></>}</Notice>
       <label className="t-check">
         <input
           type="checkbox"
@@ -307,6 +313,13 @@ export function ProjectEditor({ project, onSaved }) {
           />
         </Field>
       )}
+      <AcceptanceFields
+        value={form}
+        required
+        onChange={(key, value) =>
+          setForm((current) => ({ ...current, [key]: value }))
+        }
+      />
       <div className="actions">
         <button
           className="t-button secondary"

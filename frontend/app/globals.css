@@ -1530,6 +1530,7 @@ p {
   overflow: hidden;
 }
 .pager {
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3282,4 +3283,94 @@ p {
 }
 .skill-picker label {
   font-size: 0.875rem;
+}
+
+/* Audit forms must fit at the supported 320px minimum. */
+.acceptance-fields {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--border, #cbd5e1);
+  padding: 16px;
+  border-radius: 12px;
+  min-width: 0;
+}
+.proposal-discussion {
+  margin: 16px 0;
+}
+.proposal-chat {
+  border-top: 1px solid var(--border, #cbd5e1);
+  padding-top: 16px;
+  margin-top: 16px;
+  min-width: 0;
+}
+.proposal-chat .chat-messages {
+  max-height: 420px;
+  overflow-y: auto;
+}
+.security-secret,
+.legal-hash,
+.legal-text,
+.security-sessions,
+.account-security code,
+.notice code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.security-sessions {
+  padding-left: 20px;
+}
+.security-sessions li {
+  margin-bottom: 16px;
+}
+.registration-terms {
+  max-height: 280px;
+  overflow-y: auto;
+}
+.registration-terms summary {
+  cursor: pointer;
+}
+.t-card,
+.t-form,
+.two-columns > *,
+.messenger-layout > *,
+.auth-card {
+  min-width: 0;
+}
+textarea,
+input,
+select {
+  max-width: 100%;
+}
+:where(button, a, input, textarea, select, summary):focus-visible {
+  outline: 3px solid #4076ff;
+  outline-offset: 3px;
+}
+@media (max-width: 390px) {
+  .actions {
+    flex-wrap: wrap;
+  }
+  .t-button {
+    white-space: normal;
+  }
+  .acceptance-fields {
+    padding: 10px;
+  }
+  .security-sessions {
+    padding-left: 12px;
+  }
+}
+
+.filters-row > *,
+.filters-row .actions {
+  min-width: 0;
+}
+.filters-row .actions input {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+.filters-row .actions {
+  flex-wrap: wrap;
+}
+.filters-row .skill-picker {
+  max-width: 100%;
 }

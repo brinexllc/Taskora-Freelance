@@ -26,6 +26,7 @@ export default function FreelancersPage() {
   });
   const [applied, setApplied] = useState({});
   const [selectedSkills, setSelectedSkills] = useState([]);
+  const hasFilters = query.trim() || Object.values(applied).some((value) => Array.isArray(value) ? value.length > 0 : value !== '' && value != null);
   const remote = useRemote('profiles', {
     query: { search: query, page, ...applied },
   });
@@ -141,7 +142,7 @@ export default function FreelancersPage() {
             ))}
           </div>
         ) : (
-          <Empty text={t('noFreelancers')} />
+          <Empty text={t(hasFilters ? 'noResults' : 'noFreelancers')} />
         )}
         <Pager data={remote.data} page={page} onChange={setPage} />
       </RemoteState>

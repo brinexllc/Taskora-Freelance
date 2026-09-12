@@ -19,7 +19,9 @@ export function FeeEstimate({ amount, policy }) {
           {t('customerReserves')}: {money(amount, language)}
         </p>
       )}
-      <p>{t('customerCommission')}: {policy.customer_fee_percent}%</p>
+      <p>
+        {t('customerCommission')}: {policy.customer_fee_percent}%
+      </p>
       <p className="muted">{t('feeEstimateHint')}</p>
     </div>
   );

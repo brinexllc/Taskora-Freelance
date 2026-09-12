@@ -1,0 +1,79 @@
+Creating test database for alias 'default'...
+........
+----------------------------------------------------------------------
+Ran 8 tests in 2.079s
+
+OK
+Destroying test database for alias 'default'...
+Found 8 test(s).
+System check identified no issues (0 silenced).
+PROFILE_BENCHMARK {"database": "postgresql", "runs": 6, "measurements": [{"profiles": 12, "queries": 3, "p50_ms": 15.0, "p95_ms": 114.12, "bytes": 8385}, {"profiles": 48, "queries": 3, "p50_ms": 21.63, "p95_ms": 27.7, "bytes": 34843}]}
+PROFILE_QUERY_PLAN Limit  (cost=0.00..3169.75 rows=30 width=3885)
+  ->  Nested Loop  (cost=0.00..3169.75 rows=30 width=3885)
+        Join Filter: (marketplace_profile.user_id = auth_user.id)
+        ->  Seq Scan on marketplace_profile  (cost=0.00..10.30 rows=30 width=2046)
+        ->  Materialize  (cost=0.00..10.60 rows=40 width=1767)
+              ->  Seq Scan on auth_user  (cost=0.00..10.40 rows=40 width=1767)
+        SubPlan 1
+          ->  Limit  (cost=4.17..11.30 rows=1 width=36)
+                ->  GroupAggregate  (cost=4.17..11.30 rows=1 width=36)
+                      ->  Bitmap Heap Scan on marketplace_review "U0"  (cost=4.17..11.28 rows=2 width=6)
+                            Recheck Cond: (target_id = marketplace_profile.user_id)
+                            Filter: published
+                            ->  Bitmap Index Scan on marketplace_review_target_id_4ed29021  (cost=0.00..4.17 rows=3 width=0)
+                                  Index Cond: (target_id = marketplace_profile.user_id)
+        SubPlan 2
+          ->  Limit  (cost=4.17..11.30 rows=1 width=12)
+                ->  GroupAggregate  (cost=4.17..11.30 rows=1 width=12)
+                      ->  Bitmap Heap Scan on marketplace_review "U0_1"  (cost=4.17..11.28 rows=2 width=12)
+                            Recheck Cond: (target_id = marketplace_profile.user_id)
+                            Filter: published
+                            ->  Bitmap Index Scan on marketplace_review_target_id_4ed29021  (cost=0.00..4.17 rows=3 width=0)
+                                  Index Cond: (target_id = marketplace_profile.user_id)
+        SubPlan 3
+          ->  Limit  (cost=0.29..16.35 rows=1 width=12)
+                ->  GroupAggregate  (cost=0.29..16.35 rows=1 width=12)
+                      ->  Nested Loop Left Join  (cost=0.29..16.34 rows=1 width=12)
+                            Filter: ("U2".id IS NULL)
+                            ->  Index Scan using marketplace_contract_freelancer_id_e7cb5aab on marketplace_contract "U0_2"  (cost=0.14..8.16 rows=1 width=12)
+                                  Index Cond: (freelancer_id = marketplace_profile.user_id)
+                                  Filter: ((status)::text = 'completed'::text)
+                            ->  Index Scan using marketplace_dispute_contract_id_key on marketplace_dispute "U2"  (cost=0.15..8.17 rows=1 width=16)
+                                  Index Cond: (contract_id = "U0_2".id)
+        SubPlan 4
+          ->  Limit  (cost=0.29..16.39 rows=1 width=12)
+                ->  GroupAggregate  (cost=0.29..16.39 rows=1 width=12)
+                      ->  Nested Loop  (cost=0.29..16.37 rows=3 width=12)
+                            ->  Index Scan using marketplace_contract_freelancer_id_e7cb5aab on marketplace_contract "U0_3"  (cost=0.14..8.16 rows=1 width=12)
+                                  Index Cond: (freelancer_id = marketplace_profile.user_id)
+                                  Filter: ((status)::text = 'completed'::text)
+                            ->  Index Only Scan using marketplace_dispute_contract_id_key on marketplace_dispute "U2_1"  (cost=0.15..8.17 rows=1 width=8)
+                                  Index Cond: (contract_id = "U0_3".id)
+        SubPlan 5
+          ->  Limit  (cost=0.43..24.52 rows=1 width=12)
+                ->  GroupAggregate  (cost=0.43..24.52 rows=1 width=12)
+                      ->  Nested Loop Left Join  (cost=0.43..24.51 rows=1 width=12)
+                            Filter: ("U4".id IS NULL)
+                            ->  Nested Loop  (cost=0.29..16.34 rows=1 width=12)
+                                  ->  Index Scan using marketplace_contract_freelancer_id_e7cb5aab on marketplace_contract "U0_4"  (cost=0.14..8.16 rows=1 width=20)
+                                        Index Cond: (freelancer_id = marketplace_profile.user_id)
+                                        Filter: ((accepted_deliverable_id IS NOT NULL) AND ((status)::text = 'completed'::text))
+                                  ->  Index Scan using marketplace_deliverable_contract_id_980d8b0e on marketplace_deliverable "U2_2"  (cost=0.14..8.16 rows=1 width=16)
+                                        Index Cond: (contract_id = "U0_4".id)
+                                        Filter: ((deadline_snapshot IS NOT NULL) AND ("U0_4".accepted_deliverable_id = id))
+                            ->  Index Scan using marketplace_dispute_contract_id_key on marketplace_dispute "U4"  (cost=0.15..8.17 rows=1 width=16)
+                                  Index Cond: (contract_id = "U0_4".id)
+        SubPlan 6
+          ->  Limit  (cost=0.43..24.53 rows=1 width=12)
+                ->  GroupAggregate  (cost=0.43..24.53 rows=1 width=12)
+                      ->  Nested Loop Left Join  (cost=0.43..24.51 rows=1 width=12)
+                            Filter: ("U4_1".id IS NULL)
+                            ->  Nested Loop  (cost=0.29..16.34 rows=1 width=12)
+                                  ->  Index Scan using marketplace_contract_freelancer_id_e7cb5aab on marketplace_contract "U0_5"  (cost=0.14..8.16 rows=1 width=20)
+                                        Index Cond: (freelancer_id = marketplace_profile.user_id)
+                                        Filter: ((accepted_deliverable_id IS NOT NULL) AND ((status)::text = 'completed'::text))
+                                  ->  Index Scan using marketplace_deliverable_contract_id_980d8b0e on marketplace_deliverable "U2_3"  (cost=0.14..8.16 rows=1 width=16)
+                                        Index Cond: (contract_id = "U0_5".id)
+                                        Filter: ((deadline_snapshot IS NOT NULL) AND (created_at <= deadline_snapshot) AND ("U0_5".accepted_deliverable_id = id))
+                            ->  Index Scan using marketplace_dispute_contract_id_key on marketplace_dispute "U4_1"  (cost=0.15..8.17 rows=1 width=16)
+                                  Index Cond: (contract_id = "U0_5".id)

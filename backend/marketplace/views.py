@@ -9,7 +9,6 @@ from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import filters, permissions, viewsets, serializers
 from rest_framework.decorators import action, api_view, permission_classes, authentication_classes
-from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
@@ -19,6 +18,7 @@ from .escrow import event, notify, fund_contract, distribute, project_status, re
 from .validation import uploaded_file
 from .fees import current_policy, check_expected_policy, settlement
 from .catalog_api import filter_skills
+from .product_api import ProjectCloneMixin, ProposalConversationMixin, ContractAmendmentMixin, acceptance_text
 
 
 def require_role(user, role):
@@ -26,7 +26,7 @@ def require_role(user, role):
         raise PermissionDenied("Выберите подходящую роль в настройках: " + ("Заказчик" if role == "client" else "Фрилансер"))
 
 
-class ProjectViewSet(viewsets.ModelViewSet):
+class ProjectViewSet(ProjectCloneMixin, viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -131,7 +131,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
 
 
-class ProposalViewSet(viewsets.ModelViewSet):
+class ProposalViewSet(ProposalConversationMixin, viewsets.ModelViewSet):
     serializer_class = ProposalSerializer
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ["get", "post", "head", "options"]
@@ -189,6 +189,20 @@ class ProposalViewSet(viewsets.ModelViewSet):
         fee = settlement(proposal.amount, proposal.amount, fee_percent)['fee']
         terms += f"\nВерсия 1. Модель: {project.budget_type}. Согласованная итоговая сумма: {proposal.amount} UZS. Комиссия: {fee_percent}% ({fee} UZS), удерживается из выплаты. Исполнителю: {proposal.amount-fee} UZS."
         contract = Contract.objects.create(project=project, proposal=proposal, customer=request.user, freelancer=proposal.freelancer, amount=proposal.amount, delivery_days=proposal.delivery_days, terms=terms, scope=project.description, budget_type=project.budget_type, fee_percent=fee_percent, fee_amount=fee, fee_policy_snapshot=policy)
+        from .product_api import AcceptanceTermsSerializer
+        review_terms = {field: request.data.get(field, getattr(project, field)) for field in ('acceptance_criteria', 'demonstration_method', 'test_scenario', 'review_days')}
+        review_terms['review_days'] = serializers.IntegerField(min_value=1, max_value=30).run_validation(review_terms['review_days'])
+        # Empty historical project fields can be filled through amend before either signature.
+        if any(review_terms[field] for field in ('acceptance_criteria', 'demonstration_method', 'test_scenario')):
+            validator = AcceptanceTermsSerializer(data=review_terms)
+            validator.is_valid(raise_exception=True)
+            review_terms = validator.validated_data
+        for field, value in review_terms.items():
+            setattr(contract, field, value)
+        contract.acceptance_workflow_version = 1
+        contract.terms += acceptance_text(contract)
+        contract.save()
+        terms = contract.terms
         event(contract, request.user, "created", "Договор создан. Подтвердите условия.", {"version": 1, "terms": terms})
         for other in Proposal.objects.filter(project=project, status="pending").exclude(pk=proposal.pk):
             notify(other.freelancer_id, "proposal_rejected", "Выбран другой исполнитель: " + project.title, link=f"/projects/{project.pk}")
@@ -229,7 +243,7 @@ class ProposalViewSet(viewsets.ModelViewSet):
         return Response(self.get_serializer(proposal).data)
 
 
-class ContractViewSet(viewsets.ReadOnlyModelViewSet):
+class ContractViewSet(ContractAmendmentMixin, viewsets.ReadOnlyModelViewSet):
     serializer_class = ContractSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
@@ -272,6 +286,8 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
     @transaction.atomic
     def sign(self, request, pk=None):
         contract = self.locked()
+        if contract.acceptance_workflow_version and not all((contract.acceptance_criteria, contract.demonstration_method, contract.test_scenario)):
+            raise ValidationError('До подписания согласуйте критерии приёмки, демонстрацию и проверочный сценарий.')
         if request.data.get("accepted") is not True:
             raise ValidationError("Подтвердите согласие с условиями договора.")
         if ((contract.version > 1 or 'expected_version' in request.data)
@@ -302,11 +318,14 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         filename = Path(data["file"].name.replace("\\", "/")).name[:255]
-        Deliverable.objects.create(contract=contract, filename=filename, **data)
+        if contract.acceptance_workflow_version and not data.get('verification_steps'):
+            raise ValidationError('Опишите шаги проверки согласованного результата.')
+        work = Deliverable.objects.create(contract=contract, filename=filename, deadline_snapshot=contract.deadline,
+            contract_version=contract.version, review_due_at=timezone.now() + timedelta(days=contract.review_days), **data)
         contract.status = Contract.Status.REVIEW
         contract.save(update_fields=["status"])
         project_status(contract, "review")
-        event(contract, request.user, "submitted", "Работа отправлена на проверку.")
+        event(contract, request.user, "submitted", "Работа отправлена на проверку.", {'deliverable': work.pk, 'contract_version': contract.version, 'deadline': contract.deadline.isoformat() if contract.deadline else None})
         return Response(self.get_serializer(contract).data)
 
     @action(detail=True, methods=["post"])
@@ -336,7 +355,7 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
         contract = self.get_object()
         if contract.status != Contract.Status.COMPLETED:
             raise PermissionDenied("Скачивание откроется после подтверждённой оплаты.")
-        work = contract.deliverables.first()
+        work = contract.accepted_deliverable or contract.deliverables.first()
         if not work:
             raise ValidationError("Файл результата отсутствует.")
         try:
@@ -370,6 +389,14 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(self.get_serializer(contract).data)
         if contract.status != Contract.Status.REVIEW or not contract.deliverables.exists():
             raise ValidationError("Принять можно работу на проверке без открытого спора.")
+        work = contract.deliverables.first()
+        if contract.acceptance_workflow_version and 'deliverable_id' not in request.data:
+            raise ValidationError('Укажите проверенную версию результата перед выплатой.')
+        if request.data.get('deliverable_id', work.pk) != work.pk:
+            raise ValidationError('Версия результата изменилась. Проверьте актуальную сдачу.')
+        contract.accepted_deliverable = work
+        contract.save(update_fields=['accepted_deliverable'])
+        event(contract, request.user, 'deliverable_accepted', 'Принята версия результата.', {'deliverable': work.pk, 'contract_version': work.contract_version, 'submitted_at': work.created_at.isoformat(), 'deadline': work.deadline_snapshot.isoformat() if work.deadline_snapshot else None})
         distribute(contract, request.user, contract.amount, "Работа принята. Средства выплачены исполнителю.")
         return Response(self.get_serializer(contract).data)
 
@@ -503,7 +530,7 @@ class DisputeViewSet(viewsets.ReadOnlyModelViewSet):
         dispute = self.get_object()
         amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0).run_validation(request.data.get("freelancer_amount"))
         reason = serializers.CharField(min_length=10, max_length=5000).run_validation(request.data.get("reason"))
-        return Response(self.get_serializer(resolve_dispute(dispute.pk, request.user, amount, reason)).data)
+        return Response(self.get_serializer(resolve_dispute(dispute.pk, request.user, amount, reason, request=request)).data)
 
 
 @api_view(["GET"])
@@ -551,19 +578,34 @@ def overview(request):
 
 @api_view(["GET"])
 def health(request):
+    from django.conf import settings
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             cursor.fetchone()
     except Exception:
         return Response({"status": "error", "database": "unavailable"}, status=503)
-    return Response({"status": "ok", "database": "connected"})
+    return Response({"status": "ok", "database": "connected", "release_sha": settings.RELEASE_SHA})
+
+
+@api_view(['GET'])
+@authentication_classes([])
+def readiness(request):
+    from django.conf import settings
+    from .operations import pending_migrations
+    try:
+        if pending_migrations() or not settings.MEDIA_ROOT.is_dir():
+            return Response({'status': 'not_ready'}, status=503)
+    except Exception:
+        return Response({'status': 'not_ready'}, status=503)
+    return Response({'status': 'ready', 'release_sha': settings.RELEASE_SHA})
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TokenAuthentication])
 @permission_classes([permissions.IsAdminUser])
 def admin_file_download(request, model, pk):
+    from .security import require_operator_security
+    require_operator_security(request)
     from django.shortcuts import get_object_or_404
     from .models import AuditLog
     types = {"message": Message, "deliverable": Deliverable, "projectattachment": ProjectAttachment}

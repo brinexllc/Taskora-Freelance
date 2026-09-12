@@ -162,7 +162,7 @@ export const mvpCopy = {
     securePayment: 'Secure payment',
     escrowHint:
       'The customer reserves funds before work starts. The platform fee is deducted from the freelancer payout on acceptance. Disputed funds remain frozen.',
-    frozenBalance: 'Escrow balance',
+    frozenBalance: 'Reserved balance',
     pendingBalance: 'Expected payout',
     pendingWithdrawal: 'Pending withdrawal',
     platformFee: 'Platform fee',
@@ -171,7 +171,7 @@ export const mvpCopy = {
     acceptWork: 'Accept work and release funds',
     cancelContract: 'Cancel contract',
     confirm: 'Confirm',
-    confirm_fund: 'Confirm moving available funds into contract escrow.',
+    confirm_fund: 'Confirm moving available funds into the contract reserve.',
     confirm_accept:
       'Confirm acceptance. The funds will be released to the freelancer.',
     confirm_cancel: 'Confirm cancellation before work begins.',
@@ -181,7 +181,7 @@ export const mvpCopy = {
     openDispute: 'Open dispute',
     disputeReason: 'Reason for dispute',
     disputeEvidence:
-      'Add comments and evidence to the project chat. An administrator will review the contract history and distribute the escrow.',
+      'Add comments and evidence to the project chat. An administrator will review the contract history and distribute the reserved funds.',
     reviews: 'Reviews',
     rating: 'Rating',
     reviewText: 'Your review',
@@ -257,7 +257,7 @@ export const mvpCopy = {
     support: 'Support',
     legalDraft: 'MVP terms',
     termsBody:
-      'Taskora connects customers and freelancers. Scope, price and delivery time are recorded in the contract. Work starts after funds are reserved. Customers accept results, request revisions or open disputes. Acceptance releases escrow; administrators resolve disputed funds. Contracts can be cancelled before funding. Contract and payment history is retained. ONEID and certified electronic signatures are not connected yet.',
+      'Taskora connects customers and freelancers. Scope, price and delivery time are recorded in the contract. Work starts after funds are reserved. Customers accept results, request revisions or open disputes. Acceptance releases the reserve; administrators resolve disputed funds. Contracts can be cancelled before funding. Contract and payment history is retained. ONEID and certified electronic signatures are not connected yet.',
     privacyBody:
       'Accounts store names, usernames, birth dates, phone numbers, email addresses and preferences. Public profiles exclude phone, email and birth date. Contracts, chat and private files are available to participants and authorised administrators. Passwords are hashed. Financial and dispute records are retained for audit. Full card numbers are not collected.',
     legalNotice:

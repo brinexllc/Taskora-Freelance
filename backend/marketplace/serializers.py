@@ -29,8 +29,9 @@ class ProjectSerializer(SkillsWriteSerializer):
     class Meta:
         model = Project
         fields = ["id", "owner", "title", "description", "category", "category_label", "budget_min", "budget_max", "skills", "skill_ids", "skill_details", "skills_unspecified", "client_name", "client_company", "status", "featured", "deadline", "proposal_count", "contract_id", "created_at", "updated_at", "budget_type", "visibility", "attachments"]
-        fields += ['client_avatar', 'client_location']
-        read_only_fields = ["owner", "client_name", "status", "featured", "created_at", "updated_at"]
+        fields += ['client_avatar', 'client_location', 'source_project', 'acceptance_criteria', 'demonstration_method', 'test_scenario', 'review_days']
+        read_only_fields = ["owner", "client_name", "status", "featured", "created_at", "updated_at", "source_project"]
+        extra_kwargs = {'review_days': {'min_value': 1, 'max_value': 30}}
 
     def get_contract_id(self, obj):
         request = self.context.get("request")
@@ -92,7 +93,7 @@ class ProposalSerializer(serializers.ModelSerializer):
 class DeliverableSerializer(serializers.ModelSerializer):
     class Meta:
         model = Deliverable
-        fields = ["id", "filename", "preview_text", "preview_image", "revision_note", "created_at"]
+        fields = ["id", "filename", "preview_text", "preview_image", "revision_note", "created_at", "deadline_snapshot", "contract_version", "demo_url", "verification_steps", "review_due_at", "review_escalated_at"]
         read_only_fields = fields
 
 
@@ -100,6 +101,13 @@ class DeliverableUploadSerializer(serializers.Serializer):
     file = serializers.FileField()
     preview_text = serializers.CharField(max_length=15000)
     preview_image = serializers.CharField(required=False, allow_blank=True, default="")
+    demo_url = serializers.URLField(max_length=2000, required=False, allow_blank=True, default='')
+    verification_steps = serializers.CharField(max_length=5000, required=False, allow_blank=True, default='')
+
+    def validate_demo_url(self, value):
+        if value and not value.startswith('https://'):
+            raise serializers.ValidationError('Демонстрация должна использовать HTTPS.')
+        return value
 
     validate_preview_image = staticmethod(image_data)
 
@@ -161,7 +169,7 @@ class ContractSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contract
         fields = ["id", "project", "project_title", "proposal", "customer", "customer_name", "freelancer", "freelancer_name", "amount", "delivery_days", "terms", "status", "customer_signed_at", "freelancer_signed_at", "created_at", "completed_at", "deliverables", "can_download", "version", "scope", "currency", "budget_type", "deadline", "funded_at", "escrow_amount", "fee_percent", "fee_amount", "net_amount", "released_amount", "refunded_amount", "events", "reviews", "dispute"]
-        fields += ['actual_fee_amount', 'actual_net_amount', 'fee_policy_snapshot']
+        fields += ['actual_fee_amount', 'actual_net_amount', 'fee_policy_snapshot', 'acceptance_criteria', 'demonstration_method', 'test_scenario', 'review_days', 'accepted_deliverable', 'acceptance_workflow_version']
         fields += ['last_message_text', 'last_message_filename', 'last_message_at', 'unread_count', 'customer_avatar', 'freelancer_avatar']
         read_only_fields = fields
 
@@ -173,7 +181,7 @@ class WalletEntrySerializer(serializers.ModelSerializer):
     contract_actual_fee_amount = serializers.DecimalField(source='contract.actual_fee_amount', max_digits=12, decimal_places=2, read_only=True, allow_null=True)
     class Meta:
         model = WalletEntry
-        fields = ["id", "reference", "contract", "amount", "kind", "description", "created_at", "contract_actual_fee_amount"]
+        fields = ["id", "reference", "contract", "amount", "kind", "description", "created_at", "contract_actual_fee_amount", "withdrawal", "withdrawal_event"]
 
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -192,10 +200,11 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 
 class WithdrawalSerializer(serializers.ModelSerializer):
+    recipient = serializers.IntegerField(source="recipient_id", min_value=1, allow_null=True)
     class Meta:
         model = Withdrawal
-        fields = ["id", "reference", "amount", "destination", "status", "provider_reference", "created_at", "processed_at"]
-        read_only_fields = ["id", "reference", "status", "provider_reference", "created_at", "processed_at"]
+        fields = ["id", "reference", "amount", "destination", "recipient", "status", "provider_reference", "created_at", "processed_at", "claimed_at"]
+        read_only_fields = ["id", "reference", "destination", "status", "provider_reference", "created_at", "processed_at", "claimed_at"]
         extra_kwargs = {"amount": {"min_value": Decimal("0.01")}}
 
     def validate_destination(self, value):

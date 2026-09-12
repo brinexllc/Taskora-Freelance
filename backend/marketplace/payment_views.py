@@ -18,14 +18,44 @@ from rest_framework.response import Response
 
 from .models import Contract, Payment, Profile, WalletEntry, Withdrawal
 from .serializers import PaymentSerializer, WalletEntrySerializer, WithdrawalSerializer
-from .services import process_withdrawal, settle_payment
+from .services import cancel_user_withdrawal, create_withdrawal, settle_payment, WithdrawalConflict
 from .payme_views import payme_ready
 from .click import click_ready, positive_id, shop_ready, snapshot_receipt
 
 
 @api_view(["GET"])
 def integrations(request):
-    return Response({"click": click_ready(), "sms": bool(settings.ESKIZ_TOKEN), "email": bool(settings.EMAIL_HOST) or settings.DEBUG, "email_console": settings.EMAIL_BACKEND.endswith("console.EmailBackend"), "oneid": False, "payme": payme_ready(), "currency": "UZS"})
+    enabled = financial_operations_enabled()
+    return Response({"click": enabled and click_ready(), "sms": bool(settings.ESKIZ_TOKEN), "email": bool(settings.EMAIL_HOST) or settings.DEBUG, "email_console": settings.EMAIL_BACKEND.endswith("console.EmailBackend"), "oneid": False, "payme": enabled and payme_ready(), "currency": "UZS", "provider_verification": "external_acceptance_required"})
+
+
+def financial_operations_enabled():
+    if getattr(settings, "TASKORA_ENV", "local") not in {"production", "staging"}:
+        return True
+    if not getattr(settings, "REAL_MONEY_ENABLED", False):
+        return False
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    from django.core.validators import validate_email
+    from rest_framework.exceptions import APIException
+    from .security import current_legal_content
+    try:
+        document = current_legal_content("ru")
+        if not document["approved"]:
+            return False
+        for section, fields in [("operator", ["legal_name", "tax_id", "address"]),
+                ("support", ["email", "response_time", "withdrawal_rules", "refund_rules", "dispute_rules"])]:
+            values = document.get(section)
+            if not isinstance(values, dict) or any(not isinstance(values.get(field), str) or not values[field].strip() for field in fields):
+                return False
+        validate_email(document["support"]["email"])
+        return True
+    except (APIException, DjangoValidationError):
+        return False
+
+
+def require_financial_operations():
+    if not financial_operations_enabled():
+        raise PermissionDenied({"code": "financial_operations_disabled", "detail": "Денежные операции ожидают подтверждения допуска выпуска."})
 
 
 @api_view(["GET"])
@@ -44,17 +74,20 @@ def wallet(request):
     paginator = ProjectPagination()
     page = paginator.paginate_queryset(entries, request)
     return Response({"balance": str(request.user.profile.balance), "frozen_balance": total(contracts, "escrow_amount"),
-        "pending_balance": total(worker_contracts, "escrow_amount"), "pending_withdrawal": total(request.user.withdrawals.filter(status="pending"), "amount"),
+        "pending_balance": total(worker_contracts, "escrow_amount"), "pending_withdrawal": total(request.user.withdrawals.filter(status__in=["pending", "processing", "reconciliation_required"]), "amount"),
         "currency": "UZS", "entries": WalletEntrySerializer(page, many=True).data, "count": entries.count(), "page_size": paginator.page.paginator.per_page,
         "next": paginator.get_next_link(), "previous": paginator.get_previous_link(),
         "payments": PaymentSerializer(request.user.payments.select_related("click_receipt").order_by("-created_at")[:50], many=True).data,
-        "withdrawals": WithdrawalSerializer(request.user.withdrawals.all()[:50], many=True).data, "click_available": click_ready(), "payme_available": payme_ready()})
+        "withdrawals": WithdrawalSerializer(request.user.withdrawals.all()[:50], many=True).data,
+        "recipients": list(request.user.payout_recipients.filter(active=True).values("id", "destination", "provider", "verified_at")),
+        "click_available": financial_operations_enabled() and click_ready(), "payme_available": financial_operations_enabled() and payme_ready()})
 
 
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 @transaction.atomic
 def checkout(request):
+    require_financial_operations()
     if not request.user.profile.role:
         raise PermissionDenied("Завершите регистрацию: выберите роль.")
     provider = request.data.get("provider", "click")
@@ -121,27 +154,22 @@ def cancel_payment(request, reference):
 @permission_classes([permissions.IsAuthenticated])
 @transaction.atomic
 def withdraw(request):
+    require_financial_operations()
     if not request.user.profile.role:
         raise PermissionDenied("Сначала выберите роль.")
     if request.data.get("confirmed") is not True:
         raise ValidationError("Подтвердите сумму и реквизиты вывода.")
     serializer = WithdrawalSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    profile = Profile.objects.select_for_update().get(user=request.user)
     amount = serializer.validated_data["amount"]
-    key = serializers.UUIDField().run_validation(request.data.get("idempotency_key")) if request.data.get("idempotency_key") else uuid.uuid4()
-    existing = Withdrawal.objects.filter(reference=key).first()
-    if existing:
-        if existing.user_id != request.user.id or existing.amount != amount or existing.destination != serializer.validated_data["destination"]:
-            raise ValidationError("Ключ уже использован для другой заявки.")
-        return Response(WithdrawalSerializer(existing).data)
-    if profile.balance < amount:
-        raise ValidationError("Недостаточно средств для вывода.")
-    profile.balance -= amount
-    profile.save(update_fields=["balance"])
-    withdrawal = serializer.save(user=request.user, reference=key)
-    WalletEntry.objects.create(user=request.user, amount=-amount, kind="withdrawal", description=f"Зарезервировано для вывода №{withdrawal.pk}")
-    return Response(WithdrawalSerializer(withdrawal).data, status=201)
+    key = serializers.UUIDField().run_validation(request.data.get("idempotency_key"))
+    try:
+        with transaction.atomic():
+            withdrawal, created = create_withdrawal(request.user, amount=amount,
+                recipient_id=serializer.validated_data["recipient_id"], reference=key)
+    except IntegrityError:
+        raise WithdrawalConflict("Ключ уже использован для другой заявки.")
+    return Response(WithdrawalSerializer(withdrawal).data, status=201 if created else 200)
 
 
 @api_view(["POST"])
@@ -149,7 +177,7 @@ def withdraw(request):
 def cancel_withdrawal(request, pk):
     if not Withdrawal.objects.filter(pk=pk, user=request.user).exists():
         return Response({"detail": "Заявка не найдена."}, status=404)
-    return Response(WithdrawalSerializer(process_withdrawal(pk, "rejected", actor=request.user)).data)
+    return Response(WithdrawalSerializer(cancel_user_withdrawal(pk, request.user)).data)
 
 
 def click_result(data, error=0, note="Success", payment=None):

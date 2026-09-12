@@ -3,21 +3,21 @@ import { BriefcaseBusiness, ClipboardList } from 'lucide-react';
 import { useState } from 'react';
 import { AuthShell } from '@/components/auth-shell';
 import { useApp } from '@/components/app-providers';
-import { setRole } from '@/lib/api';
+import { setRole, apiErrorMessage } from '@/lib/api';
 export default function RolePage() {
   const { t, session, updateUser, ready } = useApp();
   const [role, setChosen] = useState(''),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
   async function submit() {
-    if (!session?.token || !role) return;
+    if (!session?.authenticated || !role) return;
     setBusy(true);
     setError('');
     try {
-      updateUser(await setRole(role, session.token));
+      updateUser(await setRole(role, session.authenticated));
       window.location.assign('/dashboard');
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }

@@ -1,0 +1,96 @@
+- banner:
+  - link "Taskora":
+    - /url: /
+  - link "Уведомления":
+    - /url: /dashboard?view=notifications
+  - link "Настройки":
+    - /url: /dashboard?view=settings
+    - generic "Audit role": AR
+- main:
+  - heading "Кошелёк" [level=1]
+  - button "Обновить"
+  - text: Доступный баланс
+  - strong: 749 000 UZS
+  - text: История операций
+  - text: В резерве
+  - strong: 250 000 UZS
+  - text: Ожидаемая выплата
+  - strong: 0 UZS
+  - text: В процессе вывода
+  - strong: 1 000 UZS
+  - heading "Пополнить кошелёк" [level=2]
+  - status: CLICK ещё не подключён. Оплата появится после подключения сервиса.
+  - generic: Способ оплаты
+  - combobox "Способ оплаты":
+    - option "CLICK" [disabled] [selected]
+    - option "PAYME" [disabled]
+  - generic: Сумма пополнения (от 1 000 UZS)
+  - spinbutton "Сумма пополнения (от 1 000 UZS)"
+  - button "Оплатить через CLICK · 0 UZS" [disabled]
+  - generic: CLICK ещё не подключён. Оплата появится после подключения сервиса.
+  - heading "Вывести средства" [level=2]
+  - paragraph: Средства резервируются до обработки заявки оператором. Выполненный перевод появится в истории.
+  - generic: Стоимость (UZS)
+  - spinbutton "Стоимость (UZS)"
+  - generic: Подтверждённый получатель
+  - combobox "Подтверждённый получатель Подтвердите получателя через согласованный защищённый канал поддержки. Не вводите здесь полный номер карты. Маска карты не подтверждает адресата.":
+    - option "—"
+    - option "Q22 synthetic recipient (no real bank account) · synthetic-qa" [selected]
+  - generic: Подтвердите получателя через согласованный защищённый канал поддержки. Не вводите здесь полный номер карты. Маска карты не подтверждает адресата.
+  - 'checkbox "Подтверждаю сумму и реквизиты вывода: 0 UZS"'
+  - text: "Подтверждаю сумму и реквизиты вывода: 0 UZS"
+  - button "Создать заявку на вывод · 0 UZS" [disabled]
+  - heading "История операций" [level=2]
+  - combobox "История операций":
+    - option "Все" [selected]
+    - option "Пополнение"
+    - option "Средства зарезервированы"
+    - option "Выплата по договору"
+    - option "Возврат"
+    - option "Вывод средств"
+    - option "Комиссия"
+  - table:
+    - rowgroup:
+      - row "Дата Описание Стоимость (UZS)":
+        - columnheader "Дата"
+        - columnheader "Описание"
+        - columnheader "Стоимость (UZS)"
+    - rowgroup:
+      - 'row "13.09.2026 Вывод средств #2 · Вывод средств #4 -1 000 UZS"':
+        - cell "13.09.2026"
+        - 'cell "Вывод средств #2 · Вывод средств #4"':
+          - text: Вывод средств
+          - generic: "#2 · Вывод средств #4"
+        - cell "-1 000 UZS"
+      - 'row "13.09.2026 Средства зарезервированы #1 Договор #3 -250 000 UZS"':
+        - cell "13.09.2026"
+        - 'cell "Средства зарезервированы #1 Договор #3"':
+          - text: Средства зарезервированы
+          - generic: "#1"
+          - 'link "Договор #3"':
+            - /url: /contracts/3
+        - cell "-250 000 UZS"
+  - heading "Платежи CLICK / PAYME" [level=2]
+  - paragraph: Операций пока нет
+  - heading "Заявки на вывод" [level=2]
+  - article:
+    - strong: 1 000 UZS
+    - generic: Ожидает оператора
+    - paragraph: Q22 synthetic recipient (no real bank account)
+    - paragraph: "13.09.2026 · #4"
+    - button "Отменить"
+- navigation "Личный кабинет":
+  - link "Главная":
+    - /url: /dashboard?view=home
+    - generic: Главная
+  - link "Заказы":
+    - /url: /dashboard?view=orders
+    - generic: Заказы
+  - link "Создать заказ":
+    - /url: /projects/new
+  - link "Сообщения":
+    - /url: /dashboard?view=messages
+    - generic: Сообщения
+  - link "Профиль":
+    - /url: /dashboard?view=profile
+    - generic: Профиль

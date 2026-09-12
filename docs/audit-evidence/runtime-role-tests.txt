@@ -1,0 +1,8 @@
+Runtime role template: 7 checks PASS; every template transaction rolled back.
+PASS: valid scoped grants and future migration defaults roll back
+PASS: wrong database rejected
+PASS: missing explicit schema rejected
+PASS: system schema rejected
+PASS: inherited PUBLIC CREATE rejected
+PASS: unrelated object name rejected
+PASS: foreign object ownership rejected

@@ -8,7 +8,11 @@ from .models import AuditLog, Profile, WalletEntry
 
 
 @transaction.atomic
-def adjust_balance(user_id, amount, reason, reference, actor):
+def adjust_balance(user_id, amount, reason, reference, actor, *, request=None):
+    from .security import require_operator_security
+    require_operator_security(request)
+    if request.user.pk != actor.pk:
+        raise PermissionDenied("Оператор не совпадает с защищённой сессией.")
     if not actor.is_superuser:
         raise PermissionDenied("Корректировки выполняет только суперпользователь.")
     if not isinstance(amount, Decimal) or not amount.is_finite() or amount == 0 or amount != amount.quantize(Decimal('0.01')):

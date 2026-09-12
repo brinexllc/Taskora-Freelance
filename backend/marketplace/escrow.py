@@ -93,7 +93,11 @@ def distribute(contract, actor, freelancer_amount, reason):
 
 
 @transaction.atomic
-def resolve_dispute(dispute_id, actor, freelancer_amount, reason):
+def resolve_dispute(dispute_id, actor, freelancer_amount, reason, *, request=None):
+    from .security import require_operator_security
+    require_operator_security(request)
+    if request.user.pk != actor.pk:
+        raise ValidationError('Оператор запроса не совпадает с автором решения.')
     original = Dispute.objects.get(pk=dispute_id)
     contract = Contract.objects.select_for_update().get(pk=original.contract_id)
     dispute = Dispute.objects.select_for_update().get(pk=dispute_id)

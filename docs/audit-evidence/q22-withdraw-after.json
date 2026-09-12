@@ -1,0 +1,32 @@
+{
+  "fixture": "Q22 synthetic UUID withdrawal only",
+  "withdrawals": [
+    {
+      "id": 4,
+      "reference": "ba181b3d-f761-4ba9-96bf-8754c05d48a2",
+      "amount": 1000,
+      "status": "pending",
+      "recipient_id": 1,
+      "provider_reference": "",
+      "claimed_by_id": null
+    }
+  ],
+  "withdrawal_count": 1,
+  "debits": [
+    {
+      "id": 2,
+      "reference": "d6c91463bfb0440a818b3ecf7e96d8bc",
+      "kind": "withdrawal",
+      "withdrawal_event": "debit",
+      "withdrawal_id": 4,
+      "amount": -1000
+    }
+  ],
+  "new_ledger_count": 1,
+  "balance": "749000",
+  "opening": "1000000",
+  "ledger_total": "-251000",
+  "balance_reconciles": true,
+  "idempotency_reference": "ba181b3d-f761-4ba9-96bf-8754c05d48a2",
+  "exactly_one_pending_withdrawal_and_debit": true
+}

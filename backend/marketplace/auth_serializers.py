@@ -24,33 +24,48 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     rating = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
     on_time_percent = serializers.SerializerMethodField()
+    disputed_projects = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
         fields = ["id", "username", "first_name", "last_name", "full_name", "age", "role", "avatar", "about", "skills", "skill_ids", "skill_details", "verified_skills", "rate", "rate_unit", "created_at", "experience_days", "completed_projects", "enabled_roles", "professional_experience", "available", "rating", "review_count"]
-        fields += ['professional_title', 'location', 'portfolio', 'services', 'spoken_languages', 'on_time_percent']
+        fields += ['professional_title', 'location', 'portfolio', 'services', 'spoken_languages', 'on_time_percent', 'disputed_projects']
 
     def get_on_time_percent(self, obj):
-        from django.db.models import F
-        completed = obj.user.freelancer_contracts.filter(status='completed', completed_at__isnull=False, deadline__isnull=False)
-        total = completed.count()
-        return round(completed.filter(completed_at__lte=F('deadline')).count() * 100 / total) if total else None
+        from .profile_metrics import metrics_for
+        metrics = metrics_for(obj)
+        return round(metrics.metric_timely_count * 100 / metrics.metric_timely_total) if metrics.metric_timely_total else None
 
     def get_rating(self, obj):
-        return obj.user.received_reviews.filter(published=True).aggregate(value=Avg("rating"))["value"]
+        from .profile_metrics import metrics_for
+        return metrics_for(obj).average_rating
 
     def get_review_count(self, obj):
-        return obj.user.received_reviews.filter(published=True).count()
+        from .profile_metrics import metrics_for
+        return metrics_for(obj).metric_review_count
 
     def get_experience_days(self, obj):
         from django.utils import timezone
         return max(0, (timezone.localdate() - obj.created_at.date()).days)
 
     def get_completed_projects(self, obj):
-        return obj.user.freelancer_contracts.filter(status="completed").count()
+        from .profile_metrics import metrics_for
+        return metrics_for(obj).metric_completed_count
+
+    def get_disputed_projects(self, obj):
+        from .profile_metrics import metrics_for
+        return metrics_for(obj).metric_disputed_count
+
+
+class PublicProfileListSerializer(PublicProfileSerializer):
+    class Meta(PublicProfileSerializer.Meta):
+        fields = [field for field in PublicProfileSerializer.Meta.fields if field not in {'portfolio', 'services'}]
 
 
 class UserSerializer(serializers.ModelSerializer):
+    email_verified_at = serializers.DateTimeField(source="profile.email_verified_at", read_only=True)
+    phone_verified_at = serializers.DateTimeField(source="profile.phone_verified_at", read_only=True)
+    mfa_enabled = serializers.SerializerMethodField()
     full_name = serializers.CharField(source="profile.full_name", read_only=True)
     role = serializers.CharField(source="profile.role", read_only=True)
     profile = PublicProfileSerializer(read_only=True)
@@ -62,7 +77,11 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "first_name", "last_name", "email", "full_name", "role", "phone", "birth_date", "has_passport", "profile", "language", "theme"]
+        fields = ["id", "username", "first_name", "last_name", "email", "full_name", "role", "phone", "birth_date", "has_passport", "profile", "language", "theme", "email_verified_at", "phone_verified_at", "mfa_enabled", "is_staff", "is_superuser"]
+
+    def get_mfa_enabled(self, user):
+        from .security_models import MultiFactorCredential
+        return MultiFactorCredential.objects.filter(user=user, enabled_at__isnull=False).exists()
 
 
 class PortfolioItemSerializer(serializers.Serializer):
@@ -91,13 +110,27 @@ class ProfileServiceSerializer(serializers.Serializer):
 
 
 class ProfileUpdateSerializer(SkillsWriteSerializer):
+    email = serializers.EmailField(required=False)
+    phone = serializers.CharField(required=False, max_length=30)
     portfolio = serializers.ListField(child=PortfolioItemSerializer(), max_length=9, required=False)
     services = serializers.ListField(child=ProfileServiceSerializer(), max_length=6, required=False)
     spoken_languages = serializers.ListField(child=serializers.CharField(max_length=80), max_length=10, required=False)
     class Meta:
         model = Profile
         fields = ["about", "avatar", "skills", "skill_ids", "skill_details", "rate", "rate_unit", "language", "theme", "professional_experience", "available"]
-        fields += ['professional_title', 'location', 'portfolio', 'services', 'spoken_languages']
+        fields += ['professional_title', 'location', 'portfolio', 'services', 'spoken_languages', 'email', 'phone']
+
+    def validate_phone(self, value):
+        value = phone_number(value)
+        if Profile.objects.filter(phone=value).exclude(pk=self.instance.pk).exists():
+            raise serializers.ValidationError("Этот телефон уже зарегистрирован.")
+        return value
+
+    def validate_email(self, value):
+        value = value.strip().lower()
+        if User.objects.filter(email__iexact=value).exclude(pk=self.instance.user_id).exists():
+            raise serializers.ValidationError("Этот email уже зарегистрирован.")
+        return value
 
     def validate_skills(self, value):
         if len(value) > 30:
@@ -108,6 +141,18 @@ class ProfileUpdateSerializer(SkillsWriteSerializer):
 
     @transaction.atomic
     def update(self, instance, validated_data):
+        from .security_models import ContactVerification
+        user = User.objects.select_for_update().get(pk=instance.user_id)
+        instance = Profile.objects.select_for_update().get(pk=instance.pk)
+        email = validated_data.pop("email", user.email)
+        if email != user.email:
+            user.email = email
+            user.save(update_fields=["email"])
+            validated_data["email_verified_at"] = None
+            ContactVerification.objects.filter(user=user, channel="email", used_at__isnull=True).update(used_at=timezone.now())
+        if "phone" in validated_data and validated_data["phone"] != instance.phone:
+            validated_data["phone_verified_at"] = None
+            ContactVerification.objects.filter(user=user, channel="phone", used_at__isnull=True).update(used_at=timezone.now())
         skills = validated_data.pop("skills", None)
         changed_fields = list(validated_data)
         if skills is not None:
@@ -127,6 +172,8 @@ class ProfileUpdateSerializer(SkillsWriteSerializer):
 
 
 class RegisterSerializer(serializers.Serializer):
+    terms_version = serializers.CharField(max_length=120)
+    terms_hash = serializers.RegexField(r"^[a-f0-9]{64}$")
     first_name = serializers.CharField(max_length=80)
     last_name = serializers.CharField(max_length=80)
     username = serializers.RegexField(r"^[a-zA-Z0-9_]{3,30}$", max_length=30)
@@ -168,16 +215,23 @@ class RegisterSerializer(serializers.Serializer):
 
     @transaction.atomic
     def create(self, validated_data):
+        from .security import record_consent
+        terms_version = validated_data.pop("terms_version")
+        terms_hash = validated_data.pop("terms_hash")
         profile = {key: validated_data.pop(key) for key in ["birth_date", "phone", "has_passport", "language"]}
         validated_data.pop("password_confirm")
         validated_data.pop("accept_terms")
         profile["terms_accepted_at"] = timezone.now()
         user = User.objects.create_user(**validated_data)
         Profile.objects.create(user=user, full_name=user.get_full_name(), **profile)
+        from .services import record_registration_opening
+        record_registration_opening(user)
+        record_consent(user, profile["language"], terms_version, terms_hash)
         return user
 
 
 class LoginSerializer(serializers.Serializer):
+    totp_code = serializers.RegexField(r"^\d{6}$", required=False, allow_blank=True)
     identifier = serializers.CharField(max_length=254)
     password = serializers.CharField(write_only=True, max_length=128, trim_whitespace=False)
 

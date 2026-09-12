@@ -1,0 +1,908 @@
+[
+  {
+    "route": "/projects",
+    "path": "/api/projects/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/",
+    "path": "/api/profiles/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/projects/1",
+    "path": "/api/projects/1/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "BUTTON",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/projects/2",
+    "path": "/api/projects/2/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/projects/new",
+    "path": "/api/catalog/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "INPUT",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/contracts/2",
+    "path": "/api/contracts/2/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/freelancers",
+    "path": "/api/profiles/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/freelancers/2",
+    "path": "/api/profiles/2/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=messages",
+    "path": "/api/proposal-conversations/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "BUTTON",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=wallet",
+    "path": "/api/wallet/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "SELECT",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=settings",
+    "path": "/api/auth/sessions/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "BUTTON",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=profile",
+    "path": "/api/auth/me/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Не удалось загрузить данные: Synthetic local QA response. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "BUTTON",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/terms",
+    "path": "/api/legal/current/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "SUMMARY",
+      "width": "1.6px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/",
+    "path": "/api/profiles/",
+    "simulated_status": 401,
+    "loading": true,
+    "errorText": [
+      "Обновите страницу и подтвердите вход повторно. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/projects",
+    "path": "/api/projects/",
+    "simulated_status": 403,
+    "loading": true,
+    "errorText": [
+      "Доступ к этому действию ограничен. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/projects/1",
+    "path": "/api/projects/1/",
+    "simulated_status": 403,
+    "loading": true,
+    "errorText": [
+      "Доступ к этому действию ограничен. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "BUTTON",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/projects/2",
+    "path": "/api/projects/2/",
+    "simulated_status": 401,
+    "loading": true,
+    "errorText": [
+      "Обновите страницу и подтвердите вход повторно. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/projects/new",
+    "path": "/api/catalog/",
+    "simulated_status": 403,
+    "loading": true,
+    "errorText": [
+      "Доступ к этому действию ограничен. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "INPUT",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/contracts/2",
+    "path": "/api/contracts/2/",
+    "simulated_status": 403,
+    "loading": true,
+    "errorText": [
+      "Доступ к этому действию ограничен. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/freelancers",
+    "path": "/api/profiles/",
+    "simulated_status": 401,
+    "loading": true,
+    "errorText": [
+      "Обновите страницу и подтвердите вход повторно. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/freelancers/2",
+    "path": "/api/profiles/2/",
+    "simulated_status": 403,
+    "loading": true,
+    "errorText": [
+      "Доступ к этому действию ограничен. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=messages",
+    "path": "/api/proposal-conversations/",
+    "simulated_status": 403,
+    "loading": true,
+    "errorText": [
+      "Доступ к этому действию ограничен. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "BUTTON",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=wallet",
+    "path": "/api/wallet/",
+    "simulated_status": 401,
+    "loading": true,
+    "errorText": [
+      "Обновите страницу и подтвердите вход повторно. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "SELECT",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=settings",
+    "path": "/api/auth/sessions/",
+    "simulated_status": 403,
+    "loading": true,
+    "errorText": [
+      "Доступ к этому действию ограничен. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "BUTTON",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/terms",
+    "path": "/api/legal/current/",
+    "simulated_status": 403,
+    "loading": true,
+    "errorText": [
+      "Доступ к этому действию ограничен. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "SUMMARY",
+      "width": "1.6px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/privacy",
+    "path": "/api/legal/current/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "SUMMARY",
+      "width": "1.6px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=profile",
+    "path": "/api/auth/me/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "BUTTON",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/",
+    "path": "/api/profiles/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/projects",
+    "path": "/api/projects/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/projects/1",
+    "path": "/api/projects/1/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "BUTTON",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/projects/2",
+    "path": "/api/projects/2/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/projects/new",
+    "path": "/api/catalog/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "INPUT",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/contracts/2",
+    "path": "/api/contracts/2/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/freelancers",
+    "path": "/api/profiles/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/freelancers/2",
+    "path": "/api/profiles/2/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=messages",
+    "path": "/api/proposal-conversations/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "BUTTON",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=wallet",
+    "path": "/api/wallet/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "SELECT",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=settings",
+    "path": "/api/auth/sessions/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "BUTTON",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/",
+    "path": "/api/overview/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/projects",
+    "path": "/api/catalog/",
+    "simulated_status": 502,
+    "loading": true,
+    "retried": false,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": "Error: Error: Playwright selector deadline exceeded\nlocator.waitFor(visible) timed out for selector internal:role=button[name=\"Пов"
+  },
+  {
+    "route": "/projects/2",
+    "path": "/api/contracts/1/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "INPUT",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/freelancers/2",
+    "path": "/api/contracts/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "A",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=messages&contract=2",
+    "path": "/api/contracts/2/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "BUTTON",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=wallet",
+    "path": "/api/dashboard/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "BUTTON",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/dashboard?view=messages&contract=2",
+    "path": "/api/contracts/2/messages/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "SUMMARY",
+      "width": "1.6px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/projects",
+    "path": "/api/catalog/",
+    "simulated_status": 502,
+    "panel": "filters expanded after hydration",
+    "retried": true,
+    "categoryOptions": "ВсеРазработкаДизайнМаркетингТекстыДругое"
+  },
+  {
+    "route": "/projects/2",
+    "path": "/api/projects/2/clone/",
+    "simulated_status": 502,
+    "visibleIdempotencyKey": "c27e9ed0-a500-4923-a455-93a1dba830aa",
+    "afterFaultDate": "",
+    "final": "browser native date input did not produce an accepted date; API validation rejected the retry; no browser clone success claimed"
+  },
+  {
+    "route": "/terms",
+    "path": "/api/auth/consent/",
+    "state": "actual v3 consent saved",
+    "notice": [
+      "Согласие с этой редакцией сохранено сервером."
+    ],
+    "faultInconclusive": true
+  },
+  {
+    "route": "/login",
+    "case": "real invalid credentials then valid synthetic roleless user",
+    "error": "Неверный логин или пароль.",
+    "loading": true,
+    "retrySuccess": true,
+    "notes": "Input retention readback inconclusive; valid retry reached /role."
+  },
+  {
+    "route": "/register",
+    "path": "/api/legal/current/",
+    "simulated_status": 502,
+    "loading": true,
+    "errorText": [
+      "Текст условий не загружен. Согласие недоступно; повторите загрузку. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "INPUT",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/register",
+    "path": "/api/legal/current/",
+    "simulated_status": 403,
+    "loading": true,
+    "errorText": [
+      "Текст условий не загружен. Согласие недоступно; повторите загрузку. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "INPUT",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/register",
+    "path": "/api/legal/current/",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Текст условий не загружен. Согласие недоступно; повторите загрузку. Повторить"
+    ],
+    "retried": true,
+    "focus": {
+      "outline": "solid",
+      "tag": "INPUT",
+      "width": "2.4px"
+    },
+    "failure": ""
+  },
+  {
+    "route": "/reset-password",
+    "method": "POST",
+    "simulated_status": 503,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата."
+    ]
+  },
+  {
+    "route": "/reset-password",
+    "method": "POST",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата."
+    ]
+  },
+  {
+    "route": "/reset-password",
+    "case": "retry after offline",
+    "success": true,
+    "step": "Код подтверждения",
+    "syntheticNonexistentContact": true
+  },
+  {
+    "route": "/login",
+    "method": "POST",
+    "simulated_status": 503,
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата."
+    ]
+  },
+  {
+    "route": "/login",
+    "method": "POST",
+    "simulated_status": "offline",
+    "loading": true,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата."
+    ]
+  },
+  {
+    "route": "/role",
+    "method": "PUT",
+    "simulated_status": 503,
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата."
+    ],
+    "choiceRetained": true
+  },
+  {
+    "route": "/role",
+    "method": "PUT",
+    "simulated_status": "offline",
+    "errorText": [
+      "Ответ не подтверждён. Повторите тот же запрос с сохранённым ключом. Не создавайте новую операцию до выяснения результата."
+    ],
+    "choiceRetained": true
+  },
+  {
+    "route": "/role",
+    "case": "retry after offline",
+    "success": true
+  },
+  {
+    "route": "/contracts/3",
+    "case": "empty selected chat",
+    "passed": true
+  },
+  {
+    "route": "/contracts/3",
+    "case": "fund committed 200 then dropped response and real retry",
+    "naturalKey": "contract:3",
+    "success": true,
+    "notes": "Fund uses contract identity, not a client UUID. Separate withdrawal UUID test follows."
+  },
+  {
+    "route": "/freelancers",
+    "case": "real empty search",
+    "query": "AuditMissingProfileXYZ",
+    "dom": "- banner:\n  - link \"Taskora\":\n    - /url: /\n  - link \"Уведомления\":\n    - /url: /dashboard?view=notifications\n  - link \"Настройки\":\n    - /url: /dashboard?view=settings\n    - generic \"Audit role\": AR\n- main:\n  - heading \"Фрилансеры\" [level=1]\n  - generic: Поиск\n  - searchbox \"Поиск Поиск\": AuditMissingProfileXYZ\n  - button \"Поиск\" [active]\n  - group \"Выберите навыки\":\n    - generic: Выберите навыки\n    - paragraph: \"Выбрано: 0 / 30\"\n    - searchbox \"Поиск\"\n    - checkbox \"Branding\"\n    - text: Branding\n    - checkbox \"Copywriting\"\n    - text: Copywriting\n    - checkbox \"CSS\"\n    - text: CSS\n    - checkbox \"Django\"\n    - text: Django\n    - checkbox \"Docker\"\n    - text: Docker\n    - checkbox \"Figma\"\n    - text: Figma\n    - checkbox \"Flutter\"\n    - text: Flutter\n    - checkbox \"Git\"\n    - text: Git\n    - checkbox \"Go\"\n    - text: Go\n    - checkbox \"HTML\"\n    - text: HTML\n    - checkbox \"JavaScript\"\n    - text: JavaScript\n    - checkbox \"Kotlin\"\n    - text: Kotlin\n    - checkbox \"Laravel\"\n    - text: Laravel\n    - checkbox \"Next.js\"\n    - text: Next.js\n    - checkbox \"Node.js\"\n    - text: Node.js\n    - checkbox \"PHP\"\n    - text: PHP\n    - checkbox \"PostgreSQL\"\n    - text: PostgreSQL\n    - checkbox \"Python\"\n    - text: Python\n    - checkbox \"React\"\n    - text: React\n    - checkbox \"REST API\"\n    - text: REST API\n    - navigation \"Pagination\":\n      - button \"Назад\" [disabled]\n      - generic: \"1\"\n      - button \"Далее\"\n  - generic: Рейтинг\n  - combobox \"Рейтинг\":\n    - option \"Все\" [selected]\n    - option \"5 ★ +\"\n    - option \"4 ★ +\"\n    - option \"3 ★ +\"\n    - option \"2 ★ +\"\n    - option \"1 ★ +\"\n  - generic: Бюджет от (UZS)\n  - spinbutton \"Бюджет от (UZS)\"\n  - generic: Бюджет до (UZS)\n  - spinbutton \"Бюджет до (UZS)\"\n  - checkbox \"Открыт к предложениям\"\n  - text: Открыт к предложениям\n  - paragraph: Фрилансеры ещё не зарегистрированы\n- navigation \"Личный кабинет\":\n  - link \"Главная\":\n    - /url: /dashboard?view=home\n    - generic: Главная\n  - link \"Заказы\":\n    - /url: /dashboard?view=orders\n    - generic: Заказы\n  - link \"Создать заказ\":\n    - /url: /projects/new\n  - link \"Сообщения\":\n    - /url: /dashboard?view=messages\n    - generic: Сообщения\n  - link \"Профиль\":\n    - /url: /dashboard?view=profile\n    - generic: Профиль"
+  },
+  {
+    "route": "/freelancers/2",
+    "case": "empty profile collections",
+    "dom": "- banner:\n  - link \"Назад\":\n    - /url: /freelancers\n  - strong: Профиль\n  - link \"Уведомления\":\n    - /url: /dashboard?view=notifications\n  - link \"Настройки\":\n    - /url: /dashboard?view=settings\n    - generic \"Audit role\": AR\n- main:\n  - link \"← Фрилансеры\":\n    - /url: /freelancers\n  - generic \"Audit freelancer\": AF\n  - generic \"Открыт к предложениям\"\n  - heading \"Audit freelancer\" [level=1]\n  - paragraph:\n    - generic: \"@audit_freelancer\"\n  - strong: Фрилансер\n  - paragraph: Описание ещё не добавлено\n  - link \"Написать сообщение\":\n    - /url: /dashboard?view=messages&contract=3\n  - link \"Создать заказ\":\n    - /url: /projects/new\n  - generic: Рейтинг\n  - strong: —\n  - generic: Завершённые проекты\n  - strong: \"0\"\n  - generic: Проекты в срок\n  - strong: —\n  - generic: Дата регистрации\n  - strong: 13.09.2026\n  - heading \"Навыки\" [level=2]\n  - paragraph: Пока ничего нет\n  - heading \"Портфолио\" [level=2]\n  - paragraph: Работы пока не добавлены\n  - heading \"Услуги\" [level=2]\n  - paragraph: Услуги пока не добавлены\n  - heading \"Достижения\" [level=2]\n  - paragraph: Подтверждённых навыков пока нет\n  - heading \"Отзывы заказчиков\" [level=2]\n  - paragraph: Отзывов пока нет\n  - link \"Написать сообщение\":\n    - /url: /dashboard?view=messages&contract=3\n    - text: Написать сообщение\n- navigation \"Личный кабинет\":\n  - link \"Главная\":\n    - /url: /dashboard?view=home\n    - generic: Главная\n  - link \"Заказы\":\n    - /url: /dashboard?view=orders\n    - generic: Заказы\n  - link \"Создать заказ\":\n    - /url: /projects/new\n  - link \"Сообщения\":\n    - /url: /dashboard?view=messages\n    - generic: Сообщения\n  - link \"Профиль\":\n    - /url: /dashboard?view=profile\n    - generic: Профиль"
+  },
+  {
+    "route": "/freelancers",
+    "case": "empty filtered search after copy fix",
+    "queryRetained": true,
+    "message": "Ничего не найдено",
+    "passed": true
+  },
+  {
+    "route": "/dashboard?view=wallet",
+    "case": "Q22 withdrawal commit then dropped response, reload and actual retry",
+    "method": "POST",
+    "path": "/api/wallet/withdraw/",
+    "keyBefore": "ba181b3d-f761-4ba9-96bf-8754c05d48a2",
+    "keyAfterReload": "ba181b3d-f761-4ba9-96bf-8754c05d48a2",
+    "sameKey": true,
+    "fieldsLocked": true,
+    "success": true,
+    "providerTransfer": false
+  }
+]

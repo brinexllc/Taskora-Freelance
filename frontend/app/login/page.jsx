@@ -7,9 +7,10 @@ import {
   PasswordInput,
 } from '@/components/auth-shell';
 import { useApp } from '@/components/app-providers';
-import { login } from '@/lib/api';
+import { login, apiErrorMessage } from '@/lib/api';
 export default function LoginPage() {
   const { t, setSession, ready } = useApp();
+  const [totpCode, setTotpCode] = useState('');
   const [remember, setRemember] = useState(true);
   const [identifier, setIdentifier] = useState(''),
     [password, setPassword] = useState(''),
@@ -20,11 +21,22 @@ export default function LoginPage() {
     setBusy(true);
     setError('');
     try {
-      const data = await login({ identifier, password });
+      const data = await login({
+        identifier,
+        password,
+        remember,
+        totp_code: totpCode,
+      });
       setSession(data, { remember });
-      window.location.assign(data.user.role ? '/dashboard' : '/role');
+      window.location.assign(
+        data.user.is_staff
+          ? '/dashboard?view=settings'
+          : data.user.role
+            ? '/dashboard'
+            : '/role',
+      );
     } catch (err) {
-      setError(err.message);
+      setError(apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -48,6 +60,17 @@ export default function LoginPage() {
           <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
+        <label>
+          {t('mfaCode')}
+          <input
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            pattern="[0-9]{6}"
+            value={totpCode}
+            onChange={(e) => setTotpCode(e.target.value)}
           />
         </label>
         <div className="login-options">

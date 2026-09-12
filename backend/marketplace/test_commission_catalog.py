@@ -31,7 +31,8 @@ class CommissionTests(BaseTests):
 
     def offer(self, amount='1000000.00'):
         project = Project.objects.create(category=Category.objects.get(slug='development'), owner=self.customer,
-            title='Commission test', description='Agreed scope', client_name='Customer', budget_min=amount, budget_max=amount)
+            title='Commission test', description='Agreed scope', client_name='Customer', budget_min=amount, budget_max=amount,
+            acceptance_criteria='All documented cases pass', demonstration_method='Private staging demonstration', test_scenario='Run agreed request cases')
         return Proposal.objects.create(project=project, freelancer=self.worker, freelancer_name='Worker', freelancer_email=self.worker.email,
             cover_letter='Agreed scope', amount=amount, delivery_days=5)
 
@@ -96,7 +97,7 @@ class CommissionTests(BaseTests):
         self.admin.is_superuser = True
         self.admin.save(update_fields=['is_superuser'])
         c = revise_unfunded_fee(c.pk, self.admin, reason='Исправление ошибочного нулевого тарифа',
-                               expected_version=1, expected_policy=current_policy()['policy_version'])
+                               expected_version=1, expected_policy=current_policy()['policy_version'], request=self.operator_request(self.admin))
         self.assertEqual(c.version, 2)
         self.assertIsNone(c.customer_signed_at)
         self.assertIsNone(c.freelancer_signed_at)
@@ -127,8 +128,8 @@ class CommissionTests(BaseTests):
         self.admin.is_superuser = True
         self.admin.save(update_fields=['is_superuser'])
         with self.assertRaises(ValidationError):
-            revise_unfunded_fee(c.pk, self.admin, **args)
-        self.client.force_login(self.admin)
+            revise_unfunded_fee(c.pk, self.admin, **args, request=self.operator_request(self.admin))
+        self.as_operator(self.admin)
         result = self.client.get(f'/admin/marketplace/contract/{c.pk}/revise-fee/')
         self.assertEqual(result.status_code, 200)
         self.assertContains(result, 'Комиссию можно исправить только до резервирования')
@@ -139,7 +140,7 @@ class CommissionTests(BaseTests):
         c = self.contract('0', amount='15000000', funded=False)
         self.admin.is_superuser = True
         self.admin.save(update_fields=['is_superuser'])
-        self.client.force_login(self.admin)
+        self.as_operator(self.admin)
         url = f'/admin/marketplace/contract/{c.pk}/revise-fee/'
         preview = self.client.get(url)
         self.assertContains(preview, '750000')
@@ -240,11 +241,11 @@ class CommissionTests(BaseTests):
         c.status='disputed';c.save(update_fields=['status'])
         dispute=Dispute.objects.create(contract=c,opened_by=self.customer,reason='Work needs review')
         self.assertFalse(PlatformFee.objects.exists())
-        resolve_dispute(dispute.pk,self.admin,Decimal('500000'),'Award for usable work')
+        resolve_dispute(dispute.pk,self.admin,Decimal('500000'),'Award for usable work',request=self.operator_request(self.admin))
         c.refresh_from_db()
         self.assertEqual(c.actual_fee_amount,Decimal('25000'))
         with self.assertRaises(ValidationError):
-            resolve_dispute(dispute.pk,self.admin,Decimal('500000'),'Repeat resolution')
+            resolve_dispute(dispute.pk,self.admin,Decimal('500000'),'Repeat resolution',request=self.operator_request(self.admin))
         unfunded=self.contract(funded=False)
         self.assertEqual(self.post(f'contracts/{unfunded.pk}/cancel',{'confirmed':True}).status_code,200)
         self.assertFalse(PlatformFee.objects.filter(contract=unfunded).exists())

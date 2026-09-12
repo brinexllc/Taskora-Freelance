@@ -6,6 +6,8 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from .tests import BaseTests
 from .models import AuditLog, Profile, Project, ProjectAttachment, WalletEntry
 from .admin_operations import adjust_balance
+from .test_payment_helpers import authenticated_operator_request
+from .security_test_helpers import authenticate_client
 
 
 class AdminOperationsTests(BaseTests):
@@ -15,24 +17,25 @@ class AdminOperationsTests(BaseTests):
         self.admin = self.account('admin', 'client')
         self.admin.is_staff = self.admin.is_superuser = True
         self.admin.save()
+        self.request = authenticated_operator_request(self.admin)
 
     def test_adjustment_permission_reason_ledger_and_replay(self):
         key = uuid.uuid4()
         with self.assertRaises(PermissionDenied):
             adjust_balance(self.owner.pk, Decimal('100'), 'Documented correction', key, self.owner)
         with self.assertRaises(ValidationError):
-            adjust_balance(self.owner.pk, Decimal('100'), '', key, self.admin)
+            adjust_balance(self.owner.pk, Decimal('100'), '', key, self.admin, request=self.request)
         for _ in range(2):
-            adjust_balance(self.owner.pk, Decimal('100'), 'Documented correction', key, self.admin)
+            adjust_balance(self.owner.pk, Decimal('100'), 'Documented correction', key, self.admin, request=self.request)
         self.assertEqual(Profile.objects.get(user=self.owner).balance, 100)
         self.assertEqual(WalletEntry.objects.count(), 1)
         self.assertEqual(AuditLog.objects.filter(action='balance_adjustment', actor=self.admin).count(), 1)
         with self.assertRaises(ValidationError):
-            adjust_balance(self.owner.pk, Decimal('-101'), 'Documented correction', uuid.uuid4(), self.admin)
+            adjust_balance(self.owner.pk, Decimal('-101'), 'Documented correction', uuid.uuid4(), self.admin, request=self.request)
         self.assertEqual(Profile.objects.get(user=self.owner).balance, 100)
 
     def test_admin_adjustment_screen_requires_superuser(self):
-        self.client.force_login(self.admin)
+        authenticate_client(self.client, self.admin, operator_confirmed=True)
         url = f'/admin/marketplace/profile/{self.owner.profile.pk}/adjust-balance/'
         self.assertEqual(self.client.get(url).status_code, 200)
         response = self.client.post(url, {'amount':'25.50', 'reason':'Documented correction', 'reference':str(uuid.uuid4()), 'confirmed':'on'})

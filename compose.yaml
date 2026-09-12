@@ -16,6 +16,9 @@ services:
   migrate:
     build: .
     environment: &backend_environment
+      TASKORA_ENV: local
+      TASKORA_LOAD_DOTENV: "false"
+      REAL_MONEY_ENABLED: "false"
       DATABASE_URL: postgresql://taskora:taskora-local-only@db:5432/taskora
       DATABASE_SSL_REQUIRE: "false"
       DJANGO_DEBUG: "true"
@@ -58,11 +61,27 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+  operations:
+    build: .
+    environment:
+      <<: *backend_environment
+      PUBLIC_API_URL: http://backend:8000/api
+    command: ["python", "backend/manage.py", "process_operations", "--watch"]
+    volumes:
+      - private_media:/data/private_media
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
   frontend:
     build:
       context: ./frontend
       args:
+        TASKORA_ENV: local
         NEXT_PUBLIC_API_URL: http://127.0.0.1:8000/api
+    environment:
+      TASKORA_ENV: local
+      API_URL: http://backend:8000/api
+      NEXT_PUBLIC_API_URL: http://127.0.0.1:8000/api
     ports: ["127.0.0.1:3000:3000"]
     depends_on: [backend]
 volumes:

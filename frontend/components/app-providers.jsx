@@ -6,7 +6,7 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { apiRequest, getCurrentUser } from '@/lib/api';
+import { apiRequest, apiErrorMessage, getCurrentUser } from '@/lib/api';
 import { languages, translate } from '@/lib/i18n';
 const AppContext = createContext(null);
 const validLanguage = (value) => languages.some(([key]) => key === value);
@@ -16,6 +16,7 @@ export function AppProviders({ children }) {
   const [theme, setThemeState] = useState('light');
   const [session, setSessionState] = useState(null);
   const [ready, setReady] = useState(false);
+  const [preferenceSaving, setPreferenceSaving] = useState(false);
   const [connectionError, setConnectionError] = useState('');
   const updateUser = useCallback((user) => {
     setSessionState((current) => (current ? { ...current, user } : current));
@@ -29,28 +30,25 @@ export function AppProviders({ children }) {
     setSessionState(null);
   }, []);
   const refreshSession = useCallback(async () => {
-    const token =
-      localStorage.getItem('taskora-token') ||
-      sessionStorage.getItem('taskora-token');
-    if (!token) {
-      setReady(true);
-      return;
-    }
     setConnectionError('');
     try {
-      const user = await getCurrentUser(token);
-      setSessionState({ token, user });
+      const user = await getCurrentUser();
+      setSessionState({ authenticated: true, user });
       if (validLanguage(user.language)) setLanguageState(user.language);
       setThemeState(user.theme || 'light');
     } catch (error) {
-      if (error.status === 401) clearSession();
-      else setConnectionError(error.message);
+      if ([401, 403].includes(error.status)) clearSession();
+      else setConnectionError(error);
     } finally {
       setReady(true);
     }
   }, [clearSession]);
   useEffect(() => {
     void Promise.resolve().then(() => {
+      for (const storage of [localStorage, sessionStorage]) {
+        storage.removeItem('taskora-token');
+        storage.removeItem('taskora-user');
+      }
       const storedLanguage = localStorage.getItem('taskora-language');
       if (validLanguage(storedLanguage)) setLanguageState(storedLanguage);
       const storedTheme = localStorage.getItem('taskora-theme');
@@ -58,6 +56,11 @@ export function AppProviders({ children }) {
       void refreshSession();
     });
   }, [refreshSession]);
+  useEffect(() => {
+    document.documentElement.dataset.taskoraReady = String(ready);
+    document.documentElement.dataset.taskoraPreferenceSaving = String(preferenceSaving);
+    document.documentElement.dataset.taskoraTheme = theme;
+  }, [ready, preferenceSaving, theme]);
   useEffect(() => {
     if (ready) {
       localStorage.setItem('taskora-language', language);
@@ -73,16 +76,22 @@ export function AppProviders({ children }) {
     if (!ready || connectionError) return;
     const path = window.location.pathname;
     const protectedPath =
+      path === '/verification' ||
       path === '/role' ||
       path === '/dashboard' ||
       path === '/projects/new' ||
       path.startsWith('/contracts/');
-    if (!session?.token && protectedPath) {
+    if (!session?.authenticated && protectedPath) {
       window.location.replace('/login');
       return;
     }
-    if (!session?.token) return;
-    if (!session.user?.role && protectedPath && path !== '/role') {
+    if (!session?.authenticated) return;
+    if (
+      !session.user?.role &&
+      !session.user?.is_staff &&
+      protectedPath &&
+      path !== '/role'
+    ) {
       window.location.replace('/role');
       return;
     }
@@ -92,7 +101,13 @@ export function AppProviders({ children }) {
       path === '/reset-password' ||
       (path === '/role' && session.user?.role)
     )
-      window.location.replace(session.user?.role ? '/dashboard' : '/role');
+      window.location.replace(
+        session.user?.is_staff
+          ? '/dashboard?view=settings'
+          : session.user?.role
+            ? '/dashboard'
+            : '/role',
+      );
   }, [ready, session, connectionError]);
   // Full navigation is used by the existing Vinext project for stable dynamic routes.
   useEffect(() => {
@@ -127,29 +142,31 @@ export function AppProviders({ children }) {
     document.addEventListener('click', navigate, true);
     return () => document.removeEventListener('click', navigate, true);
   }, []);
-  const setSession = useCallback(({ token, user }, options = {}) => {
-    const remember =
-      options.remember ?? !sessionStorage.getItem('taskora-token');
+  const setSession = useCallback(({ user }) => {
+    // No browser credential is retained: authentication is the HttpOnly cookie.
     localStorage.removeItem('taskora-token');
     sessionStorage.removeItem('taskora-token');
-    (remember ? localStorage : sessionStorage).setItem('taskora-token', token);
     localStorage.removeItem('taskora-user');
-    setSessionState({ token, user });
+    setSessionState({ authenticated: true, user });
     if (validLanguage(user.language)) setLanguageState(user.language);
     setThemeState(user.theme || 'light');
   }, []);
   function preference(key, value) {
     if (key === 'language') setLanguageState(value);
     else setThemeState(value);
-    if (session?.token)
+    if (session?.authenticated) {
+      setPreferenceSaving(true);
       apiRequest('auth/me', {
         method: 'PATCH',
-        token: session.token,
+        token: session.authenticated,
         body: { [key]: value },
       })
         .then(updateUser)
-        .catch((error) => setConnectionError(error.message));
+        .catch((error) => setConnectionError(error))
+        .finally(() => setPreferenceSaving(false));
+    }
   }
+  const t = useCallback((key) => translate(language, key), [language]);
   const value = {
     language,
     theme,
@@ -161,13 +178,13 @@ export function AppProviders({ children }) {
     updateUser,
     clearSession,
     refreshSession,
-    t: (key) => translate(language, key),
+    t,
   };
   return (
     <AppContext.Provider value={value}>
       {connectionError && (
         <div className="connection-error" role="alert">
-          {translate(language, 'error')}: {connectionError}{' '}
+          {apiErrorMessage(connectionError, (key) => translate(language, key))}{' '}
           <button onClick={refreshSession}>
             {translate(language, 'retry')}
           </button>

@@ -1,0 +1,8 @@
+{
+  "unprotected_operator_admin": 403,
+  "mfa_enrollment": 200,
+  "fresh_confirmation": 200,
+  "same_origin_admin": 200,
+  "admin_static_css": 200,
+  "external_transfer_attempted": false
+}
