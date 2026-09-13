@@ -88,6 +88,8 @@ def wallet(request):
 @transaction.atomic
 def checkout(request):
     require_financial_operations()
+    from .admin_control.content_services import ensure_operation_enabled
+    ensure_operation_enabled('topups')
     if not request.user.profile.role:
         raise PermissionDenied("Завершите регистрацию: выберите роль.")
     provider = request.data.get("provider", "click")

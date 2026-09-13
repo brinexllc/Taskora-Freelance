@@ -22,6 +22,7 @@ import {
   useRemote,
 } from '@/components/taskora-ui';
 import { date, money } from '@/lib/i18n';
+import { ReportButton } from '@/components/moderation-support';
 
 export function ProfileShowcase({ profile }) {
   const { t, language, session } = useApp();
@@ -102,6 +103,7 @@ export function ProfileShowcase({ profile }) {
           </div>
         </div>
         <div className="showcase-actions">
+          {!own && <ReportButton objectType="profile" objectId={profile.id} />}
           {contact ? (
             <Link className="t-button secondary" href={contact}>
               {t(own ? 'editProfile' : 'writeMessage')}
@@ -303,6 +305,7 @@ export function ProfileShowcase({ profile }) {
                       <span className="rating">{'★'.repeat(item.rating)}</span>
                     </div>
                     <p>{item.text}</p>
+                    <ReportButton objectType="review" objectId={item.id} />
                   </article>
                 ))
               ) : (

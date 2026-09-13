@@ -237,6 +237,8 @@ class CommissionTests(BaseTests):
         self.assertFalse(c.events.filter(kind='settled').exists())
 
     def test_dispute_and_cancel_do_not_earn_fees_before_final_resolution(self):
+        self.admin.is_superuser = True
+        self.admin.save(update_fields=['is_superuser'])
         c=self.contract()
         c.status='disputed';c.save(update_fields=['status'])
         dispute=Dispute.objects.create(contract=c,opened_by=self.customer,reason='Work needs review')
@@ -317,7 +319,7 @@ class CatalogTests(BaseTests):
         self.as_user(user)
         response=self.client.patch('/api/auth/me/',{'skill_ids':[target.pk,native.pk]},format='json')
         self.assertEqual(response.status_code,200,response.data)
-        self.assertEqual(response.data['profile']['verified_skills'],['ReactJS'])
+        self.assertEqual(response.data['profile']['verified_skills'],[])
 
     def test_normalized_alias_collisions_and_stable_slug(self):
         self.seed('--apply');react=Skill.objects.get(name='React');node=Skill.objects.get(name='Node.js')

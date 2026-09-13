@@ -9,6 +9,7 @@ import { Avatar, Field, Notice, readImage } from '@/components/taskora-ui';
 import { SkillPicker } from '@/components/project-editor';
 import { PasswordChange } from '@/components/password-change';
 import { languages } from '@/lib/i18n';
+import { SkillVerificationPanel } from '@/components/moderation-support';
 export function SettingsView() {
   const {
     t,
@@ -87,7 +88,7 @@ export function SettingsView() {
   return (
     <>
       <h1>{t('settings')}</h1>
-      {session.user.is_staff && <Link className="t-button secondary" href="/admin/">{t('operatorConsole')}</Link>}
+      {session.user.is_staff && session.user.is_superuser && <Link className="t-button secondary" href="/admin/">{t('operatorConsole')}</Link>}
       <Link
         className="text-link verification-settings-link"
         href="/verification"
@@ -517,6 +518,7 @@ export function SettingsView() {
           </button>
         </div>
       </div>
+      <SkillVerificationPanel />
     </>
   );
 }

@@ -49,6 +49,9 @@ class Project(models.Model):
         "Статус", max_length=24, choices=Status.choices, default=Status.ACTIVE
     )
     featured = models.BooleanField("Рекомендуемый", default=False)
+    moderation_status = models.CharField(max_length=16, choices=[("pending", "Ожидает проверки"), ("approved", "Одобрено"), ("rejected", "Нужны исправления"), ("hidden", "Скрыто")], default="pending", db_index=True)
+    moderation_version = models.PositiveIntegerField(default=1)
+    moderation_pending_public = models.BooleanField(default=True)
     deadline = models.DateField("Срок выполнения", null=True, blank=True)
     budget_type = models.CharField(max_length=8, choices=[("fixed", "Fixed Price"), ("hourly", "Hourly"), ("daily", "Daily")], default="fixed")
     visibility = models.CharField(max_length=8, default="public", editable=False)
@@ -125,6 +128,7 @@ class Profile(models.Model):
     services = models.JSONField(default=list, blank=True)
     spoken_languages = models.JSONField(default=list, blank=True)
     available = models.BooleanField(default=True)
+    public_hidden = models.BooleanField(default=False)
     birth_date = models.DateField(null=True, blank=True)
     phone = models.CharField(max_length=13, unique=True, null=True, blank=True)
     email_verified_at = models.DateTimeField(null=True, blank=True)
@@ -485,6 +489,14 @@ class Dispute(models.Model):
     resolved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="resolved_disputes")
     resolved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(default=timezone.now)
+    version = models.PositiveIntegerField(default=1)
+
+    @property
+    def response_due_at(self):
+        from datetime import timedelta
+        from .admin_control.content_services import get_setting
+        return self.updated_at + timedelta(hours=int(get_setting("dispute_response_hours", 48)))
 
 
 class Review(models.Model):
@@ -524,6 +536,12 @@ class AuditLog(models.Model):
     object_type = models.CharField(max_length=80)
     object_id = models.CharField(max_length=80)
     detail = models.JSONField(default=dict)
+    reason = models.TextField(blank=True)
+    before = models.JSONField(default=dict, blank=True)
+    after = models.JSONField(default=dict, blank=True)
+    request_id = models.CharField(max_length=80, blank=True, db_index=True)
+    operation_id = models.UUIDField(null=True, blank=True, db_index=True)
+    outcome = models.CharField(max_length=24, default="success")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -545,3 +563,5 @@ from .payment_models import PayoutRecipient, WithdrawalOperation, WalletOpeningB
 from .product_models import ProposalConversation, ProposalMessage, ProposalReport, ContractAmendment  # noqa: E402,F401
 from .security_models import BrowserSession, ContactVerification, LegalConsent, MultiFactorCredential, SecurityRateBucket  # noqa: E402,F401
 from .security_models import ScopedApiToken  # noqa: E402,F401
+from .admin_control.content_models import ContentRevision, PlatformSettingRevision, Announcement, AnnouncementRecipient, NotificationDelivery, AdminJob  # noqa: E402,F401
+from .admin_control.models import (AccountRestriction, AdminObligation, ModerationDecision, ContentReport, SupportTicket, SupportMessage, SkillVerification, DisputeNote, DisputePreview, AdminCommand)  # noqa: E402,F401

@@ -125,6 +125,13 @@ class ProposalMessageSerializer(serializers.ModelSerializer):
         model = ProposalMessage
         fields = ['id', 'conversation', 'sender', 'sender_name', 'text', 'filename', 'read_at', 'created_at']
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        from .admin_control.workflows import message_is_hidden
+        if not self.context.get('moderation_access') and message_is_hidden(instance):
+            data.update(text='Сообщение скрыто администрацией Taskora.', filename='', moderation_hidden=True)
+        return data
+
 
 class ProposalConversationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProposalConversationSerializer
@@ -155,7 +162,8 @@ class ProposalConversationViewSet(viewsets.ReadOnlyModelViewSet):
                 recipient = proposal.freelancer_id if request.user.pk == proposal.project.owner_id else proposal.project.owner_id
                 notify(recipient, 'proposal_message', 'Новое сообщение по отклику', link=f'/projects/{proposal.project_id}')
             return Response(ProposalMessageSerializer(item).data, status=201)
-        messages = conversation.messages.select_related('sender__profile')
+        from .admin_control.workflows import annotate_message_moderation
+        messages = annotate_message_moderation(conversation.messages.select_related('sender__profile'))
         if request.query_params.get('after'):
             messages = messages.filter(pk__gt=serializers.IntegerField(min_value=0).run_validation(request.query_params['after']))
         return self.get_paginated_response(ProposalMessageSerializer(self.paginate_queryset(messages), many=True).data)
@@ -173,6 +181,9 @@ class ProposalConversationViewSet(viewsets.ReadOnlyModelViewSet):
         message = get_object_or_404(self.get_object().messages, pk=message_id)
         if not message.file:
             return Response(status=404)
+        from .admin_control.workflows import message_is_hidden
+        if message_is_hidden(message):
+            raise PermissionDenied('Вложение скрыто администрацией.')
         return private_response(message.file, message.filename)
 
     @action(detail=True, methods=['post'])
@@ -185,7 +196,7 @@ class ProposalConversationViewSet(viewsets.ReadOnlyModelViewSet):
             raise ValidationError('Ваше обращение уже ожидает рассмотрения.')
         report = ProposalReport.objects.create(conversation=conversation, reporter=request.user, reason=reason)
         AuditLog.objects.create(actor=request.user, action='proposal_report', object_type='proposal_report', object_id=str(report.pk), detail={'conversation': conversation.pk})
-        for uid in get_user_model().objects.filter(is_active=True, is_staff=True).values_list('pk', flat=True):
+        for uid in get_user_model().objects.filter(is_active=True, is_staff=True, is_superuser=True).values_list('pk', flat=True):
             notify(uid, 'proposal_report', f'Жалоба на переписку №{conversation.pk}', link='/settings')
         return Response({'id': report.pk, 'status': 'pending'}, status=201)
 
@@ -198,7 +209,7 @@ class ProposalConversationViewSet(viewsets.ReadOnlyModelViewSet):
         conversation = get_object_or_404(ProposalConversation, pk=pk)
         AuditLog.objects.create(actor=request.user, action='proposal_moderation_access', object_type='proposal_conversation', object_id=str(pk), detail={'reason': reason})
         page = self.paginate_queryset(conversation.messages.select_related('sender__profile'))
-        return self.get_paginated_response(ProposalMessageSerializer(page, many=True).data)
+        return self.get_paginated_response(ProposalMessageSerializer(page, many=True, context={'moderation_access': True}).data)
 
 
 class ContractAmendmentMixin:
@@ -246,8 +257,9 @@ class ContractAmendmentMixin:
             raise ValidationError('Подтвердите новую версию условий.')
         if amendment.applied_at:
             return Response(self.get_serializer(contract).data)
-        if amendment.base_version != contract.version or contract.status != Contract.Status.ACTIVE:
-            raise ValidationError('Предложение устарело или договор не в работе.')
+        allowed = {Contract.Status.ACTIVE, Contract.Status.SIGNING, Contract.Status.CUSTOMER_ACCEPTED, Contract.Status.FREELANCER_ACCEPTED, Contract.Status.AWAITING_FUNDING}
+        if amendment.base_version != contract.version or contract.status not in allowed:
+            raise ValidationError('Предложение устарело или состояние договора не допускает изменения.')
         serializer = AcceptanceTermsSerializer(data=amendment.changes, partial=True)
         serializer.is_valid(raise_exception=True)
         field = 'customer_accepted_at' if request.user.pk == contract.customer_id else 'freelancer_accepted_at'
@@ -257,6 +269,9 @@ class ContractAmendmentMixin:
                 setattr(contract, key, value)
             contract.version += 1
             contract.terms += f'\nСогласованная версия {contract.version}: {json.dumps(amendment.changes, ensure_ascii=False)}'
+            if not contract.funded_at:
+                contract.customer_signed_at = contract.freelancer_signed_at = None
+                contract.status = Contract.Status.SIGNING
             contract.save()
             amendment.applied_at = timezone.now()
             event(contract, request.user, 'terms_amended', 'Обе стороны согласовали новые условия.', {'version': contract.version, 'amendment_id': amendment.pk, 'changes': amendment.changes})

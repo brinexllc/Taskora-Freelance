@@ -42,7 +42,7 @@ class PublicProfileListView(ListAPIView):
 
     def get_queryset(self):
         from .profile_metrics import with_profile_metrics
-        qs = with_profile_metrics(Profile.objects.select_related("user").prefetch_related("skills__categories").defer('portfolio', 'services').filter(Q(role=Profile.Role.FREELANCER) | Q(enabled_roles__icontains="freelancer"), user__is_active=True)).order_by("-created_at")
+        qs = with_profile_metrics(Profile.objects.select_related("user").prefetch_related("skills__categories").defer('portfolio', 'services').filter(Q(role=Profile.Role.FREELANCER) | Q(enabled_roles__icontains="freelancer"), user__is_active=True, public_hidden=False)).order_by("-created_at")
         q = self.request.query_params.get("search", "").strip()
         if q:
             qs = qs.filter(Q(full_name__icontains=q) | Q(skills__name__icontains=q) | Q(about__icontains=q) | Q(user__username__icontains=q))
@@ -66,7 +66,7 @@ class PublicProfileView(RetrieveAPIView):
     permission_classes = [AllowAny]
     serializer_class = PublicProfileSerializer
     from .profile_metrics import with_profile_metrics
-    queryset = with_profile_metrics(Profile.objects.select_related("user").prefetch_related("skills__categories").filter(Q(role=Profile.Role.FREELANCER) | Q(enabled_roles__icontains="freelancer"), user__is_active=True))
+    queryset = with_profile_metrics(Profile.objects.select_related("user").prefetch_related("skills__categories").filter(Q(role=Profile.Role.FREELANCER) | Q(enabled_roles__icontains="freelancer"), user__is_active=True, public_hidden=False))
 
 
 def auth_response(user, request, status_code=status.HTTP_200_OK, *, mfa=False):

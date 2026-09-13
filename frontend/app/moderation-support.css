@@ -1,0 +1,109 @@
+.moderation-report {
+  font-size: 12px;
+  margin: 8px 0;
+}
+.moderation-report > summary {
+  cursor: pointer;
+  color: var(--text-muted, #718096);
+  padding: 5px 0;
+}
+.moderation-report form {
+  width: min(360px, 100%);
+  padding: 14px;
+  border: 1px solid var(--border, #e4e9ee);
+  border-radius: 12px;
+  background: var(--card, #fff);
+  color: var(--text, #18212f);
+}
+.moderation-report textarea,
+.moderation-panel textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+.moderation-panel {
+  padding: 24px;
+  border: 1px solid var(--border, #e4e9ee);
+  border-radius: 16px;
+  background: var(--card, #fff);
+  min-width: 0;
+}
+.moderation-panel h2 {
+  font-size: 19px;
+  margin: 0 0 16px;
+}
+.moderation-panel h2:not(:first-child) {
+  margin-top: 28px;
+}
+.moderation-panel form {
+  display: grid;
+  gap: 14px;
+}
+.moderation-panel > .muted {
+  margin-bottom: 20px;
+}
+.moderation-support-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(350px, 1.15fr);
+  gap: 24px;
+}
+.moderation-record {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  border-top: 1px solid var(--border, #e4e9ee);
+  padding: 16px 0;
+  overflow-wrap: anywhere;
+}
+.moderation-record p {
+  margin: 0;
+}
+.moderation-record small {
+  color: var(--text-muted, #718096);
+}
+.moderation-record > span {
+  background: #e7f6ec;
+  color: #17844c;
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-size: 12px;
+}
+.moderation-ticket {
+  display: grid;
+  width: 100%;
+  text-align: left;
+  gap: 6px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--border, #e4e9ee);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 10px 0;
+  cursor: pointer;
+}
+.moderation-ticket.selected {
+  border-color: #22a967;
+  background: #22a9670b;
+}
+.administration-reply {
+  border-left: 3px solid #22a967;
+  padding-left: 12px;
+}
+.moderation-panel :is(button, summary, a):focus-visible {
+  outline: 2px solid #22a967;
+  outline-offset: 3px;
+}
+[data-theme='dark'] .moderation-panel,
+[data-theme='dark'] .moderation-report form {
+  background: #17211d;
+  color: #e4ebe7;
+  border-color: #304137;
+}
+@media (max-width: 800px) {
+  .moderation-support-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .moderation-panel {
+    padding: 18px;
+  }
+}

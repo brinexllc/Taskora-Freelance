@@ -276,8 +276,8 @@ class BrowserSecurityTests(APITestCase):
             self.assertEqual(verified.status_code, 200, verified.data)
 
     def test_operator_guard_requires_recent_mfa_and_registered_session(self):
-        self.user.is_staff = True
-        self.user.save(update_fields=["is_staff"])
+        self.user.is_staff = self.user.is_superuser = True
+        self.user.save(update_fields=["is_staff", "is_superuser"])
         request = operator_request(self.user)
         require_operator_security(request)
         request.session["sensitive_confirmed_at"] = (timezone.now() - timedelta(minutes=6)).timestamp()
@@ -289,8 +289,8 @@ class BrowserSecurityTests(APITestCase):
             require_operator_security(request)
 
     def test_mfa_sensitive_confirmation_rotates_session_and_rejects_wrong_password(self):
-        self.user.is_staff = True
-        self.user.save(update_fields=["is_staff"])
+        self.user.is_staff = self.user.is_superuser = True
+        self.user.save(update_fields=["is_staff", "is_superuser"])
         request = operator_request(self.user)
         secret = pyotp.random_base32()
         from .security import secret_cipher
@@ -349,6 +349,8 @@ class SharedLimiterProcessTests(TransactionTestCase):
         worker = """
 import json, os, sys
 os.environ['DJANGO_SETTINGS_MODULE'] = 'config.settings'
+os.environ['TASKORA_ENV'] = 'test'
+os.environ['TASKORA_LOAD_DOTENV'] = 'false'
 import django
 django.setup()
 from django.conf import settings
@@ -361,7 +363,9 @@ print(sum(consume_limit('qa-process', config['identity'], 17, 3600)[0] for _ in 
 connections.close_all()
 """
         payload = json.dumps({"database": connection.settings_dict, "identity": identity}, default=str) + "\n"
-        processes = [subprocess.Popen([sys.executable, "-c", worker], cwd=Path(settings.BASE_DIR), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) for _ in range(2)]
+        processes = [subprocess.Popen([sys.executable, "-c", worker], cwd=Path(settings.BASE_DIR), stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0)) for _ in range(2)]
         for process in processes:
             process.stdin.write(payload)
             process.stdin.flush()

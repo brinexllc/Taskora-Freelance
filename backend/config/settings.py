@@ -60,7 +60,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "marketplace" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -117,6 +117,8 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+if TASKORA_ENV == 'test':
+    STORAGES['staticfiles'] = {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 local_origins = "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001"
@@ -186,3 +188,4 @@ PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8000/api")
 
 from .security_settings import apply_security_settings
 apply_security_settings(globals())
+MIDDLEWARE.append('marketplace.admin_control.middleware.MaintenanceMiddleware')

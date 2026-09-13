@@ -1,0 +1,20 @@
+{% extends 'admin/base_site.html' %}{% block content %}
+<a class="ta-back" href="{{ back_url }}">← Вернуться к спору</a>
+<div class="ta-page-heading"><div><div class="ta-eyebrow">РАСЧЁТ НА СЕРВЕРЕ</div><h1>{{ title }}</h1><p>Предпросмотр действует 15 минут. Изменение условий, состояния спора или суммы требует нового расчёта.</p></div></div>
+{% if error %}<div class="ta-notice error" role="alert">{{ error }}</div>{% endif %}
+<section class="ta-card ta-form-card"><dl class="ta-detail-fields">
+<div><dt>Спор</dt><dd>№{{ preview.snapshot.dispute_id }}</dd></div>
+<div><dt>Договор</dt><dd>№{{ preview.snapshot.contract_id }} · версия {{ preview.snapshot.contract_version }}</dd></div>
+<div><dt>Заказчик</dt><dd>{{ object.contract.customer|default:'' }} · ID {{ preview.snapshot.customer_id }}</dd></div>
+<div><dt>Исполнитель</dt><dd>{{ object.contract.freelancer|default:'' }} · ID {{ preview.snapshot.freelancer_id }}</dd></div>
+<div><dt>Полный резерв, UZS</dt><dd>{{ preview.snapshot.escrow }}</dd></div>
+<div><dt>Исполнителю до комиссии, UZS</dt><dd>{{ preview.snapshot.gross }}</dd></div>
+<div><dt>Ставка комиссии</dt><dd>{{ preview.snapshot.fee_percent }}%</dd></div>
+<div><dt>Комиссия платформы, UZS</dt><dd>{{ preview.snapshot.fee }}</dd></div>
+<div><dt>Исполнителю после комиссии, UZS</dt><dd><strong>{{ preview.snapshot.net }}</strong></dd></div>
+<div><dt>Возврат в кошелёк заказчика, UZS</dt><dd>{{ preview.snapshot.refund }}</dd></div>
+<div><dt>Основание решения</dt><dd>{{ reason }}</dd></div>
+<div><dt>Предпросмотр действует до</dt><dd>{{ preview.expires_at }}</dd></div>
+</dl><div class="ta-notice"><p>Возврат зачисляется во внутренний кошелёк заказчика. Распределение резерва выполняется один раз.</p></div>
+<form method="post" action="/admin/control/resolve/{{ preview.id }}/" class="ta-operation-form" data-preserve-draft>{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ operation_key }}"><label class="ta-checkbox"><input type="checkbox" name="confirmed" required> Подтверждаю стороны, расчёт, основание и окончательное распределение резерва.</label><div class="ta-form-actions"><button class="ta-button" type="submit">Исполнить решение</button><button class="ta-button secondary" type="button" data-security-dialog>Подтвердить безопасность</button></div><p role="status" class="ta-submit-status"></p></form></section>
+{% include 'admin/control/security_dialog.html' %}{% endblock %}

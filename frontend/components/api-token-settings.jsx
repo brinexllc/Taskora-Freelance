@@ -6,7 +6,8 @@ import { dateTime } from '@/lib/i18n';
 import { Field, Notice, RemoteState, useRemote } from '@/components/taskora-ui';
 export function ApiTokenSettings() {
   const { t, session, language } = useApp();
-  const remote = useRemote(session.user.is_staff ? null : 'auth/api-tokens');
+  const privileged = session.user.is_staff || session.user.is_superuser;
+  const remote = useRemote(privileged ? null : 'auth/api-tokens');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [scope, setScope] = useState('profile:read');
@@ -14,7 +15,7 @@ export function ApiTokenSettings() {
   const [issued, setIssued] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  if (session.user.is_staff) return null;
+  if (privileged) return null;
   return <section className="t-card"><h2>{t('apiTokens')}</h2><p>{t('apiTokensHint')}</p><Notice error>{error}</Notice>
     {issued && <Notice><p>{t('tokenOnce')}</p><code className="security-secret">{issued.token}</code><button className="text-link" onClick={() => setIssued(null)}>{t('close')}</button></Notice>}
     <form className="t-form" onSubmit={async (e) => {

@@ -1,4 +1,5 @@
 'use client';
+import { ReportButton } from '@/components/moderation-support';
 import Link from 'next/link';
 import { Fragment, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -424,6 +425,7 @@ export function Chat({ contract, onBack, onMessagesChanged }) {
             >
               <span className="sr-only">{m.sender_name || 'Taskora'}</span>
               <p>{m.text}</p>
+              {!m.system && m.sender !== session.user.id && <ReportButton objectType="message" objectId={m.id} />}
               {m.filename && (
                 <button
                   className="chat-file"

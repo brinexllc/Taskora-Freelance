@@ -19,7 +19,10 @@ import {
   useRemote,
 } from '@/components/taskora-ui';
 export default function LandingPage() {
-  const { t, session, theme } = useApp();
+  const { t, session, theme, language } = useApp();
+  const content = useRemote('legal/current', { query: { lang: language } });
+  const copy = (key) =>
+    content.data?.homepage?.[key] ?? (content.loading ? '…' : '—');
   const overview = useRemote('overview');
   const people = useRemote('profiles', { query: { page_size: 8 } });
   const start = session?.user
@@ -32,22 +35,36 @@ export default function LandingPage() {
       className={`taskora-app startup-page ${theme === 'dark' ? 'startup-dark' : ''}`}
     >
       <Header landing />
+      {content.data?.maintenance && (
+        <output className="startup-shell">
+          <p>
+            {{
+              ru: 'Плановое обслуживание. Новые операции временно приостановлены.',
+              en: 'Scheduled maintenance. New operations are temporarily paused.',
+              uz: 'Rejali texnik xizmat. Yangi amallar vaqtincha to‘xtatilgan.',
+              'uz-cyrl':
+                'Режали техник хизмат. Янги амаллар вақтинча тўхтатилган.',
+            }[language] || 'Плановое обслуживание.'}
+          </p>
+        </output>
+      )}
       <main>
         <section className="startup-hero">
           <div className="startup-shell">
             <h1>
-              <span>{t('heroA')}</span>
-              <span>{t('heroB')}</span>
-              <em>{t('heroC')}</em>
+              <span>{copy('heroA')}</span>
+              <span>{copy('heroB')}</span>
+              <em>{copy('heroC')}</em>
             </h1>
-            <p>{t('designHeroText')}</p>
+            <p>{copy('designHeroText')}</p>
+            <RemoteFeedback remote={content} />
             <div className="startup-hero-actions">
               <Link href={start}>
                 {t(session?.user ? 'dashboard' : 'register')}
                 <ArrowRight />
               </Link>
               <a href="#about">
-                {t('aboutPlatform')}
+                {copy('aboutPlatform')}
                 <ArrowRight />
               </a>
             </div>
@@ -67,26 +84,26 @@ export default function LandingPage() {
         </section>
         <section className="startup-trust" id="about">
           <CircleCheck />
-          <h2>{t('trustText')}</h2>
+          <h2>{copy('trustText')}</h2>
         </section>
         <section className="startup-security">
           <div className="startup-shell">
             <div className="startup-section-title">
-              <h2>{t('designSecureTitle')}</h2>
-              <p>{t('designSecureText')}</p>
+              <h2>{copy('designSecureTitle')}</h2>
+              <p>{copy('designSecureText')}</p>
             </div>
             <div className="startup-feature-grid">
               {[
                 [LockKeyhole, 'securePayment', 'designEscrowText'],
                 [Lightbulb, 'designMatching', 'designMatchingText'],
                 [ShieldCheck, 'oneidFeature', 'oneidFeatureText'],
-              ].map(([Icon, title, copy]) => (
+              ].map(([Icon, title, bodyKey]) => (
                 <article key={title}>
                   <span>
                     <Icon />
                   </span>
-                  <h3>{t(title)}</h3>
-                  <p>{t(copy)}</p>
+                  <h3>{copy(title)}</h3>
+                  <p>{copy(bodyKey)}</p>
                 </article>
               ))}
             </div>
@@ -95,15 +112,15 @@ export default function LandingPage() {
         <section className="startup-steps" id="how-it-works">
           <div className="startup-shell">
             <div className="startup-section-title">
-              <h2>{t('designSteps')}</h2>
-              <p>{t('designStepsText')}</p>
+              <h2>{copy('designSteps')}</h2>
+              <p>{copy('designStepsText')}</p>
             </div>
             <div className="startup-step-grid">
               {[1, 2, 3].map((n) => (
                 <article key={n}>
                   <b>0{n}</b>
-                  <h3>{t(`designStep${n}`)}</h3>
-                  <p>{t(`designStep${n}Text`)}</p>
+                  <h3>{copy(`designStep${n}`)}</h3>
+                  <p>{copy(`designStep${n}Text`)}</p>
                 </article>
               ))}
             </div>
@@ -111,9 +128,9 @@ export default function LandingPage() {
         </section>
         <section className="startup-freelancers" id="freelancers">
           <div className="startup-shell">
-            <span>{t('designTopFreelancers')}</span>
+            <span>{copy('designTopFreelancers')}</span>
             <div className="page-heading">
-              <h2>{t('specialists')}</h2>
+              <h2>{copy('specialists')}</h2>
             </div>
             <RemoteState remote={people}>
               {people.data?.results.length ? (
@@ -147,8 +164,8 @@ export default function LandingPage() {
         </section>
         <section className="startup-cta-section">
           <div className="startup-shell startup-cta">
-            <h2>{t('today')}</h2>
-            <p>{t('designCtaText')}</p>
+            <h2>{copy('today')}</h2>
+            <p>{copy('designCtaText')}</p>
             <div>
               <Link href={start}>
                 {t(session?.user ? 'dashboard' : 'register')}
@@ -160,22 +177,37 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+        {!!content.data?.faq?.length && (
+          <section className="startup-security" aria-label="FAQ">
+            <div className="startup-shell">
+              <h2>FAQ</h2>
+              {content.data.faq.map((item, index) => (
+                <details key={index} className="t-card">
+                  <summary>{item.question}</summary>
+                  <p>{item.answer}</p>
+                </details>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
       <footer className="startup-footer">
         <div className="startup-shell startup-footer-content">
           <div>
             <Logo symbol />
-            <p>{t('trustText')}</p>
+            <p>{copy('trustText')}</p>
           </div>
           <nav aria-label={t('footerPlatform')}>
-            <a href="#about">{t('footerPlatform')}</a>
-            <Link href="/terms">{t('designCompany')}</Link>
-            <Link href="/terms#support">{t('designSupport')}</Link>
+            <a href="#about">{copy('footerPlatform')}</a>
+            <Link href="/terms">{copy('designCompany')}</Link>
+            <a href={content.data?.support?.url || '/terms#support'}>
+              {copy('designSupport')}
+            </a>
           </nav>
         </div>
         <div className="startup-shell startup-copy">
           <span>
-            © {new Date().getFullYear()} Taskora. {t('designMadeIn')}
+            © {new Date().getFullYear()} Taskora. {copy('designMadeIn')}
           </span>
           <div>
             <LanguageSelect />

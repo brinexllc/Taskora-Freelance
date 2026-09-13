@@ -1,5 +1,6 @@
 """Acceptance and adversarial tests for the revised MVP, using isolated wallets/files."""
 from decimal import Decimal
+import uuid
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Sum
 from django.test import override_settings
@@ -9,6 +10,13 @@ from .models import Contract, Dispute, Message, Notification, Profile, Project, 
 
 
 class EscrowTests(MarketplaceTests):
+    def admin_resolution_payload(self, dispute, gross, reason):
+        from .admin_control.workflows import transition_dispute, preview_dispute
+        request = self.operator_request(self.other)
+        transition_dispute(dispute.pk, 'evidence_collection', self.other, 'Проверка доказательств сторон', request)
+        transition_dispute(dispute.pk, 'admin_review', self.other, 'Доказательства готовы к рассмотрению', request)
+        preview = preview_dispute(dispute.pk, str(gross), reason, self.other, request)
+        return {'preview_id': str(preview.pk), 'idempotency_key': str(uuid.uuid4()), 'confirmed': True}
     def test_conversation_preview_and_unread_are_participant_scoped(self):
         pk = self.signed_contract()
         Message.objects.create(contract_id=pk, sender=self.customer, text='First question')
@@ -102,23 +110,26 @@ class EscrowTests(MarketplaceTests):
         self.assertEqual(self.post(f'disputes/{dispute.pk}/resolve',{'freelancer_amount':10000,'reason':'Partial work is usable'}).status_code,403)
         self.as_user(self.other)
         self.assertEqual(self.client.get(f'/api/disputes/{dispute.pk}/').status_code,404)
-        self.other.is_staff=True;self.other.save(update_fields=['is_staff'])
+        self.other.is_staff=self.other.is_superuser=True;self.other.save(update_fields=['is_staff','is_superuser'])
         self.as_operator(self.other)
         for amount in [-1,25001]: self.assertEqual(self.post(f'disputes/{dispute.pk}/resolve',{'freelancer_amount':amount,'reason':'Partial work is usable'}).status_code,400)
-        result=self.post(f'disputes/{dispute.pk}/resolve',{'freelancer_amount':10000,'reason':'Partial work is usable'})
+        payload=self.admin_resolution_payload(dispute,10000,'Partial work is usable')
+        result=self.post(f'disputes/{dispute.pk}/resolve',payload)
         self.assertEqual(result.status_code,200,result.data)
         self.assertEqual(Profile.objects.get(user=self.customer).balance,40000)
         self.assertEqual(Profile.objects.get(user=self.freelancer).balance,9500)
         self.assertEqual(WalletEntry.objects.get(contract_id=pk,kind='platform_fee').amount,Decimal('-500'))
-        self.assertEqual(self.post(f'disputes/{dispute.pk}/resolve',{'freelancer_amount':10000,'reason':'Partial work is usable'}).status_code,400)
+        self.assertEqual(self.post(f'disputes/{dispute.pk}/resolve',payload).status_code,200)
+        self.assertEqual(WalletEntry.objects.filter(contract_id=pk,kind='platform_fee').count(),1)
         self.assertEqual(Contract.objects.get(pk=pk).escrow_amount,0)
 
     def test_full_refund_keeps_deliverable_locked(self):
         pk=self.work();self.as_user(self.freelancer)
         self.post(f'contracts/{pk}/dispute',{'confirmed':True,'reason':'Unable to complete the agreed scope'})
         dispute=Dispute.objects.get(contract_id=pk)
-        self.other.is_staff=True;self.other.save(update_fields=['is_staff']);self.as_user(self.other)
-        self.assertEqual(self.post(f'disputes/{dispute.pk}/resolve',{'freelancer_amount':0,'reason':'Full refund agreed after evidence review'}).status_code,200)
+        self.other.is_staff=self.other.is_superuser=True;self.other.save(update_fields=['is_staff','is_superuser']);self.as_user(self.other)
+        payload=self.admin_resolution_payload(dispute,0,'Full refund agreed after evidence review')
+        self.assertEqual(self.post(f'disputes/{dispute.pk}/resolve',payload).status_code,200)
         self.as_user(self.customer)
         self.assertEqual(self.client.get(f'/api/contracts/{pk}/download/').status_code,403)
         self.assertEqual(Profile.objects.get(user=self.customer).balance,50000)

@@ -3,7 +3,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from django.db import connection, transaction
-from django.db.models import Count, Q, Sum, OuterRef, Subquery, IntegerField, Value
+from django.db.models import Count, Q, Sum, OuterRef, Subquery, IntegerField, Value, Case, When, CharField
 from django.db.models.functions import Coalesce, Substr
 from django.http import FileResponse
 from django.utils import timezone
@@ -37,7 +37,8 @@ class ProjectViewSet(ProjectCloneMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Project.objects.select_related("contract", "category", "owner__profile").prefetch_related("attachments", "skills__categories").annotate(proposal_count=Count("proposals", distinct=True))
         user = self.request.user
-        public = Q(status=Project.Status.ACTIVE)
+        from .admin_control.public_api import public_project_q
+        public = public_project_q()
         if user.is_authenticated:
             public |= Q(owner=user) | Q(contract__freelancer=user)
         qs = qs.filter(public)
@@ -47,7 +48,7 @@ class ProjectViewSet(ProjectCloneMixin, viewsets.ModelViewSet):
             elif self.request.query_params.get('assigned') == '1':
                 qs = qs.filter(contract__freelancer=user) if user.is_authenticated else qs.none()
             else:
-                qs = qs.filter(status=Project.Status.ACTIVE)
+                qs = qs.filter(public_project_q())
             if self.request.query_params.get("category"):
                 category = self.request.query_params['category']
                 if not Category.objects.filter(slug=category).exists():
@@ -78,7 +79,12 @@ class ProjectViewSet(ProjectCloneMixin, viewsets.ModelViewSet):
             raise PermissionDenied("Изменять заказ может только его владелец.")
         if project.status not in {Project.Status.ACTIVE, Project.Status.DRAFT} or project.proposals.exists():
             raise ValidationError("Заказ с откликами или договором уже нельзя изменять.")
-        serializer.save()
+        from .admin_control.workflows import decision
+        before = {"title": project.title, "description": project.description, "moderation_status": project.moderation_status, "version": project.moderation_version}
+        serializer.instance = project
+        serializer.save(moderation_status="pending" if project.moderation_status == "approved" else project.moderation_status, moderation_version=project.moderation_version + 1)
+        decision(project, self.request.user, "owner_project_edit", "Владелец изменил текст заказа.", before,
+                 {"title": project.title, "description": project.description, "moderation_status": project.moderation_status, "version": project.moderation_version}, self.request)
 
     @transaction.atomic
     def perform_destroy(self, instance):
@@ -106,6 +112,24 @@ class ProjectViewSet(ProjectCloneMixin, viewsets.ModelViewSet):
             raise ValidationError('Выберите активные навыки или поручите выбор технологий исполнителю.')
         project.status = Project.Status.ACTIVE
         project.save(update_fields=["status", "updated_at"])
+        return Response(self.get_serializer(project).data)
+
+    @action(detail=True, methods=["post"], url_path="resubmit-moderation")
+    @transaction.atomic
+    def resubmit_moderation(self, request, pk=None):
+        project = Project.objects.select_for_update().get(pk=self.get_object().pk)
+        if project.owner_id != request.user.pk:
+            raise PermissionDenied("Повторную проверку запрашивает владелец.")
+        if project.moderation_status not in {"rejected", "hidden"} or project.status == Project.Status.DRAFT:
+            raise ValidationError("Повторная проверка доступна для исправленного опубликованного заказа.")
+        from .admin_control.workflows import decision
+        before = {"moderation_status": project.moderation_status, "version": project.moderation_version}
+        project.moderation_status = "pending"
+        project.moderation_pending_public = False
+        project.moderation_version += 1
+        project.save(update_fields=["moderation_status", "moderation_pending_public", "moderation_version", "updated_at"])
+        decision(project, request.user, "owner_project_resubmit", "Повторная проверка по запросу владельца.", before,
+                 {"moderation_status": "pending", "version": project.moderation_version, "title": project.title, "description": project.description}, request)
         return Response(self.get_serializer(project).data)
 
     @action(detail=True, methods=["post"])
@@ -251,12 +275,13 @@ class ContractViewSet(ContractAmendmentMixin, viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = Contract.objects.filter(Q(customer=self.request.user) | Q(freelancer=self.request.user)).select_related("project", "customer__profile", "freelancer__profile").prefetch_related("deliverables", "events", "reviews__author__profile").select_related("dispute")
-        latest = Message.objects.filter(contract_id=OuterRef('pk')).order_by('-created_at', '-pk')
+        from .admin_control.workflows import annotate_message_moderation
+        latest = annotate_message_moderation(Message.objects.filter(contract_id=OuterRef('pk'))).order_by('-created_at', '-pk')
         unread = (Message.objects.filter(contract_id=OuterRef('pk'), system=False, read_at__isnull=True)
                   .exclude(sender=self.request.user).order_by().values('contract_id').annotate(total=Count('pk')).values('total'))
         qs = qs.annotate(
-            last_message_text=Subquery(latest.annotate(preview=Substr('text', 1, 240)).values('preview')[:1]),
-            last_message_filename=Subquery(latest.values('filename')[:1]),
+            last_message_text=Subquery(latest.annotate(preview=Case(When(_moderation_action='message_hide',then=Value('Сообщение скрыто администрацией Taskora.')),default=Substr('text', 1, 240),output_field=CharField())).values('preview')[:1]),
+            last_message_filename=Subquery(latest.annotate(safe_filename=Case(When(_moderation_action='message_hide',then=Value('')),default='filename',output_field=CharField())).values('safe_filename')[:1]),
             last_message_at=Subquery(latest.values('created_at')[:1]),
             unread_count=Coalesce(Subquery(unread[:1], output_field=IntegerField()), Value(0)),
         )
@@ -432,7 +457,8 @@ class ContractViewSet(ContractAmendmentMixin, viewsets.ReadOnlyModelViewSet):
                 recipient = contract.freelancer_id if request.user.id == contract.customer_id else contract.customer_id
                 notify(recipient, "message", "Новое сообщение по договору №" + str(contract.pk), contract)
             return Response(MessageSerializer(message).data, status=201)
-        qs = contract.messages.all()
+        from .admin_control.workflows import annotate_message_moderation
+        qs = annotate_message_moderation(contract.messages.select_related('sender__profile'))
         if request.query_params.get("after"):
             qs = qs.filter(pk__gt=serializers.IntegerField(min_value=0).run_validation(request.query_params["after"]))
         return self.get_paginated_response(MessageSerializer(self.paginate_queryset(qs), many=True).data)
@@ -448,6 +474,9 @@ class ContractViewSet(ContractAmendmentMixin, viewsets.ReadOnlyModelViewSet):
         message = self.get_object().messages.filter(pk=message_id).first()
         if not message or not message.file:
             return Response(status=404)
+        from .admin_control.workflows import message_is_hidden
+        if message_is_hidden(message):
+            raise PermissionDenied("Вложение скрыто администрацией.")
         return private_response(message.file, message.filename)
 
     @action(detail=True, methods=["post"])
@@ -519,18 +548,20 @@ class DisputeViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = Dispute.objects.select_related("contract").order_by("-created_at")
-        if not self.request.user.is_staff:
+        from .security import is_platform_admin, require_platform_admin_session
+        if is_platform_admin(self.request.user):
+            require_platform_admin_session(self.request)
+        else:
             qs = qs.filter(Q(contract__customer=self.request.user) | Q(contract__freelancer=self.request.user))
         return qs
 
     @action(detail=True, methods=["post"])
     def resolve(self, request, pk=None):
-        if not request.user.is_staff:
-            raise PermissionDenied("Решение принимает администратор.")
+        from .security import require_operator_security
+        require_operator_security(request)
         dispute = self.get_object()
-        amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0).run_validation(request.data.get("freelancer_amount"))
-        reason = serializers.CharField(min_length=10, max_length=5000).run_validation(request.data.get("reason"))
-        return Response(self.get_serializer(resolve_dispute(dispute.pk, request.user, amount, reason, request=request)).data)
+        from .admin_control.workflows import execute_dispute
+        return Response(execute_dispute(request.data.get("preview_id"), request.data.get("idempotency_key"), request.user, request=request, confirmed=request.data.get("confirmed") is True))
 
 
 @api_view(["GET"])
@@ -604,17 +635,35 @@ def readiness(request):
 @api_view(["GET"])
 @permission_classes([permissions.IsAdminUser])
 def admin_file_download(request, model, pk):
+    return admin_private_file_response(request, model, pk)
+
+
+def admin_private_file_response(request, model, pk, *, reason=None):
+    """Shared guarded stream for the API and the CSRF-protected admin form."""
     from .security import require_operator_security
     require_operator_security(request)
+    params = getattr(request, 'query_params', getattr(request, 'GET', {}))
+    reason = str(reason or request.headers.get('X-Access-Reason') or params.get('reason', '')).strip()
+    if not 10 <= len(reason) <= 1000:
+        raise ValidationError({'reason': 'Для раскрытия файла укажите основание от 10 до 1000 символов.'})
     from django.shortcuts import get_object_or_404
     from .models import AuditLog
-    types = {"message": Message, "deliverable": Deliverable, "projectattachment": ProjectAttachment}
+    from .admin_control.models import SkillVerification
+    from .product_models import ProposalMessage
+    types = {"message": Message, "deliverable": Deliverable, "projectattachment": ProjectAttachment,
+             "skillverification": SkillVerification, "proposalmessage": ProposalMessage}
     if model not in types:
         return Response(status=404)
     if not request.user.has_perm("marketplace.view_" + model):
         raise PermissionDenied("Недостаточно прав для просмотра материалов.")
     obj = get_object_or_404(types[model], pk=pk)
-    if not obj.file:
+    stored_file = obj.evidence_file if model == 'skillverification' else obj.file
+    filename = getattr(obj, 'filename', '') or 'verification-evidence'
+    if not stored_file:
         return Response(status=404)
-    AuditLog.objects.create(actor=request.user, action="admin_file_download", object_type=model, object_id=str(pk))
-    return private_response(obj.file, obj.filename)
+    response = private_response(stored_file, filename)
+    outcome = 'success' if response.status_code < 400 else 'failed'
+    AuditLog.objects.create(actor=request.user, action="admin_file_download", object_type=model, object_id=str(pk),
+        reason=reason, request_id=getattr(request, 'request_id', ''), outcome=outcome,
+        detail={'reason': reason, 'outcome': outcome, 'request_id': getattr(request, 'request_id', '')})
+    return response

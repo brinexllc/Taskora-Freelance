@@ -25,6 +25,18 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     review_count = serializers.SerializerMethodField()
     on_time_percent = serializers.SerializerMethodField()
     disputed_projects = serializers.SerializerMethodField()
+    verified_skills = serializers.SerializerMethodField()
+
+    def get_verified_skills(self, obj):
+        selected = {skill.pk for skill in obj.skills.all()}
+        now = timezone.now()
+        applications = getattr(obj, '_verified_skill_applications', None)
+        if applications is None:
+            applications = obj.user.skill_verifications.select_related('skill').all()
+        return sorted({application.skill.name for application in applications
+            if application.status == 'approved' and application.skill_id in selected
+            and application.skill.active and not application.skill.merged_into_id
+            and (application.expires_at is None or application.expires_at > now)})
 
     class Meta:
         model = Profile
@@ -57,8 +69,21 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         return metrics_for(obj).metric_disputed_count
 
 
+class ProfileVerificationListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        from .models import SkillVerification
+        profiles = list(data)
+        by_user = {profile.user_id: [] for profile in profiles}
+        for application in SkillVerification.objects.filter(user_id__in=by_user, status='approved').select_related('skill'):
+            by_user[application.user_id].append(application)
+        for profile in profiles:
+            profile._verified_skill_applications = by_user[profile.user_id]
+        return super().to_representation(profiles)
+
+
 class PublicProfileListSerializer(PublicProfileSerializer):
     class Meta(PublicProfileSerializer.Meta):
+        list_serializer_class = ProfileVerificationListSerializer
         fields = [field for field in PublicProfileSerializer.Meta.fields if field not in {'portfolio', 'services'}]
 
 
@@ -109,7 +134,19 @@ class ProfileServiceSerializer(serializers.Serializer):
         return str(value)
 
 
-class ProfileUpdateSerializer(SkillsWriteSerializer):
+class RejectPrivilegedFields:
+    protected_fields = frozenset({'is_staff', 'is_superuser', 'is_active', 'groups', 'permissions',
+        'user_permissions', 'balance', 'verified_skills', 'email_verified_at', 'phone_verified_at',
+        'verified_email', 'verified_phone', 'mfa_enabled', 'enabled_at', 'encrypted_secret'})
+
+    def to_internal_value(self, data):
+        forbidden = self.protected_fields.intersection(data) if hasattr(data, 'keys') else set()
+        if forbidden:
+            raise serializers.ValidationError({name: 'Это поле нельзя изменять через публичную форму.' for name in sorted(forbidden)})
+        return super().to_internal_value(data)
+
+
+class ProfileUpdateSerializer(RejectPrivilegedFields, SkillsWriteSerializer):
     email = serializers.EmailField(required=False)
     phone = serializers.CharField(required=False, max_length=30)
     portfolio = serializers.ListField(child=PortfolioItemSerializer(), max_length=9, required=False)
@@ -171,7 +208,7 @@ class ProfileUpdateSerializer(SkillsWriteSerializer):
         return instance
 
 
-class RegisterSerializer(serializers.Serializer):
+class RegisterSerializer(RejectPrivilegedFields, serializers.Serializer):
     terms_version = serializers.CharField(max_length=120)
     terms_hash = serializers.RegexField(r"^[a-f0-9]{64}$")
     first_name = serializers.CharField(max_length=80)
@@ -236,7 +273,7 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, max_length=128, trim_whitespace=False)
 
 
-class RoleSerializer(serializers.Serializer):
+class RoleSerializer(RejectPrivilegedFields, serializers.Serializer):
     role = serializers.ChoiceField(choices=Profile.Role.choices)
 
 

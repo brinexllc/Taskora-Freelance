@@ -1,0 +1,8 @@
+{% extends 'admin/base_site.html' %}
+{% block content %}
+<a class="ta-back" href="{{ back_url }}">← Вернуться к карточке</a>
+<div class="ta-page-heading"><div><div class="ta-eyebrow">СРАВНЕНИЕ ПЕРЕД СОХРАНЕНИЕМ</div><h1>{{ title }}</h1><p>Проверьте изменения и основание. Предпросмотр действует 15 минут.</p></div></div>
+{% if error %}<div class="ta-notice error" role="alert">{{ error }}</div><a class="ta-button secondary" href="{{ restart_url }}">Обновить данные и подготовить новое изменение</a>{% endif %}
+{% if edit_preview %}<section class="ta-card ta-form-card"><div class="ta-table-wrap"><table class="ta-table"><thead><tr><th>Поле</th><th>До изменения</th><th>После изменения</th></tr></thead><tbody>{% for row in rows %}<tr><th>{{ row.label }}</th><td style="white-space:pre-wrap;overflow-wrap:anywhere;max-width:340px">{{ row.before }}</td><td style="white-space:pre-wrap;overflow-wrap:anywhere;max-width:340px">{{ row.after }}</td></tr>{% endfor %}</tbody></table></div><h2>Основание</h2><p>{{ reason }}</p><form method="post" class="ta-operation-form" data-preserve-draft>{% csrf_token %}<input type="hidden" name="edit_preview" value="{{ edit_preview }}"><input type="hidden" name="execute" value="yes"><label class="ta-checkbox"><input type="checkbox" name="confirmed" required> Я проверил изменения и подтверждаю сохранение.</label><div class="ta-form-actions"><button type="submit" class="ta-button">Применить изменения</button><a class="ta-button secondary" href="{{ restart_url }}">Изменить предложение</a></div><p role="status" class="ta-submit-status"></p></form></section>{% endif %}
+{% include 'admin/control/security_dialog.html' %}
+{% endblock %}

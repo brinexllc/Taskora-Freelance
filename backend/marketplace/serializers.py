@@ -30,7 +30,8 @@ class ProjectSerializer(SkillsWriteSerializer):
         model = Project
         fields = ["id", "owner", "title", "description", "category", "category_label", "budget_min", "budget_max", "skills", "skill_ids", "skill_details", "skills_unspecified", "client_name", "client_company", "status", "featured", "deadline", "proposal_count", "contract_id", "created_at", "updated_at", "budget_type", "visibility", "attachments"]
         fields += ['client_avatar', 'client_location', 'source_project', 'acceptance_criteria', 'demonstration_method', 'test_scenario', 'review_days']
-        read_only_fields = ["owner", "client_name", "status", "featured", "created_at", "updated_at", "source_project"]
+        fields += ['moderation_status', 'moderation_version']
+        read_only_fields = ["owner", "client_name", "status", "featured", "created_at", "updated_at", "source_project", "moderation_status", "moderation_version"]
         extra_kwargs = {'review_days': {'min_value': 1, 'max_value': 30}}
 
     def get_contract_id(self, obj):
@@ -221,6 +222,13 @@ class MessageSerializer(serializers.ModelSerializer):
         model = Message
         fields = ["id", "contract", "sender", "sender_name", "text", "filename", "system", "read_at", "created_at"]
         read_only_fields = fields
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        from .admin_control.workflows import message_is_hidden
+        if message_is_hidden(instance):
+            data.update(text="Сообщение скрыто администрацией Taskora.", filename="", moderation_hidden=True)
+        return data
 
 
 class MessageUploadSerializer(serializers.Serializer):

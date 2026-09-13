@@ -243,6 +243,7 @@ export function WorkspaceFrame({
     [UserRound, 'profile'],
     [BriefcaseBusiness, 'orders'],
     [MessageSquare, 'messages'],
+    [MessageSquare, 'support'],
     [Wallet, 'wallet'],
     [Settings, 'settings'],
   ];
@@ -271,7 +272,7 @@ export function WorkspaceFrame({
               className={selected === key ? 'active' : ''}
               aria-current={selected === key ? 'page' : undefined}
             >
-              <Icon size={20} /> <span>{t(key)}</span>
+              <Icon size={20} /> <span>{key === 'support' ? 'Поддержка' : t(key)}</span>
               {key === 'messages' && stats.data?.unread_messages > 0 && (
                 <b className="nav-count">{stats.data.unread_messages}</b>
               )}

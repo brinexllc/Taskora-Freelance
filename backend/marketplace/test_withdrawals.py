@@ -31,7 +31,7 @@ class PayoutFixture:
         self.user = get_user_model().objects.create_user(username="withdrawer", email="withdrawer@example.test")
         Profile.objects.create(user=self.user, role="freelancer", balance=10000,
             phone="+998901234567", verified_phone="+998901234567", phone_verified_at=timezone.now())
-        self.operator = get_user_model().objects.create_user(username="operator", is_staff=True)
+        self.operator = get_user_model().objects.create_user(username="operator", is_staff=True, is_superuser=True)
         self.other = get_user_model().objects.create_user(username="otheroperator", is_staff=True)
         permission = Permission.objects.get(codename="operate_withdrawal")
         for user in [self.operator, self.other]:
@@ -130,6 +130,11 @@ class WithdrawalStateTests(PayoutFixture, TestCase):
         with self.assertRaises(PermissionDenied):
             self.operation(withdrawal, "paid", request=self.other_request)
         self.other.user_permissions.add(Permission.objects.get(codename="override_withdrawal"))
+        # Model permissions alone never grant administrative access (SEC01).
+        with self.assertRaises(PermissionDenied):
+            self.operation(withdrawal, "paid", request=self.other_request)
+        self.other.is_superuser = True
+        self.other.save(update_fields=['is_superuser'])
         self.other = get_user_model().objects.get(pk=self.other.pk)
         self.other_request.user = self.other
         with self.assertRaises(ValidationError):
@@ -170,9 +175,7 @@ class WithdrawalStateTests(PayoutFixture, TestCase):
         with self.assertRaises(WithdrawalConflict):
             self.operation(withdrawal, "claim")
         with self.assertRaises(PermissionDenied):
-            self.operation(withdrawal, "inventory", recipient_id=self.recipient.pk, reason="Historical bank inventory", evidence="inventory-archive")
-        self.operator.user_permissions.add(Permission.objects.get(codename="override_withdrawal"))
-        self.request.user = get_user_model().objects.get(pk=self.operator.pk)
+            self.operation(withdrawal, "inventory", request=self.other_request, recipient_id=self.recipient.pk, reason="Historical bank inventory", evidence="inventory-archive")
         self.operation(withdrawal, "inventory", recipient_id=self.recipient.pk, reason="Historical bank inventory", evidence="inventory-archive")
         withdrawal.refresh_from_db()
         self.assertEqual(withdrawal.status, "reconciliation_required")

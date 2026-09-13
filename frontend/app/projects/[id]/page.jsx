@@ -6,6 +6,7 @@ import { FileText, Download, MapPin } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
 import { ProposalDiscussion } from '@/components/proposal-discussion';
 import { ProjectClone } from '@/components/project-clone';
+import { ReportButton } from '@/components/moderation-support';
 import { ProjectEditor } from '@/components/project-editor';
 import { FeeEstimate } from '@/components/fee-estimate';
 import { Chat } from '@/components/contract-workspace';
@@ -140,6 +141,15 @@ export default function ProjectDetailsPage() {
                 <Status value={project.status} />
               </div>
               <h1>{project.title}</h1>
+              {!owner && <ReportButton objectType="project" objectId={project.id} />}
+              {owner && ['rejected', 'hidden'].includes(project.moderation_status) && <div className="moderation-record">
+                <p>Заказ скрыт после проверки. Исправьте замечания и отправьте его на повторное рассмотрение.</p>
+                <button className="t-button secondary" disabled={busy} onClick={async () => {
+                  setBusy(true); setError('');
+                  try { await apiRequest(`projects/${project.id}/resubmit-moderation`, { method: 'POST' }); remote.reload(); setNotice('Заказ отправлен на повторную проверку.'); }
+                  catch (error) { setError(apiErrorMessage(error, t)); } finally { setBusy(false); }
+                }}>Отправить на повторную проверку</button>
+              </div>}
               <div className="project-client-card">
                 <Avatar
                   profile={{

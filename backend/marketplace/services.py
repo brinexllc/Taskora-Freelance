@@ -29,7 +29,7 @@ def settle_payment(payment, contract=None):
     payment.paid_at = timezone.now()
     payment.save(update_fields=["status", "paid_at"])
     from .escrow import notify
-    notify(payment.user_id, "topup", "Кошелёк пополнен: " + str(payment.amount) + " UZS", link="/dashboard?view=wallet")
+    notify(payment.user_id, "topup", "Кошелёк пополнен: " + str(payment.amount) + " UZS", link="/dashboard?view=wallet", event_key=f'payment:{payment.pk}:paid')
 
 
 class WithdrawalConflict(APIException):
@@ -93,6 +93,8 @@ def verify_payout_recipient(request, *, user_id, provider, account, provider_rec
 
 @transaction.atomic
 def create_withdrawal(user, *, amount, recipient_id, reference):
+    from .admin_control.content_services import ensure_operation_enabled
+    ensure_operation_enabled('withdrawals')
     from .security import require_verified_contact
     require_verified_contact(user)
     if (not isinstance(amount, Decimal) or not amount.is_finite() or amount <= 0 or amount > Decimal("9999999999.99")
@@ -117,6 +119,8 @@ def create_withdrawal(user, *, amount, recipient_id, reference):
         kind="withdrawal", description=f"Зарезервировано для вывода №{withdrawal.pk}")
     AuditLog.objects.create(actor=user, action="withdrawal_created", object_type="withdrawal", object_id=str(withdrawal.pk),
         detail={"amount": str(amount), "recipient": recipient.pk})
+    from .escrow import notify
+    notify(user.pk, 'withdrawal_created', f'Заявка на вывод №{withdrawal.pk} получена.', link='/dashboard?view=wallet', event_key=f'withdrawal:{withdrawal.pk}:created')
     return withdrawal, True
 
 
@@ -142,6 +146,8 @@ def cancel_user_withdrawal(withdrawal_id, user):
     withdrawal.processed_at = timezone.now()
     withdrawal.save(update_fields=["status", "processed_at"])
     AuditLog.objects.create(actor=user, action="withdrawal_cancelled", object_type="withdrawal", object_id=str(withdrawal.pk), detail={})
+    from .escrow import notify
+    notify(user.pk, 'withdrawal_cancelled', f'Заявка на вывод №{withdrawal.pk} отменена.', link='/dashboard?view=wallet', event_key=f'withdrawal:{withdrawal.pk}:cancelled')
     return withdrawal
 
 
@@ -166,6 +172,9 @@ def process_withdrawal(withdrawal_id, outcome, provider_reference="", actor=None
             raise WithdrawalConflict("Ключ уже использован для другой операции.")
         return withdrawal
     before = withdrawal.status
+    if outcome == 'claim':
+        from .admin_control.content_services import ensure_operation_enabled
+        ensure_operation_enabled('withdrawals')
     if before in {"paid", "rejected", "cancelled"}:
         raise WithdrawalConflict("Заявка уже завершена. Повторите исходный запрос с прежним ключом.")
     if withdrawal.claimed_by_id and withdrawal.claimed_by_id != actor.pk:
@@ -173,6 +182,10 @@ def process_withdrawal(withdrawal_id, outcome, provider_reference="", actor=None
         if len(reason) < 10:
             raise ValidationError({"reason": "Для смены оператора нужно основание не короче 10 символов."})
     if outcome in {"claim", "inventory"}:
+        if outcome == "claim":
+            from django.contrib.auth import get_user_model
+            if not get_user_model().objects.filter(pk=withdrawal.user_id, is_active=True).exists():
+                raise WithdrawalConflict("Пользователь заблокирован. Начинать внешний перевод нельзя; используйте проверку обязательств.")
         if outcome == "inventory":
             require_payout_operator(request, override=True)
             if before != "reconciliation_required" or withdrawal.claim_snapshot or len(reason) < 10:
@@ -241,5 +254,5 @@ def process_withdrawal(withdrawal_id, outcome, provider_reference="", actor=None
         detail={"from": before, "to": withdrawal.status, "reference": provider_reference, "evidence": evidence, "reason": reason,
                 "idempotency_key": str(key), "override": bool(withdrawal.claimed_by_id and withdrawal.claimed_by_id != actor.pk)})
     from .escrow import notify
-    notify(withdrawal.user_id, "withdrawal_" + outcome, f"Заявка на вывод №{withdrawal.pk}: {withdrawal.get_status_display()}", link="/dashboard?view=wallet")
+    notify(withdrawal.user_id, "withdrawal_" + outcome, f"Заявка на вывод №{withdrawal.pk}: {withdrawal.get_status_display()}", link="/dashboard?view=wallet", event_key=f'withdrawal-operation:{key}')
     return withdrawal
