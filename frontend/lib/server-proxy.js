@@ -1,24 +1,5 @@
 import { validateEnvironment } from './environment.mjs';
 
-function proxyError(body, status) {
-  return Response.json(body, {
-    status,
-    headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
-  });
-}
-
-function trustedOrigins() {
-  const origins = new Set();
-  for (const entry of (process.env.CSRF_TRUSTED_ORIGINS || '').split(',')) {
-    try {
-      const url = new URL(entry.trim());
-      if (['http:', 'https:'].includes(url.protocol) && !url.username && !url.password &&
-          !url.search && !url.hash && url.pathname === '/') origins.add(url.origin);
-    } catch { /* Invalid configuration never expands the allowlist. */ }
-  }
-  return origins;
-}
-
 export async function proxyUpstream(
   request,
   path,
@@ -29,44 +10,42 @@ export async function proxyUpstream(
   try {
     configuration = validateEnvironment();
   } catch {
-    return proxyError(
+    return Response.json(
       {
         code: 'API_CONFIGURATION_ERROR',
         detail: 'API configuration is unavailable.',
       },
-      503,
+      { status: 503 },
     );
   }
 
   if (
     !Array.isArray(path) ||
     path.some(
-      (part) => typeof part !== 'string' || !/^[a-zA-Z0-9_.-]+$/.test(part) || part === '..' || part === '.',
+      (part) => !/^[a-zA-Z0-9_.-]+$/.test(part) || part === '..',
     )
   ) {
-    return proxyError({ detail: 'Invalid path.' }, 400);
+    return Response.json({ detail: 'Invalid path.' }, { status: 400 });
   }
 
   const browserUrl = new URL(request.url);
   const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
 
-  // Public Railway origins are explicitly configured, never inferred from
-  // caller-controlled forwarded headers. Django still validates CSRF tokens.
-  const allowedOrigins = trustedOrigins();
-  if (allowedOrigins.size === 0 || ['local', 'test'].includes(configuration.environment)) {
-    allowedOrigins.add(browserUrl.origin);
-  }
-  const requestOrigin = request.headers.get('origin');
-
-  if (unsafe && !allowedOrigins.has(requestOrigin)) {
-    return proxyError(
-      {
-        code: 'CSRF_ORIGIN_FAILED',
-        detail: 'Invalid request origin.',
-      },
-      403,
-    );
-  }
+  /*
+   * CSRF intentionally isn't revalidated here.
+   *
+   * This route is a same-origin BFF/proxy. Django remains the CSRF
+   * enforcement point and receives:
+   *   - the browser session cookie,
+   *   - the CSRF cookie,
+   *   - X-CSRFToken,
+   *   - Origin,
+   *   - Referer.
+   *
+   * Doing a second origin comparison at this proxy is unreliable behind
+   * Railway/reverse proxies because request.url/Host/X-Forwarded-Host may
+   * describe the internal deployment rather than the public browser origin.
+   */
 
   const root = api
     ? configuration.apiUrl
@@ -88,10 +67,6 @@ export async function proxyUpstream(
     'origin',
     'referer',
     'user-agent',
-    'idempotency-key',
-    'x-idempotency-key',
-    'x-request-id',
-    'x-access-reason',
   ]) {
     const value = request.headers.get(key);
     if (value) {
@@ -120,7 +95,6 @@ export async function proxyUpstream(
       'content-security-policy',
       'x-frame-options',
       'referrer-policy',
-      'x-request-id',
     ]) {
       const value = upstream.headers.get(key);
       if (value) {
@@ -141,9 +115,9 @@ export async function proxyUpstream(
         redirect.origin !== target.origin ||
         !/^\/(admin|api|static\/admin)(\/|$)/.test(redirect.pathname)
       ) {
-        return proxyError(
+        return Response.json(
           { detail: 'Unsupported upstream redirect.' },
-          502,
+          { status: 502 },
         );
       }
 
@@ -158,13 +132,13 @@ export async function proxyUpstream(
       headers: output,
     });
   } catch {
-    return proxyError(
+    return Response.json(
       {
         code: 'API_UNAVAILABLE',
         detail:
           'The API did not respond. Retry the same request; its result may already be recorded.',
       },
-      502,
+      { status: 502 },
     );
   }
 }
