@@ -34,7 +34,14 @@ def policy_snapshot(rate):
 
 
 def current_policy():
-    return policy_snapshot(settings.PLATFORM_FEE_PERCENT)
+    from .admin_control.content_models import PlatformSettingRevision
+    from .admin_control.content_services import latest_published
+    revision = latest_published(PlatformSettingRevision, key='platform_fee_percent')
+    # Until the first administrative publication, preserve the imported environment policy.
+    policy = policy_snapshot(revision.value if revision and revision.author_id else settings.PLATFORM_FEE_PERCENT)
+    if revision and revision.author_id:
+        policy['policy_version'] = f'commission-cms:{revision.version}:{policy["freelancer_fee_percent"]}'
+    return policy
 
 
 def settlement(amount, gross, rate):
@@ -65,7 +72,7 @@ def check_expected_policy(data, policy):
 @register()
 def check_fee_configuration(app_configs, **kwargs):
     try:
-        current_policy()
+        fee_rate(settings.PLATFORM_FEE_PERCENT)
     except ValidationError:
         return [Error('PLATFORM_FEE_PERCENT must be a finite decimal from 0 to 100 with at most 2 decimal places.', id='marketplace.E001')]
     return []

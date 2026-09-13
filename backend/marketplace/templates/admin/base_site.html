@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}{% load static %}
+{% block title %}{{ title }} · Taskora{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'admin/taskora/panel.css' %}?v=20260914-5">{% endblock %}
+{% block extrahead %}{{ block.super }}<script src="{% static 'admin/taskora/panel.js' %}?v=20260914-5" defer></script><script src="{% static 'admin/taskora/admin-editor.js' %}?v=20260914-5" defer></script>{% endblock %}
+{% block bodyclass %}taskora-admin{% if not has_permission %} taskora-auth{% endif %}{% endblock %}
+{% block header %}
+{% include 'admin/control/icons.html' %}
+{% if has_permission %}
+<aside class="ta-sidebar" id="ta-sidebar" aria-label="Главная навигация">
+  <a class="ta-brand" href="/admin/"><span class="ta-brand-symbol"></span><strong>Taskora<span>.</span></strong></a>
+  <div class="ta-workspace-label"><span class="ta-mini-icon">T</span><span>Управление платформой<small>Администратор</small></span><svg class="ta-icon"><use href="#ta-shield"/></svg></div>
+  <div class="ta-nav-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+  <nav>{% for item in admin_nav %}<a href="{{ item.url }}" class="ta-nav-link{% if item.active %} active{% endif %}"{% if item.active %} aria-current="page"{% endif %}><svg class="ta-icon"><use href="#ta-{{ item.icon }}"/></svg><span>{{ item.label }}</span>{% if item.active %}<span class="ta-active-dot"></span>{% endif %}</a>{% endfor %}</nav>
+  <div class="ta-sidebar-bottom"><a href="/" class="ta-nav-link"><svg class="ta-icon"><use href="#ta-external"/></svg>Открыть платформу</a><div class="ta-admin-account"><span class="ta-avatar">{{ request.user.username|first|upper }}</span><div><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><small>Владелец платформы</small></div><svg class="ta-icon"><use href="#ta-shield"/></svg></div></div>
+</aside>
+<header id="header" class="ta-topbar">
+  <button class="ta-icon-button ta-mobile-menu" id="ta-menu" type="button" aria-label="Открыть меню" aria-controls="ta-sidebar" aria-expanded="false"><svg class="ta-icon"><use href="#ta-menu-icon"/></svg></button>
+  <form action="/admin/control/search/" method="get" class="ta-global-search"><svg class="ta-icon"><use href="#ta-search"/></svg><input name="q" aria-label="Поиск по платформе" placeholder="Поиск по ID, пользователю, email..." value="{{ q|default:'' }}"><kbd>/</kbd></form>
+  <div class="ta-topbar-right"><span class="ta-environment"><i></i>{{ environment }}</span><button class="ta-icon-button" type="button" id="ta-theme" aria-label="Переключить светлую и тёмную тему"><svg class="ta-icon"><use href="#ta-sun"/></svg></button><a href="/admin/control/security/" class="ta-icon-button" title="Подтверждение безопасности" aria-label="Безопасность"><svg class="ta-icon"><use href="#ta-shield"/></svg></a><span class="ta-topbar-divider"></span><span class="ta-avatar small">{{ request.user.username|first|upper }}</span><form action="/admin/logout/" method="post" class="ta-logout">{% csrf_token %}<button type="submit" title="Выйти" aria-label="Выйти"><svg class="ta-icon"><use href="#ta-logout"/></svg></button></form></div>
+</header>
+{% else %}<header class="ta-auth-header"><a href="/" class="ta-brand"><span class="ta-brand-symbol"></span><strong>Taskora<span>.</span></strong></a><span>Управление платформой</span></header>{% endif %}
+{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
+{% block content_title %}{% endblock %}
+{% block footer %}<div class="ta-footer"><span>Taskora · Панель администратора</span><span>Asia/Tashkent · UTC+5</span></div>{% endblock %}

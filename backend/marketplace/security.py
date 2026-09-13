@@ -2,7 +2,9 @@
 import base64
 import hashlib
 import json
+import logging
 import urllib.request
+import uuid
 from datetime import timedelta
 from pathlib import Path
 
@@ -12,19 +14,82 @@ from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.sessions.models import Session
 from django.core.mail import send_mail
-from django.db import transaction
+from django.db import DatabaseError, transaction
 from django.http import JsonResponse
 from django.middleware.csrf import get_token, rotate_token
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied, ValidationError
+from rest_framework.permissions import BasePermission
 
 from .security_models import BrowserSession, LegalConsent, MultiFactorCredential
 
 
 def is_operator(user):
     return bool(user.is_active and (user.is_staff or user.is_superuser))
+
+
+def is_platform_admin(user):
+    """The sole administrative role; keep is_operator broad for token restrictions."""
+    return bool(user and user.is_authenticated and user.is_active and user.is_staff and user.is_superuser)
+
+
+def _validate_admin_session_lifetime(record):
+    now = timezone.now()
+    if (record.last_seen_at <= now - timedelta(minutes=30)
+            or record.created_at <= now - timedelta(hours=12)):
+        BrowserSession.objects.filter(pk=record.pk, revoked_at__isnull=True).update(revoked_at=now)
+        Session.objects.filter(session_key=record.session_key).delete()
+        raise PermissionDenied({"code": "session_expired", "detail": "Административная сессия завершена. Войдите снова."})
+
+
+def require_platform_admin_session(request, *, sensitive=False):
+    """Shared guard for AdminSite, APIs, files and service entry points."""
+    from django.contrib.auth import get_user_model
+    user = getattr(request, "user", None)
+    if not is_platform_admin(user) or not get_user_model().objects.filter(
+            pk=user.pk, is_active=True, is_staff=True, is_superuser=True).exists():
+        raise PermissionDenied({"code": "admin_required", "detail": "Доступ разрешён только администратору платформы."})
+    if getattr(request, "auth", None) is not None:
+        raise PermissionDenied({"code": "browser_session_required", "detail": "Для панели требуется защищённая браузерная сессия."})
+    if not MultiFactorCredential.objects.filter(user=user, enabled_at__isnull=False).exists():
+        raise PermissionDenied({"code": "mfa_setup_required", "detail": "Подключите многофакторную защиту в настройках безопасности."})
+    session = getattr(request, "session", None)
+    if not session or not session.get("mfa_authenticated_at"):
+        raise PermissionDenied({"code": "mfa_required", "detail": "Войдите с кодом многофакторной защиты."})
+    now = timezone.now()
+    record = BrowserSession.objects.filter(user=user, session_key=session.session_key,
+        revoked_at__isnull=True, expires_at__gt=now).first()
+    if not record:
+        raise PermissionDenied({"code": "session_expired", "detail": "Сессия завершена. Войдите снова."})
+    _validate_admin_session_lifetime(record)
+    if sensitive:
+        try:
+            elapsed = now.timestamp() - float(session.get("sensitive_confirmed_at", 0))
+        except (TypeError, ValueError):
+            elapsed = -1
+        if not 0 <= elapsed <= settings.SECURITY_CONFIRMATION_SECONDS:
+            raise PermissionDenied({"code": "confirmation_required", "detail": "Подтвердите критическое действие паролем и новым кодом MFA в настройках безопасности."})
+    if record.last_seen_at < now - timedelta(seconds=30):
+        BrowserSession.objects.filter(pk=record.pk, revoked_at__isnull=True).update(last_seen_at=now)
+    return record
+
+
+def platform_admin_has_permission(request):
+    try:
+        require_platform_admin_session(request)
+    except PermissionDenied:
+        return False
+    return True
+
+
+class PlatformAdminPermission(BasePermission):
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        require_platform_admin_session(request)
+        return True
 
 
 def require_verified_contact(user, channel=None):
@@ -39,21 +104,7 @@ def require_verified_contact(user, channel=None):
 
 
 def require_operator_security(request):
-    if request is None or not is_operator(request.user):
-        raise PermissionDenied("Требуются права оператора.")
-    credential = MultiFactorCredential.objects.filter(user=request.user, enabled_at__isnull=False).first()
-    if not credential:
-        raise PermissionDenied({"code": "mfa_setup_required", "detail": "Подключите многофакторную защиту в настройках безопасности."})
-    session = getattr(request, "session", None)
-    if not session or not session.get("mfa_authenticated_at"):
-        raise PermissionDenied({"code": "mfa_required", "detail": "Войдите с кодом многофакторной защиты."})
-    record = BrowserSession.objects.filter(user=request.user, session_key=session.session_key, revoked_at__isnull=True, expires_at__gt=timezone.now()).first()
-    if not record:
-        raise PermissionDenied({"code": "session_expired", "detail": "Сессия завершена. Войдите снова."})
-    confirmed = session.get("sensitive_confirmed_at", 0)
-    elapsed = timezone.now().timestamp() - confirmed
-    if not 0 <= elapsed <= settings.SECURITY_CONFIRMATION_SECONDS:
-        raise PermissionDenied({"code": "confirmation_required", "detail": "Подтвердите критическое действие паролем и новым кодом MFA в настройках безопасности."})
+    return require_platform_admin_session(request, sensitive=True)
 
 
 def revoke_user_sessions(user, except_key=None):
@@ -106,6 +157,8 @@ class BrowserSessionAuthentication(SessionAuthentication):
                                                revoked_at__isnull=True, expires_at__gt=timezone.now()).first()
         if not record:
             raise AuthenticationFailed("Сессия завершена. Войдите снова.")
+        if is_operator(user):
+            _validate_admin_session_lifetime(record)
         mfa_enrolled = MultiFactorCredential.objects.filter(user=user, enabled_at__isnull=False).exists()
         protected = is_operator(user) or mfa_enrolled
         if protected and not request.session.get("mfa_authenticated_at"):
@@ -165,22 +218,8 @@ def consume_mfa_code(user, code, *, enrolling=False):
 
 
 def current_legal_content(language):
-    language = language if language in {"ru", "en", "uz", "uz-cyrl"} else "ru"
-    try:
-        manifest = json.loads(Path(settings.LEGAL_CONTENT_PATH).read_text(encoding="utf-8"))
-        content = {**manifest["languages"][language], "operator": manifest.get("operator", {}), "support": manifest.get("support", {})}
-        version = str(manifest["version"])
-        if not version or not isinstance(content, dict) or not content.get("terms") or not content.get("privacy"):
-            raise ValueError()
-    except (OSError, KeyError, ValueError, TypeError) as exc:
-        from rest_framework.exceptions import APIException
-        error = APIException("Текущая редакция условий недоступна. Повторите позже.")
-        error.status_code = 503
-        raise error from exc
-    digest = hashlib.sha256(json.dumps(content, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-    return {"version": version, "hash": digest, "language": language, "content": content,
-            "approved": manifest.get("approved") is True,
-            "operator": manifest.get("operator", {}), "support": manifest.get("support", {})}
+    from .admin_control.content_services import current_legal_document
+    return current_legal_document(language)
 
 
 def record_consent(user, language, version, digest):
@@ -215,7 +254,21 @@ class OperatorSecurityMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
+    def audit_failure(self, request, response):
+        if response.status_code < 400:
+            return
+        from .models import AuditLog
+        try:
+            AuditLog.objects.create(actor=request.user if request.user.is_authenticated else None,
+                action='admin_access_denied' if response.status_code in {401, 403} else 'admin_request_failed',
+                object_type='admin_request', object_id='', reason='Отказ серверной проверки',
+                request_id=request.request_id, outcome='denied' if response.status_code in {401, 403} else 'failed',
+                detail={'path': request.path[:300], 'method': request.method, 'status': response.status_code})
+        except DatabaseError:
+            logging.getLogger(__name__).error('Admin denial audit unavailable; request_id=%s', request.request_id)
+
     def __call__(self, request):
+        request.request_id = str(uuid.uuid4())
         if request.path == "/admin/login/" and request.method == "POST":
             from types import SimpleNamespace
             from rest_framework.exceptions import APIException
@@ -227,13 +280,23 @@ class OperatorSecurityMiddleware:
                     return JsonResponse({"detail": "Слишком много попыток входа. Повторите позже."}, status=429)
             except APIException as exc:
                 return JsonResponse({"detail": str(exc.detail)}, status=exc.status_code)
-        if request.path.startswith("/admin/") and request.path not in {"/admin/login/", "/admin/logout/"} and request.user.is_authenticated:
+        is_admin_path = request.path.startswith("/admin/")
+        if is_admin_path and request.path not in {"/admin/login/", "/admin/logout/"} and request.user.is_authenticated:
             try:
-                if request.method in {"GET", "HEAD", "OPTIONS"}:
-                    if not request.session.get("mfa_authenticated_at") or not BrowserSession.objects.filter(user=request.user, session_key=request.session.session_key, revoked_at__isnull=True, expires_at__gt=timezone.now()).exists():
-                        raise PermissionDenied({"code": "mfa_required", "detail": "Войдите через Taskora и включите MFA в настройках безопасности, затем откройте администрирование."})
-                else:
-                    require_operator_security(request)
+                require_platform_admin_session(request)
             except PermissionDenied as exc:
-                return JsonResponse(exc.detail if isinstance(exc.detail, dict) else {"detail": str(exc.detail)}, status=403)
-        return self.get_response(request)
+                response = JsonResponse(exc.detail if isinstance(exc.detail, dict) else {"detail": str(exc.detail)}, status=403)
+                response["Cache-Control"] = "private, no-store"
+                response['X-Request-ID'] = request.request_id
+                self.audit_failure(request, response)
+                return response
+        response = self.get_response(request)
+        administrative = (is_admin_path or request.path.startswith(("/api/admin", "/api/operator/"))
+                          or request.path.endswith(('/moderation-access/', '/resolve/')))
+        if administrative:
+            response['X-Request-ID'] = request.request_id
+            self.audit_failure(request, response)
+        if administrative or request.path.startswith('/api/auth/'):
+            response["Cache-Control"] = "private, no-store"
+            response["X-Content-Type-Options"] = "nosniff"
+        return response

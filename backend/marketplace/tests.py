@@ -211,6 +211,8 @@ class MarketplaceTests(BaseTests):
     def test_profile_settings_and_unverified_skills(self):
         self.as_user(self.freelancer)
         response=self.client.patch('/api/auth/me/',{'about':'Django developer','skills':['Python','Django'],'verified_skills':['Python'],'rate':'50000','rate_unit':'day','language':'uz-cyrl','theme':'dark','balance':'999999'},format='json')
+        self.assertEqual(response.status_code,400,response.data)
+        response=self.client.patch('/api/auth/me/',{'about':'Django developer','skills':['Python','Django'],'rate':'50000','rate_unit':'day','language':'uz-cyrl','theme':'dark'},format='json')
         self.assertEqual(response.status_code,200,response.data)
         self.assertCountEqual(response.data['profile']['skills'],['Python','Django'])
         self.assertEqual(response.data['profile']['verified_skills'],[])

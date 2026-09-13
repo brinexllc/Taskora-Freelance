@@ -1,0 +1,12 @@
+{% extends 'admin/base_site.html' %}{% block content %}
+<a class="ta-back" href="{{ back_url }}">← Вернуться</a>
+<div class="ta-page-heading"><div><div class="ta-eyebrow">УПРАВЛЕНИЕ КОНТЕНТОМ</div><h1>{{ title }}</h1><p>Обычный текст, документы и контакты. Сначала сохраните черновик, затем проверьте и опубликуйте.</p></div></div>
+<nav class="ta-form-actions" aria-label="Язык контента">{% for code,label in languages %}<a class="ta-button secondary" href="/admin/control/new/content/?language={{ code }}">{{ label }}</a>{% endfor %}</nav>
+<div class="ta-form-layout"><section class="ta-card ta-form-card">
+<form method="post" class="ta-operation-form" data-preserve-draft>{% csrf_token %}{{ form.non_field_errors }}{{ form.expected_version }}
+<p>{{ form.language.label_tag }}{{ form.language }}</p>
+{% for section in form.sections %}<details {% if forloop.first %}open{% endif %}><summary><h2 style="display:inline">{{ section.title }}</h2></summary>{% for field in section.fields %}<p>{{ field.errors }}{{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}</p>{% endfor %}</details>{% endfor %}
+<p>{{ form.approved.errors }}{{ form.approved }}{{ form.approved.label_tag }}</p><p>{{ form.reason.errors }}{{ form.reason.label_tag }}{{ form.reason }}</p>
+<div class="ta-form-actions"><button class="ta-button" type="submit">Сохранить черновик</button><a class="ta-button secondary" href="{{ back_url }}">Отмена</a></div><p class="ta-submit-status" role="status" aria-live="polite"></p>
+</form></section><aside class="ta-form-aside"><h2>История сохраняется</h2><p>Опубликованная версия продолжает работать, пока вы готовите новую. Прежние согласия пользователей неизменны.</p><p>Публикация потребует свежего пароля и нового TOTP. Изменение только главной страницы или FAQ не меняет принятую юридическую редакцию.</p><a href="/admin/control/content/">Все редакции ↗</a></aside></div>
+{% endblock %}

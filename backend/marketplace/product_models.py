@@ -35,6 +35,9 @@ class ProposalReport(models.Model):
     reason = models.TextField(max_length=3000)
     created_at = models.DateTimeField(auto_now_add=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=24, choices=[("new", "Новое"), ("in_review", "Рассматривается"), ("needs_information", "Нужны сведения"), ("resolved", "Решено"), ("rejected", "Отклонено")], default="new", db_index=True)
+    decision = models.TextField(blank=True)
+    resolved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="resolved_proposal_reports")
 
 
 class ContractAmendment(models.Model):

@@ -22,6 +22,7 @@ import {
 import { WalletView } from '@/components/wallet-view';
 import { SettingsView } from '@/components/settings-view';
 import { ProfileShowcase } from '@/components/profile-showcase';
+import { SupportView } from '@/components/moderation-support';
 import { OrdersList } from '@/app/projects/page';
 import { apiRequest, apiErrorMessage } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
@@ -56,7 +57,9 @@ export default function DashboardPage() {
           ))}
         </nav>
       )}
-      {view === 'messages' ? (
+      {view === 'support' ? (
+        <SupportView />
+      ) : view === 'messages' ? (
         <MessagesView />
       ) : view === 'notifications' ? (
         <NotificationsView />

@@ -16,6 +16,45 @@ from django.utils.html import format_html, format_html_join
 from .admin_operations import adjust_balance
 from .models import PayoutRecipient, WithdrawalOperation, WalletOpeningBalance
 from django.utils import timezone
+from .security import is_platform_admin, platform_admin_has_permission, require_platform_admin_session
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.db import transaction
+from django.forms.models import model_to_dict
+from types import MethodType
+
+
+admin.site.has_permission = MethodType(lambda self, request: platform_admin_has_permission(request), admin.site)
+
+
+class AdministrativeEditForm(forms.ModelForm):
+    reason = forms.CharField(label='Основание изменения', min_length=10, max_length=1000, widget=forms.Textarea)
+
+
+def audit_safe_edit(request, obj, form, fields):
+    """Only write reviewed fields; never overwrite concurrent financial state."""
+    require_platform_admin_session(request)
+    reason = str(form.cleaned_data.get('reason', '')).strip()
+    if len(reason) < 10:
+        raise PermissionDenied('Укажите основание изменения не короче 10 символов.')
+    with transaction.atomic():
+        current = type(obj).objects.select_for_update().get(pk=obj.pk)
+        allowed = [name for name in fields if name in form.changed_data]
+        before = model_to_dict(current, fields=allowed)
+        for name in allowed:
+            setattr(current, name, getattr(obj, name))
+        if allowed:
+            update_fields = list(allowed)
+            if isinstance(current, Project):
+                current.moderation_version += 1
+                update_fields.extend(['moderation_version', 'updated_at'])
+            current.save(update_fields=update_fields)
+        after = model_to_dict(current, fields=allowed)
+        AuditLog.objects.create(actor=request.user, action='admin_profile_edit' if isinstance(obj, Profile) else 'admin_project_edit',
+            object_type=obj._meta.model_name, object_id=str(obj.pk), reason=reason, before=before, after=after,
+            request_id=getattr(request, 'request_id', str(uuid.uuid4())), detail={
+                'reason': reason, 'before': before, 'after': after, 'outcome': 'success',
+                'request_id': getattr(request, 'request_id', str(uuid.uuid4()))})
 
 
 class BalanceAdjustmentForm(forms.Form):
@@ -26,24 +65,40 @@ class BalanceAdjustmentForm(forms.Form):
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
+    form = AdministrativeEditForm
+    editable_fields = ('title', 'description', 'client_name', 'client_company', 'featured')
     list_display = ('title', 'owner', 'category', 'budget_min', 'budget_max', 'status')
     list_filter = ('category', 'status')
     search_fields = ('title', 'description', 'client_name')
     readonly_fields = ('status', 'created_at', 'updated_at')
+    def has_add_permission(self, request):
+        return False
     def has_delete_permission(self, request, obj=None):
         return False
 
     def get_readonly_fields(self, request, obj=None):
         if obj and obj.status not in ('draft', 'published'):
             return tuple(f.name for f in self.model._meta.fields) + ('skills',)
-        return self.readonly_fields
+        return tuple(f.name for f in self.model._meta.fields if f.name not in self.editable_fields) + ('skills',)
+
+    def save_model(self, request, obj, form, change):
+        with transaction.atomic():
+            current = Project.objects.select_for_update().get(pk=obj.pk)
+            if current.status not in ('draft', 'published'):
+                raise PermissionDenied('Рабочие условия действующего заказа неизменяемы.')
+            if 'description' in form.changed_data and Contract.objects.filter(project=current).exists():
+                raise PermissionDenied('Описание заказа с договором изменяется через согласование условий.')
+            audit_safe_edit(request, obj, form, self.editable_fields)
 
 @admin.register(Proposal)
 class ProposalAdmin(admin.ModelAdmin):
     list_display = ('freelancer_name', 'project', 'amount', 'status')
     readonly_fields = ('status', 'created_at')
+    exclude = ('cover_letter', 'freelancer_email')
     def get_readonly_fields(self, request, obj=None):
-        return tuple(f.name for f in self.model._meta.fields)
+        return tuple(f.name for f in self.model._meta.fields if f.name not in self.exclude)
+    def has_change_permission(self, request, obj=None):
+        return False
     def has_add_permission(self, request):
         return False
     def has_delete_permission(self, request, obj=None):
@@ -51,10 +106,24 @@ class ProposalAdmin(admin.ModelAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
+    form = AdministrativeEditForm
+    editable_fields = ('full_name', 'about', 'avatar', 'portfolio', 'services', 'available',
+                       'professional_title', 'professional_experience', 'location', 'spoken_languages')
     list_display = ('full_name', 'user', 'role', 'balance', 'created_at', 'balance_operation')
     list_filter = ('role',)
     search_fields = ('full_name', 'user__email', 'user__username')
-    readonly_fields = ('balance', 'created_at')
+    exclude = ('phone',)
+    readonly_fields = tuple(f.name for f in Profile._meta.fields if f.name not in (
+        'full_name', 'about', 'avatar', 'portfolio', 'services', 'available',
+        'professional_title', 'professional_experience', 'location', 'spoken_languages', 'phone')) + ('skills', 'masked_phone')
+    @admin.display(description='Телефон')
+    def masked_phone(self, obj):
+        from .admin_control.query import masked
+        return masked(obj.phone)
+    def has_add_permission(self, request):
+        return False
+    def has_delete_permission(self, request, obj=None):
+        return False
     def get_urls(self):
         return [path('<int:pk>/adjust-balance/', self.admin_site.admin_view(self.adjust), name='marketplace_profile_adjust')] + super().get_urls()
 
@@ -63,14 +132,14 @@ class ProfileAdmin(admin.ModelAdmin):
         return format_html('<a href="{}">Открыть операцию</a>', reverse('admin:marketplace_profile_adjust', args=[obj.pk]))
 
     def adjust(self, request, pk):
-        if not request.user.is_superuser:
+        if not is_platform_admin(request.user):
             raise PermissionDenied
         profile = get_object_or_404(Profile, pk=pk)
         form = BalanceAdjustmentForm(request.POST or None, initial={'reference':uuid.uuid4()})
         if request.method == 'POST' and form.is_valid():
             try:
                 adjust_balance(profile.user_id, form.cleaned_data['amount'], form.cleaned_data['reason'], form.cleaned_data['reference'], request.user, request=request)
-            except ValidationError as error:
+            except APIException as error:
                 form.add_error(None, str(error.detail))
             else:
                 self.message_user(request, 'Корректировка проведена и записана в журнал.', messages.SUCCESS)
@@ -79,28 +148,79 @@ class ProfileAdmin(admin.ModelAdmin):
             **self.admin_site.each_context(request), 'title':'Корректировка баланса: ' + profile.full_name,
             'profile':profile, 'form':form, 'opts':self.model._meta})
     def save_model(self, request, obj, form, change):
-        if change:
-            fields = [field for field in form.changed_data if field not in self.readonly_fields and field != 'skills']
-            if fields:
-                obj.save(update_fields=fields)
-        else:
-            obj.save()
+        if not change:
+            raise PermissionDenied('Профиль создаётся только при регистрации пользователя.')
+        audit_safe_edit(request, obj, form, self.editable_fields)
 
 class AuditAdmin(admin.ModelAdmin):
+    list_per_page = 25
+    secret_fields = frozenset({'password', 'code_hash', 'reset_token', 'encrypted_secret', 'secret_hash',
+                              'session_key', 'provider_data', 'claim_snapshot', 'payload', 'provider_recipient_id',
+                              'account', 'payout_account'})
     def get_readonly_fields(self, request, obj=None):
-        fields = tuple(f.name for f in self.model._meta.fields if f.name != 'file')
+        excluded = set(self.get_exclude(request, obj))
+        fields = tuple(f.name for f in self.model._meta.fields if f.name not in excluded)
+        for field in self.model._meta.fields:
+            if field.name in self.secret_fields or not self.requires_safe_display(field):
+                continue
+            def display_value(instance, field_name=field.name):
+                from .admin_control.query import read_value
+                return read_value(instance, field_name)
+            display_value.__name__ = 'safe_' + field.name
+            display_value.short_description = str(field.verbose_name)
+            fields += (display_value,)
         return fields + ('protected_file',) if any(f.name == 'file' for f in self.model._meta.fields) else fields
+    @staticmethod
+    def requires_safe_display(field):
+        return field.get_internal_type() == 'JSONField' or field.name in ('email', 'phone')
     def get_exclude(self, request, obj=None):
-        return ('file',) if any(f.name == 'file' for f in self.model._meta.fields) else ()
+        return tuple(f.name for f in self.model._meta.fields if f.name == 'file' or f.name in self.secret_fields or self.requires_safe_display(f))
     @admin.display(description='Защищённый файл')
     def protected_file(self, obj):
         if not obj.file:
             return '—'
-        return format_html('<a href="{}">{}</a>', reverse('admin-file-download', args=[obj._meta.model_name, obj.pk]), obj.filename)
+        return format_html('<a href="/admin/control/files/{}/{}/">{}</a>', obj._meta.model_name, obj.pk, obj.filename)
     def has_add_permission(self, request):
         return False
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def save_model(self, request, obj, form, change):
+        raise PermissionDenied('История доступна только для чтения. Используйте специальную операцию.')
+
+
+class PlatformUserAdmin(AuditAdmin):
+    list_display = ('id', 'username', 'first_name', 'last_name', 'masked_email', 'is_active', 'date_joined')
+    list_filter = ('is_active', 'date_joined')
+    search_fields = ('username', 'email', 'first_name', 'last_name')
+    fields = ('id', 'username', 'first_name', 'last_name', 'masked_email', 'is_active', 'is_staff',
+              'is_superuser', 'last_login', 'date_joined')
+    readonly_fields = fields
+
+    def get_readonly_fields(self, request, obj=None):
+        return self.fields
+
+    @admin.display(description='Email')
+    def masked_email(self, obj):
+        if not obj.email or '@' not in obj.email:
+            return '—'
+        local, domain = obj.email.split('@', 1)
+        return local[:1] + '***@' + domain
+
+
+User = get_user_model()
+if admin.site.is_registered(User):
+    admin.site.unregister(User)
+admin.site.register(User, PlatformUserAdmin)
+if admin.site.is_registered(Group):
+    admin.site.unregister(Group)
+for registered_model in list(admin.site._registry):
+    if registered_model._meta.app_label == 'authtoken':
+        admin.site.unregister(registered_model)
+
 
 class FeeCorrectionForm(forms.Form):
     version = forms.IntegerField(widget=forms.HiddenInput)
@@ -138,7 +258,7 @@ class ContractAdmin(AuditAdmin):
     def revise_fee(self, request, pk):
         from .contract_revisions import revise_unfunded_fee, validate_fee_revision
         from .fees import current_policy, settlement
-        if not request.user.is_superuser:
+        if not is_platform_admin(request.user):
             raise PermissionDenied
         contract = get_object_or_404(Contract, pk=pk)
         policy = current_policy()
@@ -176,6 +296,7 @@ class ContractAdmin(AuditAdmin):
 @admin.register(Deliverable)
 class DeliverableAdmin(AuditAdmin):
     list_display = ('id', 'contract', 'filename', 'created_at')
+    secret_fields = AuditAdmin.secret_fields | {'preview_text', 'verification_steps', 'revision_note', 'demo_url'}
 
 @admin.register(Payment)
 class PaymentAdmin(AuditAdmin):
@@ -233,7 +354,13 @@ class WithdrawalAdmin(AuditAdmin):
                 return redirect('admin:marketplace_withdrawal_change', pk)
         return TemplateResponse(request, 'admin/marketplace/withdrawal_operation.html', {
             **self.admin_site.each_context(request), 'title': f'Вывод №{pk}: {withdrawal.get_status_display()}',
-            'opts': self.model._meta, 'withdrawal': withdrawal, 'form': form})
+            'opts': self.model._meta, 'withdrawal': withdrawal, 'form': form,
+            'claim_snapshot_display': self.safe_claim_snapshot(withdrawal)})
+
+    @staticmethod
+    def safe_claim_snapshot(withdrawal):
+        from .admin_control.query import read_value
+        return read_value(withdrawal, 'claim_snapshot')
 
 
 class WithdrawalOperationForm(forms.Form):
@@ -289,24 +416,18 @@ class DisputeAdmin(AuditAdmin):
     list_display = ('id', 'contract', 'opened_by', 'status', 'created_at')
     list_filter = ('status',)
 
+    def has_change_permission(self, request, obj=None):
+        return False
+
     def get_readonly_fields(self, request, obj=None):
-        fields = super().get_readonly_fields(request, obj)
-        return tuple(f for f in fields if f not in {'status', 'resolution', 'freelancer_amount'}) if obj and obj.status != 'resolved' else fields
+        return super().get_readonly_fields(request, obj) + ('workflow',)
+
+    @admin.display(description='Рассмотрение спора')
+    def workflow(self, obj):
+        return format_html('<a href="/admin/control/disputes/{}/">Открыть доказательства, расчёт и решение</a>', obj.pk)
 
     def save_model(self, request, obj, form, change):
-        if obj.status == 'resolved':
-            resolve_dispute(obj.pk, request.user, obj.freelancer_amount, obj.resolution, request=request)
-        else:
-            from django.db import transaction
-            with transaction.atomic():
-                current = Dispute.objects.select_for_update().get(pk=obj.pk)
-                if current.status == 'resolved':
-                    return
-                current.status = obj.status
-                current.resolution = obj.resolution
-                current.freelancer_amount = obj.freelancer_amount
-                current.save()
-                AuditLog.objects.create(actor=request.user, action='dispute_stage', object_type='dispute', object_id=str(obj.pk), detail={'status':obj.status})
+        raise PermissionDenied('Решение выполняется через подтверждённый расчёт в разделе споров.')
 
 
 class ReviewModerationForm(forms.ModelForm):
@@ -324,14 +445,13 @@ class ReviewModerationForm(forms.ModelForm):
 class ReviewAdmin(AuditAdmin):
     form = ReviewModerationForm
     list_display = ('id', 'contract', 'author', 'target', 'rating', 'published')
+    def has_change_permission(self, request, obj=None):
+        return is_platform_admin(request.user)
     def get_readonly_fields(self, request, obj=None):
         return tuple(f for f in super().get_readonly_fields(request, obj) if f not in {'published', 'moderation_reason'})
     def save_model(self, request, obj, form, change):
-        if not obj.published and not obj.moderation_reason.strip():
-            self.message_user(request, 'Для скрытия отзыва требуется основание.', messages.ERROR)
-            return
-        obj.save(update_fields=['published', 'moderation_reason'])
-        AuditLog.objects.create(actor=request.user, action='review_moderation', object_type='review', object_id=str(obj.pk), detail={'published':obj.published, 'reason':obj.moderation_reason})
+        from .admin_control.workflows import moderate_review
+        moderate_review(obj.pk, obj.published, request.user, obj.moderation_reason, request=request)
 
 
 class DirectoryForm(forms.ModelForm):
@@ -381,16 +501,16 @@ class SkillAdmin(DirectoryAdmin):
     def merge_selected(self, request, queryset):
         from django.core.exceptions import ValidationError as ModelValidationError
         from django.db import transaction
-        from .taxonomy import merge_skills
+        from .admin_control.workflows import merge_catalogue_skill
         form = MergeSkillsForm(request.POST if request.POST.get('apply_merge') else None)
         form.fields['target'].queryset = Skill.objects.filter(active=True, merged_into__isnull=True).exclude(pk__in=queryset.values('pk'))
         if request.POST.get('apply_merge') and form.is_valid():
             try:
                 with transaction.atomic():
                     for skill in queryset.order_by('pk'):
-                        merge_skills(skill.pk, form.cleaned_data['target'].pk, actor=request.user, reason=form.cleaned_data['reason'])
-            except ModelValidationError as exc:
-                form.add_error(None, exc)
+                        merge_catalogue_skill(skill.pk, form.cleaned_data['target'].pk, actor=request.user, reason=form.cleaned_data['reason'], request=request)
+            except (ModelValidationError, APIException) as exc:
+                form.add_error(None, str(getattr(exc, 'detail', exc)))
             else:
                 self.message_user(request, 'Навыки объединены. Старые ID сохранены; верификация не присваивалась.')
                 return None
@@ -421,8 +541,17 @@ class PlatformFeeAdmin(AuditAdmin):
     list_filter = ('source', 'currency')
 
 admin.site.register(ContractEvent, AuditAdmin)
-admin.site.register(Message, AuditAdmin)
-admin.site.register(Notification, AuditAdmin)
+class MessageMetadataAdmin(AuditAdmin):
+    list_display = ('id', 'contract', 'sender', 'filename', 'created_at')
+    secret_fields = AuditAdmin.secret_fields | {'text'}
+
+
+admin.site.register(Message, MessageMetadataAdmin)
+class NotificationMetadataAdmin(AuditAdmin):
+    secret_fields = AuditAdmin.secret_fields | {'text'}
+
+
+admin.site.register(Notification, NotificationMetadataAdmin)
 admin.site.register(AuditLog, AuditAdmin)
 admin.site.register(ProjectAttachment, AuditAdmin)
 
@@ -436,6 +565,9 @@ class PayoutRecipientAdmin(AuditAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         return super().get_readonly_fields(request, obj) if obj else ('verified_by', 'verified_at', 'active')
+
+    def get_exclude(self, request, obj=None):
+        return super().get_exclude(request, obj) if obj else ()
 
     def save_model(self, request, obj, form, change):
         if change:

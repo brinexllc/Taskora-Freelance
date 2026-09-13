@@ -9,17 +9,19 @@ from .models import AuditLog, Contract, ContractEvent, Dispute, Message, Notific
 from .fees import settlement
 
 
-def notify(user_id, kind, text, contract=None, link=""):
-    return Notification.objects.create(user_id=user_id, kind=kind, text=text[:500], contract=contract,
-                                       link=link or (f"/contracts/{contract.pk}" if contract else ""))
+def notify(user_id, kind, text, contract=None, link="", *, event_key=None):
+    import uuid
+    from .admin_control.content_services import deliver_notification
+    return deliver_notification(user_id=user_id, event_key=event_key or f'event:{uuid.uuid4()}', kind=kind,
+        text=text, contract=contract, link=link or (f"/contracts/{contract.pk}" if contract else ""))
 
 
 def event(contract, actor, kind, description, data=None):
-    ContractEvent.objects.create(contract=contract, actor=actor, kind=kind, description=description, data=data or {})
+    entry = ContractEvent.objects.create(contract=contract, actor=actor, kind=kind, description=description, data=data or {})
     Message.objects.create(contract=contract, system=True, text=description)
     AuditLog.objects.create(actor=actor, action=kind, object_type="contract", object_id=str(contract.pk), detail=data or {})
     for uid in (contract.customer_id, contract.freelancer_id):
-        notify(uid, kind, description, contract)
+        notify(uid, kind, description, contract, event_key=f'contract-event:{entry.pk}')
 
 
 def project_status(contract, status):
@@ -31,6 +33,8 @@ def fund_contract(contract, actor, *, external=False):
     # Caller owns the contract lock, including when invoked from a provider callback.
     if contract.funded_at:
         return
+    from .admin_control.content_services import ensure_operation_enabled
+    ensure_operation_enabled('reserves')
     if contract.status != Contract.Status.AWAITING_FUNDING:
         raise ValidationError("Для резервирования нужны подтверждения обеих сторон.")
     customer = Profile.objects.select_for_update().get(user_id=contract.customer_id)

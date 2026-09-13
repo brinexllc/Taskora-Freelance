@@ -1,5 +1,24 @@
 import { validateEnvironment } from './environment.mjs';
 
+function proxyError(body, status) {
+  return Response.json(body, {
+    status,
+    headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+  });
+}
+
+function trustedOrigins() {
+  const origins = new Set();
+  for (const entry of (process.env.CSRF_TRUSTED_ORIGINS || '').split(',')) {
+    try {
+      const url = new URL(entry.trim());
+      if (['http:', 'https:'].includes(url.protocol) && !url.username && !url.password &&
+          !url.search && !url.hash && url.pathname === '/') origins.add(url.origin);
+    } catch { /* Invalid configuration never expands the allowlist. */ }
+  }
+  return origins;
+}
+
 export async function proxyUpstream(
   request,
   path,
@@ -10,61 +29,42 @@ export async function proxyUpstream(
   try {
     configuration = validateEnvironment();
   } catch {
-    return Response.json(
+    return proxyError(
       {
         code: 'API_CONFIGURATION_ERROR',
         detail: 'API configuration is unavailable.',
       },
-      { status: 503 },
+      503,
     );
   }
 
   if (
     !Array.isArray(path) ||
     path.some(
-      (part) => !/^[a-zA-Z0-9_.-]+$/.test(part) || part === '..',
+      (part) => typeof part !== 'string' || !/^[a-zA-Z0-9_.-]+$/.test(part) || part === '..' || part === '.',
     )
   ) {
-    return Response.json({ detail: 'Invalid path.' }, { status: 400 });
+    return proxyError({ detail: 'Invalid path.' }, 400);
   }
 
   const browserUrl = new URL(request.url);
   const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
 
-  // Railway/Reverse proxy может передавать request.url с внутренним hostname.
-  // Для CSRF same-origin проверки используем публичный origin из forwarded headers.
-  const forwardedProto = request.headers
-    .get('x-forwarded-proto')
-    ?.split(',')[0]
-    ?.trim();
-
-  const forwardedHost = request.headers
-    .get('x-forwarded-host')
-    ?.split(',')[0]
-    ?.trim();
-
-  const host = request.headers
-    .get('host')
-    ?.split(',')[0]
-    ?.trim();
-
-  let publicOrigin = browserUrl.origin;
-
-  if (forwardedProto && forwardedHost) {
-    publicOrigin = `${forwardedProto}://${forwardedHost}`;
-  } else if (forwardedProto && host) {
-    publicOrigin = `${forwardedProto}://${host}`;
+  // Public Railway origins are explicitly configured, never inferred from
+  // caller-controlled forwarded headers. Django still validates CSRF tokens.
+  const allowedOrigins = trustedOrigins();
+  if (allowedOrigins.size === 0 || ['local', 'test'].includes(configuration.environment)) {
+    allowedOrigins.add(browserUrl.origin);
   }
-
   const requestOrigin = request.headers.get('origin');
 
-  if (unsafe && requestOrigin !== publicOrigin) {
-    return Response.json(
+  if (unsafe && !allowedOrigins.has(requestOrigin)) {
+    return proxyError(
       {
         code: 'CSRF_ORIGIN_FAILED',
         detail: 'Invalid request origin.',
       },
-      { status: 403 },
+      403,
     );
   }
 
@@ -88,6 +88,10 @@ export async function proxyUpstream(
     'origin',
     'referer',
     'user-agent',
+    'idempotency-key',
+    'x-idempotency-key',
+    'x-request-id',
+    'x-access-reason',
   ]) {
     const value = request.headers.get(key);
     if (value) {
@@ -116,6 +120,7 @@ export async function proxyUpstream(
       'content-security-policy',
       'x-frame-options',
       'referrer-policy',
+      'x-request-id',
     ]) {
       const value = upstream.headers.get(key);
       if (value) {
@@ -136,9 +141,9 @@ export async function proxyUpstream(
         redirect.origin !== target.origin ||
         !/^\/(admin|api|static\/admin)(\/|$)/.test(redirect.pathname)
       ) {
-        return Response.json(
+        return proxyError(
           { detail: 'Unsupported upstream redirect.' },
-          { status: 502 },
+          502,
         );
       }
 
@@ -153,13 +158,13 @@ export async function proxyUpstream(
       headers: output,
     });
   } catch {
-    return Response.json(
+    return proxyError(
       {
         code: 'API_UNAVAILABLE',
         detail:
           'The API did not respond. Retry the same request; its result may already be recorded.',
       },
-      { status: 502 },
+      502,
     );
   }
 }

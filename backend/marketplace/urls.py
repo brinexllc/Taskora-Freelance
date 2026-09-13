@@ -11,9 +11,13 @@ from .payment_views import cancel_payment, cancel_withdrawal, checkout, click_ca
 from .catalog_api import catalog, platform_fees, SkillListView
 from .product_api import ProposalConversationViewSet
 from .views import readiness
+from .admin_control.public_api import ContentReportViewSet, SupportTicketViewSet, SkillVerificationViewSet
 
 
 router = DefaultRouter()
+router.register('reports', ContentReportViewSet, basename='content-report')
+router.register('support-tickets', SupportTicketViewSet, basename='support-ticket')
+router.register('skill-verifications', SkillVerificationViewSet, basename='skill-verification')
 router.register('proposal-conversations', ProposalConversationViewSet, basename='proposal-conversation')
 router.register("projects", ProjectViewSet, basename="project")
 router.register("proposals", ProposalViewSet, basename="proposal")

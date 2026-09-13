@@ -1,4 +1,4 @@
-param([ValidateSet('backend', 'frontend', 'click-receipts')][string]$Service = 'backend')
+param([ValidateSet('backend', 'frontend', 'click-receipts', 'admin-jobs')][string]$Service = 'backend')
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $env:TASKORA_ENV = 'local'
@@ -15,11 +15,19 @@ if ($Service -eq 'frontend') {
     pnpm dev
     exit $LASTEXITCODE
 }
-if (-not (Test-Path -LiteralPath '.venv-mvp/Scripts/python.exe')) {
-    py -3.14 -m venv .venv-mvp
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$taskoraPython = $null
+foreach ($candidate in @('.venv-mvp/Scripts/python.exe', '.venv/Scripts/python.exe')) {
+    if (Test-Path -LiteralPath $candidate) {
+        & $candidate --version 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) { $taskoraPython = $candidate; break }
+    }
 }
-& .venv-mvp/Scripts/python.exe -m pip install -r requirements.txt
+if (-not $taskoraPython) {
+    py -3 -m venv .venv-mvp
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $taskoraPython = '.venv-mvp/Scripts/python.exe'
+}
+& $taskoraPython -m pip install -r requirements.txt
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $databasePath = (Join-Path $PSScriptRoot 'backend/local-mvp.sqlite3').Replace('\', '/')
 $env:DATABASE_URL = "sqlite:///$databasePath"
@@ -30,12 +38,16 @@ $env:CORS_ALLOWED_ORIGINS = 'http://localhost:3000,http://127.0.0.1:3000'
 $env:CORS_ALLOW_ALL_ORIGINS = 'false'
 $env:EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 $env:FRONTEND_URL = 'http://localhost:3000'
-& .venv-mvp/Scripts/python.exe backend/manage.py migrate --noinput
+& $taskoraPython backend/manage.py migrate --noinput
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-& .venv-mvp/Scripts/python.exe backend/manage.py seed_catalog --apply
+& $taskoraPython backend/manage.py seed_catalog --apply
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 if ($Service -eq 'click-receipts') {
-    & .venv-mvp/Scripts/python.exe backend/manage.py process_click_receipts --watch
+    & $taskoraPython backend/manage.py process_click_receipts --watch
     exit $LASTEXITCODE
 }
-& .venv-mvp/Scripts/python.exe backend/manage.py runserver 127.0.0.1:8000
+if ($Service -eq 'admin-jobs') {
+    & $taskoraPython backend/manage.py process_admin_jobs --watch
+    exit $LASTEXITCODE
+}
+& $taskoraPython backend/manage.py runserver 127.0.0.1:8000
