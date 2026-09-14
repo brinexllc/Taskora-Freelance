@@ -1,0 +1,29 @@
+{% extends 'admin/base_site.html' %}
+{% block content %}
+<a class="ta-back" href="/admin/control/settings/">← Настройки</a>
+<div class="ta-page-heading"><div><h1>Запуск денежных операций</h1><p>Подготовьте платформу и подтвердите запуск здесь. Решение сохраняется сразу.</p></div></div>
+<div class="ta-form-layout">
+<section class="ta-card ta-form-card">
+  <h2>1. Проверьте условия</h2>
+  <p>Пополнения, резервы и выводы имеют отдельные переключатели. Их паузы сохранятся после запуска.</p>
+  {% if blockers %}
+  <ul class="ta-launch-checks">{% for item in blockers %}<li><p>{{ item.message }}</p><a class="ta-related-link" href="{{ item.url }}">{{ item.action }} →</a></li>{% endfor %}</ul>
+  <p>После исправления вернитесь на эту страницу. Проверки обновятся автоматически.</p>
+  {% else %}<p class="ta-notice">Проверяемые условия выполнены. Подтвердите готовность платформы ниже.</p>{% endif %}
+  <a class="ta-related-link" href="/admin/control/new/content/?language=ru">Открыть опубликованные правила и реквизиты →</a>
+  <h2>2. Подтвердите запуск</h2>
+  {% if money_enabled and not blockers and not form.is_bound %}
+    <p>Денежные операции уже включены.</p><a class="ta-button" href="/admin/control/settings/">Управлять переключателями</a>
+  {% else %}
+    {% if money_enabled %}<p>Разрешение владельца сохранено. Сейчас работу ограничивают условия выше.</p>{% endif %}
+    <form method="post" class="ta-operation-form" data-preserve-draft data-confirmation-required data-confirmation-until="{{ confirmation_until }}">
+      {% csrf_token %}{{ form.as_p }}
+      <button type="submit" class="ta-button" {% if blockers %}disabled{% endif %}>Включить денежные операции</button>
+      <p class="ta-submit-status" role="status" aria-live="polite"></p>
+    </form>
+  {% endif %}
+</section>
+<aside class="ta-form-aside"><h2>Что изменится</h2><p>Пользователи смогут выполнять разрешённые денежные операции. Существующие договоры и балансы сохранятся.</p><p>Для запуска требуется подтверждение паролем и кодом из приложения. Оно действует пять минут.</p><p>Платёжные и почтовые сервисы подключаются отдельно; сохранённый переключатель не означает подключение провайдера.</p><button class="ta-button secondary" type="button" data-security-dialog>Подтвердить безопасность</button></aside>
+</div>
+{% include 'admin/control/security_dialog.html' %}
+{% endblock %}

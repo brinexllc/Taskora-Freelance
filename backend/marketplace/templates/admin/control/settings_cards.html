@@ -1,0 +1,20 @@
+<div class="ta-settings-grid">
+{% for item in settings_cards %}
+<section class="ta-card ta-setting-card">
+  <h3>{{ item.label }}</h3><strong>{{ item.value }}</strong>
+  {% if item.hint %}<p class="ta-muted">{{ item.hint }}</p>{% endif %}
+  {% if item.toggle %}
+  <form method="post" action="/admin/control/settings/{{ item.key }}/toggle/" class="ta-operation-form" data-preserve-draft {% if item.requires_confirmation %}data-confirmation-required data-confirmation-until="{{ confirmation_until }}"{% endif %}>
+    {% csrf_token %}<input type="hidden" name="value" value="{{ item.next_value }}">
+    <input type="hidden" name="expected_version" value="{{ item.version }}">
+    <input type="hidden" name="idempotency_key" value="{{ item.idempotency_key }}">
+    <button type="submit" class="ta-button secondary">{{ item.button }}</button>
+    <p class="ta-submit-status" role="status" aria-live="polite"></p>
+  </form>
+  {% endif %}
+  <a class="ta-related-link" href="{{ item.url }}">{% if item.key == 'real_money_enabled' %}Настроить запуск{% else %}Изменить{% if item.toggle %} по расписанию{% endif %}{% endif %} →</a>
+  {% if item.setup_url %}<a class="ta-related-link" href="{{ item.setup_url }}">Что требуется для работы →</a>{% endif %}
+</section>
+{% endfor %}
+</div>
+{% include 'admin/control/security_dialog.html' %}

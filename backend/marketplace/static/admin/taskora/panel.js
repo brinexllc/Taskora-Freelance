@@ -3,6 +3,11 @@
   'use strict';
   const csrf = () => document.querySelector('input[name=csrfmiddlewaretoken]')?.value || '';
   const errorText = value => typeof value === 'string' ? value : value?.detail ? errorText(value.detail) : Object.values(value || {}).map(errorText).join(' ');
+  let confirmedUntil = 0;
+  let pendingForm = null;
+  document.addEventListener('close', event => {
+    if (event.target.id === 'ta-security-dialog') pendingForm = null;
+  }, true);
   // A followed POST redirect consumes Django's one-use messages in fetch.
   // Carry only escaped presentation text into the ensuing full navigation.
   try {
@@ -51,10 +56,14 @@
       const button = form.querySelector('button[type=submit]');
       button.disabled=true;status.textContent='Проверяем…';
       try {
-        await api('auth/confirm-sensitive',Object.fromEntries(new FormData(form)));
+        const confirmation = await api('auth/confirm-sensitive',Object.fromEntries(new FormData(form)));
+        confirmedUntil = Date.now() / 1000 + Number(confirmation.expires_in || 300);
         status.textContent='Безопасность подтверждена. Можно продолжить действие.';
         form.querySelector('[name=password]').value='';form.querySelector('[name=code]').value='';
-        setTimeout(()=>document.getElementById('ta-security-dialog')?.close(),900);
+        const resume = pendingForm;
+        pendingForm = null;
+        document.getElementById('ta-security-dialog')?.close();
+        if (resume?.isConnected) resume.requestSubmit();
       } catch(error) {status.textContent=error.message || 'Не удалось подтвердить безопасность.';}
       finally {button.disabled=false;}
     }
@@ -73,6 +82,11 @@
     }
     if (form.matches('.ta-operation-form[data-preserve-draft]')) {
       event.preventDefault();
+      const until = Math.max(confirmedUntil, Number(form.dataset.confirmationUntil || 0));
+      if (form.hasAttribute('data-confirmation-required') && Date.now() / 1000 >= until) {
+        const dialog = document.getElementById('ta-security-dialog');
+        if (dialog) { pendingForm = form; dialog.showModal(); return; }
+      }
       const button = form.querySelector('button[type=submit]');
       const status = form.querySelector('.ta-submit-status');
       const body = new FormData(form);

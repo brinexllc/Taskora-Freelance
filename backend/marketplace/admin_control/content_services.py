@@ -27,6 +27,7 @@ HOME_KEYS = ('heroA', 'heroB', 'heroC', 'designHeroText', 'trustText', 'designSe
 LEGAL_KEYS = ('terms', 'privacy', 'how_it_works', 'fees', 'support_guidance', 'notice')
 SCALAR_KEYS = ('terms', 'privacy', 'fees', 'support_guidance', 'notice')
 SETTINGS_SCHEMA = {
+    'real_money_enabled': {'label': 'Денежные операции', 'type': 'boolean', 'default': False},
     'platform_fee_percent': {'label': 'Комиссия исполнителя, %', 'type': 'decimal', 'min': '0', 'max': '100', 'default': '5.00'},
     'project_moderation_mode': {'label': 'Модерация заказов', 'type': 'choice', 'choices': ['pre', 'post'], 'default': 'post'},
     'support_response_hours': {'label': 'Срок ответа поддержки, часов', 'type': 'integer', 'min': 1, 'max': 720, 'default': 48},
@@ -268,6 +269,9 @@ def validate_setting(key, value):
 
 def get_setting(key, default=None):
     revision = latest_published(PlatformSettingRevision, key=key)
+    if key == 'real_money_enabled' and (not revision or not revision.author_id):
+        # Preserve deployed behavior until the owner makes an audited decision.
+        return bool(settings.REAL_MONEY_ENABLED) if settings.TASKORA_ENV in {'staging', 'production'} else True
     if revision:
         if key == 'platform_fee_percent' and not revision.author_id:
             from ..fees import fee_rate
@@ -282,12 +286,19 @@ def preview_setting(key, value):
     return {'key': key, 'label': SETTINGS_SCHEMA[key]['label'], 'before': revision.value if revision else SETTINGS_SCHEMA[key]['default'],
         'after': value, 'expected_version': revision.version if revision else 0,
         'scope': 'Только новые версии согласования; подписанные снимки комиссии сохраняются.' if key == 'platform_fee_percent' else 'Новые операции после публикации.',
-        'real_money_enabled': bool(settings.REAL_MONEY_ENABLED)}
+        'real_money_enabled': get_setting('real_money_enabled')}
+
+
+def setting_requires_confirmation(key, value):
+    return (key == 'platform_fee_percent' or
+        (key == 'real_money_enabled' and value is True) or
+        (key in {'topups_paused', 'reserves_paused', 'withdrawals_paused'} and value is False))
 
 
 @transaction.atomic
-def publish_setting(*, actor, request, key, value, reason, expected_version, idempotency_key, effective_at=None):
-    command_actor(actor, request, sensitive=True)
+def publish_setting(*, actor, request, key, value, reason, expected_version, idempotency_key, effective_at=None, launch_confirmed=False):
+    value = validate_setting(key, value)
+    command_actor(actor, request, sensitive=setting_requires_confirmation(key, value))
     reason, operation_key = clean_reason(reason), publication_key(idempotency_key)
     value = validate_setting(key, value)
     actual = _version(PlatformSettingRevision, 'key', key)
@@ -299,20 +310,18 @@ def publish_setting(*, actor, request, key, value, reason, expected_version, ide
         return prior
     assert_version(actual, expected_version)
     before = get_setting(key)
-    if key in {'topups_paused', 'reserves_paused', 'withdrawals_paused'} and before is True and value is False:
-        from ..payment_views import financial_operations_enabled
-        from ..operations import pending_migrations
-        if not financial_operations_enabled() or pending_migrations():
-            raise ValidationError('Возобновление требует допуска денежных операций и завершённых миграций.')
-        if key == 'topups_paused':
-            from ..click import click_ready
-            from ..payme_views import payme_ready
-            if not click_ready() and not payme_ready():
-                raise ValidationError('Возобновление пополнений требует подключённого платёжного канала.')
-    if key == 'email_notifications_enabled' and value and not settings.EMAIL_HOST:
-        raise ValidationError('Email-канал не подключён.')
-    if key == 'sms_notifications_enabled' and value and not settings.ESKIZ_TOKEN:
-        raise ValidationError('SMS-канал не подключён.')
+    if key == 'real_money_enabled':
+        if effective_at is not None:
+            raise ValidationError('Режим денежных операций меняется сразу после подтверждения.')
+        if value:
+            if launch_confirmed is not True:
+                raise ValidationError('Подтвердите запуск реальных денежных операций на странице настройки запуска.')
+            from ..financial_admission import financial_blockers
+            blockers = financial_blockers(include_switch=False, include_migrations=True)
+            if blockers:
+                raise ValidationError([item['message'] for item in blockers])
+    # A per-operation switch records the owner's intent independently of readiness.
+    # The money policy and provider checks still apply at the execution boundary.
     revision = PlatformSettingRevision.objects.create(key=key, value=value, version=actual + 1, base_version=actual,
         author=actor, reason=reason, published_at=timezone.now(), effective_at=effective_date(effective_at),
         publication_key=operation_key, publication_hash=params_hash)
@@ -326,9 +335,9 @@ def ensure_operation_enabled(operation):
         raise ValueError('Unknown financial gate')
     if get_setting(f'{operation}_paused', False):
         raise PermissionDenied({'code': 'operation_paused', 'detail': 'Новые операции временно приостановлены администратором.'})
-    # Preserve local sandbox behavior; production admission remains environment-owned.
-    if getattr(settings, 'TASKORA_ENV', 'local') in {'staging', 'production'} and not settings.REAL_MONEY_ENABLED:
-        raise PermissionDenied({'code': 'financial_operations_disabled', 'detail': 'Денежные операции отключены в окружении.'})
+    from ..financial_admission import financial_operations_enabled
+    if not financial_operations_enabled():
+        raise PermissionDenied({'code': 'financial_operations_disabled', 'detail': 'Денежные операции пока недоступны. Администратор может проверить условия запуска в панели.'})
 
 
 def audience_queryset(audience):

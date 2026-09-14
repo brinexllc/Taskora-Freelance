@@ -119,7 +119,7 @@ class AdministrativeContentTests(TestCase):
         with self.assertRaises(ValidationError):
             self.setting('DATABASE_URL', 'postgresql://secret')
 
-    def test_financial_stop_and_environment_priority(self):
+    def test_financial_stop_and_saved_preference_do_not_bypass_admission(self):
         self.setting('topups_paused', True)
         with self.assertRaises(PermissionDenied):
             ensure_operation_enabled('topups')
@@ -127,8 +127,9 @@ class AdministrativeContentTests(TestCase):
         with override_settings(TASKORA_ENV='production', REAL_MONEY_ENABLED=False):
             with self.assertRaises(PermissionDenied):
                 ensure_operation_enabled('reserves')
-            with self.assertRaises(ValidationError):
-                self.setting('topups_paused', False)
+            self.setting('topups_paused', False)
+            with self.assertRaises(PermissionDenied):
+                ensure_operation_enabled('topups')
 
     def test_sensitive_publication_requires_fresh_confirmation(self):
         self.request.session['sensitive_confirmed_at'] = (timezone.now() - timedelta(minutes=6)).timestamp()
@@ -136,11 +137,13 @@ class AdministrativeContentTests(TestCase):
             self.setting('platform_fee_percent', '6.00')
 
     @override_settings(CLICK_SERVICE_ID='',PAYME_MERCHANT_ID='')
-    def test_resume_topups_rechecks_provider_configuration(self):
+    def test_resume_topups_records_preference_without_claiming_provider_is_ready(self):
         self.setting('topups_paused',True)
-        with self.assertRaises(ValidationError):
-            self.setting('topups_paused',False)
-        self.assertIs(get_setting('topups_paused'),True)
+        self.setting('topups_paused',False)
+        self.assertIs(get_setting('topups_paused'),False)
+        from .admin_control.settings_ui import setting_cards
+        card = next(item for item in setting_cards() if item['key'] == 'topups_paused')
+        self.assertEqual(card['value'], 'Ожидает подключения оплаты')
 
     def test_notification_delivery_is_deduplicated(self):
         args = dict(user_id=self.user.pk, event_key='dispute:100:resolved', kind='dispute_resolved', text='Спор завершён')

@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}{% load static %}
 {% block title %}{{ title }} · Taskora{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'admin/taskora/panel.css' %}?v=20260914-5">{% endblock %}
-{% block extrahead %}{{ block.super }}<script src="{% static 'admin/taskora/panel.js' %}?v=20260914-5" defer></script><script src="{% static 'admin/taskora/admin-editor.js' %}?v=20260914-5" defer></script>{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'admin/taskora/panel.css' %}?v=20260914-controls-1">{% endblock %}
+{% block extrahead %}{{ block.super }}<script src="{% static 'admin/taskora/panel.js' %}?v=20260914-controls-1" defer></script><script src="{% static 'admin/taskora/admin-editor.js' %}?v=20260914-controls-1" defer></script>{% endblock %}
 {% block bodyclass %}taskora-admin{% if not has_permission %} taskora-auth{% endif %}{% endblock %}
 {% block header %}
 {% include 'admin/control/icons.html' %}

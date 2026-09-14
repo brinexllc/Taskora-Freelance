@@ -17,3 +17,6 @@ body.taskora-admin #container a{text-decoration:none}body.taskora-admin #contain
 .taskora-admin #header.ta-topbar{flex-direction:row;flex-wrap:nowrap}.ta-table-wrap{overflow-x:auto;max-width:100%}.ta-topbar .ta-global-search{min-width:0}@media(max-width:760px){.ta-topbar-right{flex-shrink:0}.ta-global-search{flex:1}.ta-global-search input{min-width:0}}
 
 .taskora-admin h1{overflow-wrap:anywhere}.ta-page-heading>div{min-width:0}
+
+/* Administrator setting controls */
+.ta-setting-card{display:flex;flex-direction:column;gap:12px}.ta-setting-card h3,.ta-setting-card p{margin:0}.ta-setting-card strong{overflow-wrap:anywhere}.ta-setting-card .ta-operation-form{margin-top:auto}.ta-setting-card .ta-button{width:100%}.ta-setting-card .ta-submit-status:empty{display:none}.ta-setting-card .ta-related-link{display:block}.ta-launch-checks{padding-left:22px;margin:20px 0}.ta-launch-checks li{margin-bottom:20px}.ta-launch-checks p{margin-bottom:6px}.ta-form-card>h2{margin-top:24px}.ta-form-card>h2:first-child{margin-top:0}

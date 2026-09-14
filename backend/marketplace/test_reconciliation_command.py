@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command, CommandError
-from django.test import SimpleTestCase, TransactionTestCase, override_settings
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from .models import Category, Contract, Payment, PlatformFee, Profile, Project, Proposal, WalletEntry, WalletOpeningBalance
@@ -92,8 +92,8 @@ class ReconciliationCommandTests(TransactionTestCase):
         self.assertIn("active_escrow_ledger_mismatch", [item["code"] for item in reconcile([])["incidents"]])
 
 
-class FinancialReleaseGateTests(SimpleTestCase):
-    @override_settings(TASKORA_ENV="production", REAL_MONEY_ENABLED=True)
+class FinancialReleaseGateTests(TestCase):
+    @override_settings(TASKORA_ENV="production", REAL_MONEY_ENABLED=True, PAYME_TEST_MODE=False)
     def test_flag_without_approved_complete_legal_documents_stays_closed(self):
         from .payment_views import financial_operations_enabled
         document = {"approved": True, "operator": {"legal_name": "Synthetic fixture", "tax_id": "test-only", "address": "Test address"},

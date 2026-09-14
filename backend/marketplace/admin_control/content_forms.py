@@ -6,6 +6,7 @@ from django import forms
 
 from .content_models import LANGUAGES
 from .content_services import HOME_KEYS, SETTINGS_SCHEMA
+from .errors import error_text
 
 HOME_LABELS = {
     'heroA':'Заголовок: первая строка','heroB':'Заголовок: вторая строка','heroC':'Заголовок: акцент',
@@ -84,7 +85,7 @@ class ContentDraftForm(forms.Form):
         try:
             payload = validate_payload(payload)
         except ServiceValidationError as exc:
-            raise forms.ValidationError(str(exc.detail))
+            raise forms.ValidationError(error_text(exc))
         return {**{key:data[key] for key in ['language','approved','reason','expected_version']},'payload':payload}
 
 
@@ -108,9 +109,14 @@ class PlatformSettingForm(forms.Form):
         key = self.initial.get('key') or self.data.get('key')
         schema = SETTINGS_SCHEMA.get(key)
         if not schema:return
+        if key != 'platform_fee_percent':
+            self.fields['reason'].required = False
+            self.fields['reason'].help_text = 'Необязательно. Изменение и его автор в любом случае попадут в журнал.'
+        self.fields['effective_at'].help_text = 'Оставьте пустым, чтобы применить сразу.'
         self.fields['key'].disabled = True
         if schema['type']=='boolean':
-            self.fields['value'] = forms.TypedChoiceField(label='Новое значение',choices=[('true','Включено'),('false','Выключено')],coerce=lambda value:value=='true')
+            choices = [('true','Приостановить'),('false','Разрешить')] if key.endswith('_paused') else [('true','Включено'),('false','Выключено')]
+            self.fields['value'] = forms.TypedChoiceField(label='Новое значение',choices=choices,coerce=lambda value:value=='true')
             self.initial['value'] = 'true' if self.initial.get('value') else 'false'
         elif schema['type']=='integer':
             self.fields['value'] = forms.IntegerField(label='Новое значение',min_value=schema['min'],max_value=schema['max'])
@@ -124,6 +130,22 @@ class PlatformSettingForm(forms.Form):
         value = self.cleaned_data['value']
         from decimal import Decimal
         return str(value) if isinstance(value,Decimal) else value
+
+    def clean_reason(self):
+        return self.cleaned_data.get('reason') or 'Изменение настройки через панель администратора'
+
+
+class MoneyLaunchForm(forms.Form):
+    confirmed = forms.BooleanField(label='Подтверждаю готовность платформы к реальным денежным операциям')
+    reason = forms.CharField(label='Основание запуска', min_length=10, max_length=2000, widget=forms.Textarea(attrs={'rows': 3}))
+    expected_version = forms.IntegerField(widget=forms.HiddenInput, min_value=0)
+    idempotency_key = forms.UUIDField(widget=forms.HiddenInput, initial=uuid.uuid4)
+
+
+class SettingToggleForm(forms.Form):
+    value = forms.TypedChoiceField(choices=[('true', 'Включить'), ('false', 'Выключить')], coerce=lambda value: value == 'true')
+    expected_version = forms.IntegerField(min_value=0)
+    idempotency_key = forms.UUIDField()
 
 
 class AnnouncementForm(forms.Form):

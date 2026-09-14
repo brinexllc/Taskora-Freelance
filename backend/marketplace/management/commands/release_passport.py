@@ -7,6 +7,7 @@ from django.db.migrations.recorder import MigrationRecorder
 from django.utils import timezone
 
 from marketplace.operations import operational_incidents, pending_migrations, private_file_manifest
+from marketplace.financial_admission import money_enabled, financial_blockers
 
 
 class Command(BaseCommand):
@@ -19,7 +20,8 @@ class Command(BaseCommand):
         files = private_file_manifest()
         data = {'captured_at': timezone.now().isoformat(), 'backend_sha': settings.RELEASE_SHA,
             'frontend_sha': options['frontend_sha'], 'environment': settings.TASKORA_ENV,
-            'database_engine': connection.vendor, 'real_money_enabled': settings.REAL_MONEY_ENABLED,
+            'database_engine': connection.vendor, 'real_money_enabled': money_enabled(),
+            'financial_blockers': financial_blockers(),
             'pending_migrations': pending_migrations(),
             'applied_migrations': sorted(f'{app}.{name}' for app,name in MigrationRecorder(connection).applied_migrations()),
             'private_files': files, 'incidents': operational_incidents(),
