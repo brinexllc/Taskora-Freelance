@@ -1,0 +1,17 @@
+{% extends 'admin/base_site.html' %}
+{% block content %}
+<a class="ta-back" href="/admin/control/settings/">← Настройки</a>
+<div class="ta-page-heading"><h1>Настройка не сохранена</h1></div>
+<section class="ta-card ta-form-card">
+  <ul class="errorlist">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+  <p>Изменение не применено. Если данные успели измениться, вернитесь в настройки и проверьте актуальное значение.</p>
+  <form method="post" action="/admin/control/settings/{{ toggle_key }}/toggle/" class="ta-operation-form" data-preserve-draft {% if requires_confirmation %}data-confirmation-required data-confirmation-until="{{ confirmation_until }}"{% endif %}>
+    {% csrf_token %}<input type="hidden" name="value" value="{{ toggle_data.value }}">
+    <input type="hidden" name="expected_version" value="{{ toggle_data.expected_version }}">
+    <input type="hidden" name="idempotency_key" value="{{ toggle_data.idempotency_key }}">
+    <button type="submit" class="ta-button">Повторить запрос</button><p class="ta-submit-status" role="status" aria-live="polite"></p>
+  </form>
+  <a class="ta-related-link" href="/admin/control/settings/">Проверить актуальные настройки →</a>
+</section>
+{% include 'admin/control/security_dialog.html' %}
+{% endblock %}

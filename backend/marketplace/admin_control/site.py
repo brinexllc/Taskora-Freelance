@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.urls import path
 from rest_framework.exceptions import APIException
 from . import views
+from .errors import error_text
 
 
 def configure_admin_site(site):
@@ -19,7 +20,7 @@ def configure_admin_site(site):
             try:
                 return view(request,*args,**kwargs)
             except (APIException,DjangoValidationError) as exc:
-                message=str(getattr(exc,'detail',exc))
+                message=error_text(exc)
                 response=views.render(request,'error.html',title='Действие недоступно',
                     error=message,message=message,status=getattr(exc,'status_code',400),back_url='/admin/control/security/')
                 response.status_code=getattr(exc,'status_code',400)
@@ -36,6 +37,8 @@ def configure_admin_site(site):
     def urls(self):
         view=self.admin_view
         return [
+            path('control/launch/',view(views.money_launch),name='control-money-launch'),
+            path('control/settings/<slug:key>/toggle/',view(views.toggle_setting),name='control-setting-toggle'),
             path('control/search/',view(views.global_search),name='control-search'),
             path('control/security/',view(views.security_page),name='control-security'),
             path('control/new/<slug:kind>/',view(views.create),name='control-create'),

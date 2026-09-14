@@ -20,12 +20,17 @@ from rest_framework.exceptions import APIException
 
 from .query import NAV, GROUPS, RESOURCES, STATUS, base_queryset, dashboard, list_context, model_for, read_value, resource_url
 from ..security import require_platform_admin_session
+from .errors import error_messages, error_text
 
 
 def context(request, section='overview', **extra):
+    try:
+        confirmation_until = float(request.session.get('sensitive_confirmed_at', 0)) + settings.SECURITY_CONFIRMATION_SECONDS
+    except (ValueError, TypeError):
+        confirmation_until = 0
     return {**admin.site.each_context(request), 'admin_nav':[{'key':key,'label':label,'icon':icon,'url':url,'active':key==section} for key,label,icon,url in NAV],
             'section':section,'environment':{'local':'Локальная среда','test':'Тестовая среда','staging':'Тестовый стенд','production':'Production'}.get(settings.TASKORA_ENV,settings.TASKORA_ENV),
-            'now':timezone.now(), **extra}
+            'now':timezone.now(), 'confirmation_until': int(confirmation_until), **extra}
 
 def render(request, template, section='overview', **extra):
     response=TemplateResponse(request, 'admin/control/'+template, context(request,section,**extra))
@@ -78,15 +83,66 @@ def listing(request, resource):
         data['create_links']=[('Новая редакция','/admin/control/new/content/'),('Создать объявление','/admin/control/new/announcement/')]
         data['notice']='Тексты платформы доступны на RU, UZ, ЎЗ и EN. Публикация создаёт новую версию; ранее принятые документы сохраняются.'
     if section=='settings':
-        from .content_services import SETTINGS_SCHEMA, get_setting
-        data['settings_cards']=[{'key':key,'label':value['label'],'value':get_setting(key),'url':'/admin/control/new/setting/?'+urlencode({'key':key})} for key,value in SETTINGS_SCHEMA.items()]
-        data['notice']='Комиссия по умолчанию: 5% с исполнителя, 0% с заказчика. Настройки не меняют подписанные договоры. Разрешение реальных денег задаётся только в окружении сервера.'
+        from .settings_ui import setting_cards
+        data['settings_cards'] = setting_cards()
+        data['notice']='Переключатели сохраняются сразу. Автор и изменение записываются в журнал. Настройки комиссии не меняют подписанные договоры.'
+        data['create_links']=[('Настроить денежные операции','/admin/control/launch/')]
     if section=='operations':
         jobs=apps.get_model('marketplace','AdminJob')
         latest=jobs.objects.filter(kind='diagnostics',state='succeeded').order_by('-finished_at').first()
         data.update(diagnostics=latest,create_links=[('Обновить диагностику','/admin/control/new/job/?kind=diagnostics'),('Сверить финансы','/admin/control/new/job/?kind=reconcile'),('Безопасная обработка','/admin/control/new/job/?kind=retry')])
         data['notice']='Задачи выполняются отдельным worker. Резервные копии и проверка восстановления показываются только по подтверждённым данным.'
     return render(request,'list.html',section,**data)
+
+
+@require_http_methods(['POST'])
+def toggle_setting(request, key):
+    require_platform_admin_session(request)
+    from .content_forms import SettingToggleForm
+    from .content_services import SETTINGS_SCHEMA, publish_setting, setting_requires_confirmation
+    from .settings_ui import setting_cards
+    if key not in SETTINGS_SCHEMA or SETTINGS_SCHEMA[key]['type'] != 'boolean':
+        raise Http404
+    form = SettingToggleForm(request.POST)
+    if form.is_valid():
+        try:
+            if key == 'real_money_enabled' and form.cleaned_data['value']:
+                return redirect('/admin/control/launch/')
+            publish_setting(actor=request.user, request=request, key=key,
+                reason='Переключение настройки: ' + SETTINGS_SCHEMA[key]['label'], **form.cleaned_data)
+        except (APIException, DjangoValidationError) as exc:
+            return render(request, 'setting_error.html', 'settings', title='Настройка не сохранена',
+                errors=error_messages(exc), toggle_data=request.POST, toggle_key=key,
+                requires_confirmation=setting_requires_confirmation(key, form.cleaned_data['value']))
+        card = next(item for item in setting_cards() if item['key'] == key)
+        messages.success(request, f"{card['label']}: {card['value']}." + (' ' + card['hint'] if card['hint'] else ''))
+        return redirect('/admin/control/settings/')
+    return render(request, 'setting_error.html', 'settings', title='Настройка не сохранена',
+        errors=error_messages(form.errors), toggle_data=request.POST, toggle_key=key)
+
+
+@require_http_methods(['GET', 'POST'])
+def money_launch(request):
+    require_platform_admin_session(request)
+    from ..financial_admission import money_enabled, financial_blockers
+    from .content_forms import MoneyLaunchForm
+    from .content_services import publish_setting
+    from .settings_ui import setting_version
+    form = MoneyLaunchForm(request.POST if request.method == 'POST' else None,
+        initial={'expected_version': setting_version('real_money_enabled')})
+    if request.method == 'POST' and form.is_valid():
+        data = dict(form.cleaned_data)
+        data['launch_confirmed'] = data.pop('confirmed')
+        try:
+            publish_setting(actor=request.user, request=request, key='real_money_enabled', value=True, **data)
+        except (APIException, DjangoValidationError) as exc:
+            form.add_error(None, error_messages(exc))
+        else:
+            messages.success(request, 'Денежные операции включены. Отдельные паузы пополнений, резервов и выводов сохранены.')
+            return redirect('/admin/control/settings/')
+    blockers = financial_blockers(include_switch=False, include_migrations=True)
+    return render(request, 'money_launch.html', 'settings', title='Запуск денежных операций',
+        form=form, blockers=blockers, money_enabled=money_enabled(), requires_confirmation=True)
 
 
 DETAIL_FIELDS = {
@@ -378,7 +434,7 @@ def command(request,resource,pk,action):
             messages.success(request,'Изменения применены. Предыдущее состояние и основание сохранены.')
             return redirect(resource_url(resource,pk))
         except (signing.BadSignature,APIException,DjangoValidationError,ValueError) as exc:
-            return render(request,'edit_preview.html',RESOURCES[resource][2],title=ACTION_TITLES[action],error=str(getattr(exc,'detail',exc)),back_url=resource_url(resource,pk),restart_url=resource_url(resource,pk)+f'action/{action}/')
+            return render(request,'edit_preview.html',RESOURCES[resource][2],title=ACTION_TITLES[action],error=error_text(exc),back_url=resource_url(resource,pk),restart_url=resource_url(resource,pk)+f'action/{action}/')
     form=command_form(action,obj,request.POST if request.method=='POST' else None)
     preview=None
     if request.method=='POST' and form.is_valid():
@@ -411,7 +467,7 @@ def command(request,resource,pk,action):
             messages.success(request,'Действие выполнено. Основание и изменения сохранены в журнале.')
             return redirect(resource_url(resource,pk))
         except (APIException,DjangoValidationError,ValueError) as exc:
-            form.add_error(None,str(getattr(exc,'detail',exc)))
+            form.add_error(None,error_text(exc))
     extra={}
     if action=='user.block':
         from .workflows import obligations_for
@@ -432,7 +488,7 @@ def resolve_preview(request,pk):
         require_platform_admin_session(request,sensitive=True)
         result=execute_dispute(pk,request.POST.get('idempotency_key'),request.user,request=request,confirmed=request.POST.get('confirmed')=='on')
     except (APIException,DjangoValidationError,ValueError) as exc:
-        return render(request,'preview.html','disputes',title='Решение не выполнено',preview={'id':str(preview.pk),'snapshot':preview.snapshot,'expires_at':preview.expires_at},reason=preview.reason,operation_key=request.POST.get('idempotency_key'),error=str(getattr(exc,'detail',exc)),back_url=resource_url('disputes',preview.dispute_id))
+        return render(request,'preview.html','disputes',title='Решение не выполнено',preview={'id':str(preview.pk),'snapshot':preview.snapshot,'expires_at':preview.expires_at},reason=preview.reason,operation_key=request.POST.get('idempotency_key'),error=error_text(exc),back_url=resource_url('disputes',preview.dispute_id))
     messages.success(request,'Решение исполнено. Расчёт и уведомления участникам сохранены.')
     return redirect(resource_url('disputes',preview.dispute_id))
 
@@ -450,7 +506,7 @@ def private_file(request,kind,pk):
             from ..views import admin_private_file_response
             # The shared stream verifies the session, model permission and audit.
             return admin_private_file_response(request,kind,pk,reason=form.cleaned_data['reason'])
-        except (APIException,DjangoValidationError) as exc:form.add_error(None,str(getattr(exc,'detail',exc)))
+        except (APIException,DjangoValidationError) as exc:form.add_error(None,error_text(exc))
     return render(request,'form.html','messages',title='Доступ к приватному файлу',form=form,notice=getattr(obj,'filename','Защищённый материал'),back_url='/admin/',submit_label='Проверить доступ и скачать')
 
 
@@ -481,8 +537,9 @@ def create(request,kind):
         initial={'language':source.language if source else 'ru','payload':source.payload if source else {},'approved':source.approved if source else False,'expected_version':latest.version if latest else 0}
         form=ContentDraftForm(bound,initial=initial);title='Новая редакция контента'
     elif kind=='setting':
-        section='settings';key=request.GET.get('key',next(iter(svc.SETTINGS_SCHEMA)))
+        section='settings';key=request.GET.get('key','platform_fee_percent')
         if key not in svc.SETTINGS_SCHEMA:raise Http404
+        if key=='real_money_enabled':return redirect('/admin/control/launch/')
         latest=apps.get_model('marketplace','PlatformSettingRevision').objects.filter(key=key,published_at__isnull=False).order_by('-version').first()
         initial={'key':key,'value':svc.get_setting(key),'expected_version':latest.version if latest else 0}
         form=PlatformSettingForm(bound,initial=initial);title='Изменение правила платформы'
@@ -510,7 +567,7 @@ def create(request,kind):
                 return redirect(resource_url('content-revisions',obj.pk))
             if kind=='setting':
                 preview=svc.preview_setting(data['key'],data['value'])
-                if request.POST.get('publish')=='yes':
+                if data['key']!='platform_fee_percent' or request.POST.get('publish')=='yes':
                     obj=svc.publish_setting(actor=request.user,request=request,**data)
                     messages.success(request,'Новая версия настройки опубликована.')
                     return redirect('/admin/control/settings/')
@@ -532,12 +589,16 @@ def create(request,kind):
                 execute_command(request,'catalogue.save',None,data)
                 messages.success(request,'Запись справочника добавлена.')
                 return redirect(resource_url('categories' if kind=='category' else 'skills'))
-        except (APIException,DjangoValidationError,ValueError) as exc:form.add_error(None,str(getattr(exc,'detail',exc)))
+        except (APIException,DjangoValidationError,ValueError) as exc:form.add_error(None,error_text(exc))
     if kind=='content':
         from .content_models import LANGUAGES
         return render(request,'content_form.html',section,title=title,form=form,back_url='/admin/control/content/',languages=LANGUAGES)
     export_facts={'Область выгрузки':dict(form.fields['dataset'].choices).get(initial.get('dataset',request.GET.get('dataset','users'))),'Фильтры':filters or 'Все записи выбранного раздела'} if kind=='export' else None
-    return render(request,'form.html',section,title=title,form=form,back_url=f'/admin/control/{section}/',notice=notice,submit_label='Подтвердить публикацию' if result else 'Предпросмотр' if kind=='setting' else 'Сохранить черновик' if kind=='announcement' else 'Подтвердить',facts=result or export_facts,publish=bool(result))
+    ordinary_setting = kind=='setting' and key not in {'platform_fee_percent','topups_paused','reserves_paused','withdrawals_paused'}
+    return render(request,'form.html',section,title=title,form=form,back_url=f'/admin/control/{section}/',notice=notice,
+        submit_label='Подтвердить публикацию' if result else ('Предпросмотр' if key=='platform_fee_percent' else 'Сохранить') if kind=='setting' else 'Сохранить черновик' if kind=='announcement' else 'Подтвердить',
+        facts=result or export_facts,publish=bool(result), ordinary_setting=ordinary_setting,
+        requires_confirmation=kind=='setting' and not ordinary_setting and (key!='platform_fee_percent' or bool(result)))
 
 
 @require_http_methods(['GET','POST'])
@@ -553,7 +614,7 @@ def publish_content(request,pk):
             publish(actor=request.user,request=request,revision_id=pk,**form.cleaned_data)
             messages.success(request,'Редакция опубликована. Предыдущие согласия сохранены.')
             return redirect(resource_url('content-revisions',pk))
-        except (APIException,DjangoValidationError,ValueError) as exc:form.add_error(None,str(getattr(exc,'detail',exc)))
+        except (APIException,DjangoValidationError,ValueError) as exc:form.add_error(None,error_text(exc))
     from .content_forms import HOME_LABELS
     labels={'legal_name':'Юридическое наименование','tax_id':'ИНН','address':'Адрес','email':'Email поддержки','phone':'Телефон поддержки','url':'Ссылка поддержки','response_time':'Срок ответа','withdrawal_rules':'Правила вывода','refund_rules':'Правила возврата','dispute_rules':'Правила спора'}
     return render(request,'content_preview.html','content',title=f'Публикация редакции {obj.language} · v{obj.version}',form=form,revision=obj,
@@ -577,7 +638,7 @@ def announcement(request,pk):
             obj.refresh_from_db()
             form=ReasonForm(initial={'reason':obj.reason,'expected_version':obj.version})
             form.fields['expected_version']=forms.IntegerField(widget=forms.HiddenInput,initial=obj.version,min_value=1)
-        except (APIException,DjangoValidationError,ValueError) as exc:form.add_error(None,str(getattr(exc,'detail',exc)))
+        except (APIException,DjangoValidationError,ValueError) as exc:form.add_error(None,error_text(exc))
     return render(request,'form.html','content',title='Предпросмотр объявления',form=form,back_url='/admin/control/content/',facts={'Заголовок':obj.title,'Текст':obj.text,'Аудитория':obj.audience,'Получателей':obj.recipient_count if obj.previewed_at else 'Предпросмотр не выполнен','Состояние':obj.get_state_display()},send=obj.state=='previewed',submit_label='Подтвердить отправку' if obj.state=='previewed' else 'Рассчитать аудиторию')
 
 

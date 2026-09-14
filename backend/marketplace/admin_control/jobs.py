@@ -258,6 +258,7 @@ def _write_export(job):
 
 
 def diagnostics():
+    from ..financial_admission import money_enabled, financial_blockers
     from ..models import ClickFiscalReceipt, Withdrawal
     from ..operations import operational_incidents, pending_migrations, private_file_manifest
     with connection.cursor() as cursor:
@@ -284,7 +285,7 @@ def diagnostics():
         'incidents': operational_incidents(), 'backup_confirmed_at': getattr(settings, 'BACKUP_CONFIRMED_AT', None),
         'restore_verified_at': getattr(settings, 'RESTORE_VERIFIED_AT', None),
         'channels': {'internal': 'connected', 'email': 'configured' if settings.EMAIL_HOST else 'not_connected', 'sms': 'configured' if settings.ESKIZ_TOKEN else 'not_connected'},
-        'real_money_enabled': bool(settings.REAL_MONEY_ENABLED)}
+        'real_money_enabled': money_enabled(), 'financial_blockers': financial_blockers(include_migrations=True)}
 
 
 def _write_report(job, report):

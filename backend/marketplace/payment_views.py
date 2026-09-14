@@ -30,27 +30,8 @@ def integrations(request):
 
 
 def financial_operations_enabled():
-    if getattr(settings, "TASKORA_ENV", "local") not in {"production", "staging"}:
-        return True
-    if not getattr(settings, "REAL_MONEY_ENABLED", False):
-        return False
-    from django.core.exceptions import ValidationError as DjangoValidationError
-    from django.core.validators import validate_email
-    from rest_framework.exceptions import APIException
-    from .security import current_legal_content
-    try:
-        document = current_legal_content("ru")
-        if not document["approved"]:
-            return False
-        for section, fields in [("operator", ["legal_name", "tax_id", "address"]),
-                ("support", ["email", "response_time", "withdrawal_rules", "refund_rules", "dispute_rules"])]:
-            values = document.get(section)
-            if not isinstance(values, dict) or any(not isinstance(values.get(field), str) or not values[field].strip() for field in fields):
-                return False
-        validate_email(document["support"]["email"])
-        return True
-    except (APIException, DjangoValidationError):
-        return False
+    from .financial_admission import financial_operations_enabled as enabled
+    return enabled()
 
 
 def require_financial_operations():
